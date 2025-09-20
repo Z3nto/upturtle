@@ -1,0 +1,342 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{if .Title}}{{.Title}}{{else}}upturtle{{end}}</title>
+    {{if gt .RefreshSeconds 0}}
+    <meta http-equiv="refresh" content="{{.RefreshSeconds}}">
+    {{end}}
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+            background-color: #141418;
+            color: #e2e8f0;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at top, rgba(170,170,170,0.16), transparent 60%), #1f1f23;
+            min-height: 100vh;
+        }
+        a { color: #d1d5db; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        header {
+            background: rgba(24, 24, 24, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(160, 160, 160, 0.2);
+        }
+        header .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+        }
+        header h1 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+        header h1.brand { display:flex; align-items:center; gap: .6rem; }
+        header h1.brand img { height: 28px; width: auto; display: block; }
+        nav a {
+            margin-left: 1rem;
+            font-weight: 500;
+        }
+        /* Admin dropdown menu */
+        nav .menu { position: relative; display: inline-block; padding-bottom: 8px; }
+        nav .menu > a { display: inline-flex; align-items: center; gap: .35rem; }
+        nav .submenu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 6px; /* visual offset without breaking hover area */
+            background: rgba(24,24,24,0.95);
+            border: 1px solid rgba(160,160,160,0.2);
+            border-radius: 10px;
+            box-shadow: 0 14px 28px rgba(0,0,0,0.35);
+            padding: .4rem;
+            min-width: 200px;
+            display: none;
+            z-index: 100;
+        }
+        /* create a small invisible hover bridge above submenu to avoid gaps */
+        nav .submenu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
+        nav .submenu a { display: block; padding: .45rem .65rem; border-radius: 8px; margin: 0; }
+        nav .submenu a:hover { background: rgba(160,160,160,0.12); text-decoration: none; }
+        nav .menu:hover .submenu, nav .menu:focus-within .submenu { display: block; }
+        nav .menu.open .submenu { display: block; }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        .card {
+            background: rgba(24, 24, 24, 0.78);
+            border: 1px solid rgba(160, 160, 160, 0.2);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.45);
+            overflow: visible; /* prevent inner content like action buttons from clipping */
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem 0.5rem; text-align: left; vertical-align: middle; }
+        th {
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #a1a1aa;
+        }
+        tr {
+            border-bottom: 1px solid rgba(160, 160, 160, 0.12);
+        }
+        tr:last-child {
+            border-bottom: none;
+        }
+        tr.clickable { cursor: pointer; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-up { color: #34d399; }
+        .status-down { color: #f87171; }
+        .status-unknown { color: #fbbf24; }
+        .status-disabled { color: #a1a1aa; }
+        .badge.status-up { background: rgba(52, 211, 153, 0.15); }
+        .badge.status-down { background: rgba(248, 113, 113, 0.2); }
+        .badge.status-unknown { background: rgba(251, 191, 36, 0.18); }
+        .badge.status-disabled { background: rgba(160, 160, 160, 0.18); }
+        .history {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .history span {
+            width: 10px;
+            height: 30px;
+            border-radius: 10%;
+            display: inline-block;
+            background: rgba(160, 160, 160, 0.3);
+        }
+        .history span.up { background: #22c55e; }
+        .history span.down { background: #ef4444; }
+        .history span.unknown { background: rgba(160, 160, 160, 0.35); opacity: 0.65; }
+        .muted { color: #a1a1aa; font-size: 0.8rem; }
+        .actions { display: flex; gap: 0.75rem; align-items: center; }
+        label { display: block; font-size: 0.85rem; margin-bottom: 0.35rem; color: #d1d5db; line-height: 1.3; }
+        input[type="text"], input[type="url"], input[type="number"], input[type="password"], select {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border-radius: 8px;
+            border: 1px solid rgba(160, 160, 160, 0.2);
+            background: rgba(24, 24, 24, 0.85);
+            color: inherit;
+            min-width: 0;
+        }
+        /* Consistent vertical spacing for stacked forms (e.g., login, install) */
+        .form .form-group { margin-bottom: 0.5rem; }
+        .form .actions { margin-top: 0.5rem; }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            align-items: start;
+            margin-bottom: 0.75rem;
+        }
+        /* In modals, use a stable two-column grid to avoid overlap on medium sizes */
+        .modal .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .form-row > div { display: flex; flex-direction: column; min-width: 0; }
+        .modal .form-row > div { min-width: 0; }
+        input[type="text"], input[type="url"], input[type="number"], input[type="password"], select { max-width: 100%; }
+        .modal input[type="text"], .modal input[type="url"], .modal input[type="number"], .modal input[type="password"], .modal select { width: 100%; max-width: 100%; }
+        .modal .form-row > div > * { max-width: 100%; }
+        /* Make single labels (like checkboxes) span full width */
+        .form-row > label { grid-column: 1 / -1; }
+        @media (max-width: 900px) {
+            .modal .form-row { grid-template-columns: 1fr; }
+        }
+        /* Prevent long content from causing overflow */
+        .modal label { white-space: normal; }
+        .modal input, .modal select { overflow: hidden; text-overflow: ellipsis; }
+        .modal .form-row > div { overflow: hidden; }
+        /* Style grouped dropdown labels (optgroup) */
+        .modal select optgroup { font-weight: 700; color: #a1a1aa; }
+        .modal select option { font-weight: 400; color: #e2e8f0; }
+        button {
+            background: linear-gradient(135deg, #9ca3af, #6b7280);
+            border: none;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 999px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px rgba(107, 114, 128, 0.35);
+        }
+        /* Primary (blue) buttons */
+        button.primary {
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+        }
+        button.primary:hover {
+            box-shadow: 0 12px 22px rgba(59, 130, 246, 0.35);
+        }
+        button.danger {
+            background: linear-gradient(135deg, #ef4444, #f87171);
+        }
+        .message {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-top: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        .message.success { background: rgba(34, 197, 94, 0.2); color: #bbf7d0; }
+        .message.error { background: rgba(248, 113, 113, 0.2); color: #fecaca; }
+        /* DnD (SortableJS) visual states */
+        .sortable-chosen { outline: 2px dashed rgba(160,160,160,0.35); }
+        .sortable-ghost { opacity: 0.6; }
+        .sortable-drag { cursor: grabbing; }
+        .draggable-table tbody tr.draggable-row { transition: background 0.12s ease, transform 0.12s ease; }
+        .draggable-table tbody tr.draggable-row:hover { background: rgba(160,160,160,0.06); }
+        .draggable-table { table-layout: auto; width: 100%; }
+        .draggable-table th, .draggable-table td { overflow: visible; text-overflow: initial; }
+        /* Column sizing to keep layout tidy */
+        .draggable-table th:nth-child(1), .draggable-table td:nth-child(1) { max-width: 260px; }
+        .draggable-table th:nth-child(2), .draggable-table td:nth-child(2) { width: 100px; }
+        .draggable-table th:nth-child(3), .draggable-table td:nth-child(3) { max-width: 420px; word-break: break-word; white-space: normal; }
+        /* Let the last column (Actions) fully show buttons */
+        .draggable-table th:last-child, .draggable-table td:last-child {
+            overflow: visible;
+            white-space: normal;   /* allow wrapping to avoid clipping */
+            width: auto;           /* let it grow as needed */
+            min-width: 180px;      /* sensible minimum */
+        }
+        /* Fixed column widths for Status page */
+        .status-table th:nth-child(4), .status-table td:nth-child(4) { width: 300px; }
+        .status-table th:nth-child(5), .status-table td:nth-child(5) { width: 70px; text-align: right; }
+        .actions { flex-wrap: wrap; gap: 0.4rem; }
+        .draggable-table .actions button { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
+        .draggable-table tbody tr.placeholder { opacity: 0.5; text-align: center; font-style: italic; }
+        /* Avoid horizontal scroll; let content wrap */
+        .group-card .group-body { overflow-x: visible; }
+        /* Admin toolbar */
+        .toolbar { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-bottom: 0.75rem; }
+        .toolbar .spacer { flex: 1; }
+        /* Subtle icon buttons */
+        button.icon { background: transparent; border: 1px solid rgba(160,160,160,0.2); color: #a1a1aa; padding: .25rem .4rem; border-radius: 6px; line-height: 0; display: inline-flex; align-items: center; justify-content: center; }
+        button.icon:hover { background: rgba(160,160,160,0.08); }
+        button.icon.edit { color: #ffcc00; border-color: #ffcc0059; }
+        button.icon.edit:hover { background: rgba(96,165,250,0.12); }
+        button.icon.delete { color: #f87171; border-color: #f8717159 }
+        button.icon.delete:hover { background: rgba(248,113,113,0.12); }
+        /* Restore previous sizing for group header pencil and arrows */
+        .group-header button.icon { 
+            line-height: 1; 
+            display: inline-block; 
+            padding: .35rem .6rem; 
+            font-size: 0.95rem; 
+            border-radius: 6px;
+        }
+        /* Modal */
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-backdrop.show { display: flex; }
+        .modal {
+            width: min(720px, 92vw);
+            background: rgba(24, 24, 24, 0.98);
+            border: 1px solid rgba(160, 160, 160, 0.2);
+            border-radius: 12px; padding: 1rem; box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+            max-height: 90vh; overflow: auto;
+        }
+        .modal header { display:flex; align-items:center; justify-content: space-between; margin-bottom: 0.75rem; }
+        .modal header h3 { margin: 0; }
+        .modal .close { background: transparent; border: none; color: #d1d5db; font-size: 1.25rem; padding: 0.25rem 0.5rem; border-radius: 6px; }
+        .modal .close:hover { background: rgba(160,160,160,0.1); }
+        footer {
+            text-align: center;
+            padding: 2rem 0 3rem;
+            color: #a1a1aa;
+        }
+        @media (max-width: 640px) {
+            header .container { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            th, td { padding: 0.6rem 0.35rem; }
+            .draggable-table .actions button { padding: 0.28rem 0.55rem; font-size: 0.82rem; }
+        }
+    </style>
+</head>
+<body>
+{{if not .HideHeader}}
+<header>
+    <div class="container">
+        <h1 class="brand">
+            <a href="/" style="display:flex; align-items:center; gap:.6rem; text-decoration:none;">
+                <picture>
+                    <img src="/static/logo.png" alt="Upturtle" height="28" />
+                </picture>
+                <span>Upturtle</span>
+            </a>
+        </h1>
+        <nav>
+            <a href="/">Status</a>
+            <div class="menu">
+                <a href="/admin" aria-haspopup="true" aria-expanded="false">Admin ▾</a>
+                <div class="submenu" role="menu" aria-label="Admin submenu">
+                    <a href="/admin" role="menuitem">Monitors</a>
+                    <a href="/admin/notifications" role="menuitem">Notifications</a>
+                    <a href="/admin/settings" role="menuitem">Settings</a>
+                </div>
+            </div>
+            <a href="/logout">Logout</a>
+        </nav>
+    </div>
+</header>
+{{end}}
+<main class="container">
+    {{if .ContentTemplate}}
+        {{render .ContentTemplate .}}
+    {{else}}
+        <p>No content</p>
+    {{end}}
+</main>
+<footer>
+    uptime monitoring for lean deployments · {{currentYear}}
+</footer>
+<script>
+(function(){
+  try{
+    const menu = document.querySelector('nav .menu');
+    if(!menu) return;
+    const trigger = menu.querySelector('a[href="/admin"]');
+    const submenu = menu.querySelector('.submenu');
+    let closeTimer;
+    function openMenu(){ menu.classList.add('open'); if(trigger) trigger.setAttribute('aria-expanded','true'); }
+    function closeMenu(){ menu.classList.remove('open'); if(trigger) trigger.setAttribute('aria-expanded','false'); }
+    menu.addEventListener('mouseenter', function(){ if(closeTimer){ clearTimeout(closeTimer); } openMenu(); });
+    menu.addEventListener('mouseleave', function(){ closeTimer = setTimeout(closeMenu, 150); });
+    submenu?.addEventListener('mouseenter', function(){ if(closeTimer){ clearTimeout(closeTimer); } openMenu(); });
+    submenu?.addEventListener('mouseleave', function(){ closeTimer = setTimeout(closeMenu, 150); });
+    // Touch/click toggle for accessibility
+    trigger?.addEventListener('click', function(e){
+      if (window.matchMedia && window.matchMedia('(hover: none)').matches) {
+        e.preventDefault();
+        if(menu.classList.contains('open')) closeMenu(); else openMenu();
+      }
+    });
+  }catch(err){ /* no-op */ }
+})();
+</script>
+</body>
+</html>
+{{end}}

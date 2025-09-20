@@ -1,0 +1,17 @@
+services:
+  upturtle:
+    build: .
+    container_name: upturtle
+    ports:
+      - "8080:8080"
+    environment:
+      LISTEN_ADDR: ":8080"
+      STATUS_REFRESH_SECONDS: "30"
+      HISTORY_LIMIT: "200"
+      UPTURTLE_CONFIG_PATH: "/conf/config.json"
+    volumes:
+      - upturtle_conf:/conf
+    restart: unless-stopped
+
+volumes:
+  upturtle_conf:

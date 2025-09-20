@@ -1,0 +1,27 @@
+{{define "settings.gohtml"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "settings.content"}}
+<div>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
+    <h2 style="margin:0;">Settings</h2>
+  </div>
+  {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
+  {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
+
+  <div class="card">
+    <h3 style="margin-top:0;">Debug logging</h3>
+    <form method="post" action="/admin/settings">
+      <div class="form-row" style="display:flex; gap:1.5rem; align-items:center;">
+        <label><input type="checkbox" name="monitor_debug" value="true" {{if .MonitorDebug}}checked{{end}}> Monitor Debug</label>
+        <label><input type="checkbox" name="notification_debug" value="true" {{if .NotificationDebug}}checked{{end}}> Notification Debug</label>
+        <label><input type="checkbox" name="api_debug" value="true" {{if .ApiDebug}}checked{{end}}> REST API Debug</label>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}

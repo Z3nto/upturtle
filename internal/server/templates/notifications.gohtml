@@ -1,0 +1,559 @@
+{{define "notifications.gohtml"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "notifications.content"}}
+<div>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
+    <h2 style="margin:0;">Notifications</h2>
+  </div>
+  {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
+  {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
+
+  <div class="card" style="margin-bottom:1rem;">
+    <h3 style="margin-top:0;">Create notification</h3>
+    <form id="form-create-notification" method="post" action="#">
+      <div class="form-row">
+        <div>
+          <label>Name</label>
+          <input name="name" type="text" required placeholder="e.g. Discord Alerts">
+        </div>
+        <div>
+          <label>Type</label>
+          <select name="type" class="shoutrrr-type">
+            <option value="">(Select)</option>
+            <option value="discord">Discord</option>
+            <option value="slack">Slack</option>
+            <option value="telegram">Telegram</option>
+            <option value="teams">Microsoft Teams</option>
+            <option value="googlechat">Google Chat</option>
+            <option value="mattermost">Mattermost</option>
+            <option value="rocketchat">Rocket.Chat</option>
+            <option value="matrix">Matrix</option>
+            <option value="gotify">Gotify</option>
+            <option value="pushover">Pushover</option>
+            <option value="pushbullet">Pushbullet</option>
+            <option value="ntfy">ntfy</option>
+            <option value="smtp">SMTP (Email)</option>
+            <option value="sendgrid">SendGrid</option>
+            <option value="generic">Generic Webhook</option>
+            <option value="ifttt">IFTTT</option>
+            <option value="opsgenie">OpsGenie</option>
+            <option value="pagerduty">PagerDuty</option>
+            <option value="alertmanager">Prometheus Alertmanager</option>
+            <option value="custom">(Custom URL)</option>
+          </select>
+        </div>
+        <div class="shoutrrr-builder" style="flex:1; min-width: 300px;">
+          <label>Configuration</label>
+          <div class="builder-fields" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:.5rem;"></div>
+        </div>
+        <div style="flex:1;">
+          <label>Notify URL (Shoutrrr)</label>
+          <input name="url" type="text" required class="shoutrrr-url" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary">Add</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Existing notifications</h3>
+    {{if .Notifications}}
+    <table>
+      <thead>
+        <tr>
+          <th style="width:1%; white-space:nowrap;">ID</th>
+          <th>Name</th>
+          <th>URL</th>
+          <th style="width:1%; white-space:nowrap;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Notifications}}
+        <tr>
+          <td class="muted">{{.ID}}</td>
+          <td>{{.Name}}</td>
+          <td class="muted" style="max-width:480px; overflow:hidden; text-overflow:ellipsis;">{{.URL}}</td>
+          <td>
+            <div class="actions">
+              <button class="icon edit" type="button" data-open="modal-edit-{{.ID}}" title="Edit">✎</button>
+              <button class="icon test" type="button" data-id="{{.ID}}" title="Test">🧪</button>
+              <form class="form-delete-notification" data-id="{{.ID}}" method="post" action="#" style="display:inline;">
+                <button class="icon delete" type="submit" title="Delete">🗑️</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="muted">No notifications configured yet.</p>
+    {{end}}
+  </div>
+</div>
+
+{{range .Notifications}}
+<div id="modal-edit-{{.ID}}" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title-{{.ID}}">
+    <header>
+      <h3 id="modal-edit-title-{{.ID}}">Edit notification</h3>
+      <button class="close" type="button" data-close>&times;</button>
+    </header>
+    <form class="form-edit-notification" data-id="{{.ID}}" method="post" action="#">
+      <div class="form-row">
+        <div>
+          <label>Name</label>
+          <input name="name" type="text" value="{{.Name}}" required>
+        </div>
+        <div>
+          <label>Type</label>
+          <select name="type" class="shoutrrr-type" data-existing-url="{{safeURL .URL}}">
+            <option value="">(Select)</option>
+            <option value="discord">Discord</option>
+            <option value="slack">Slack</option>
+            <option value="telegram">Telegram</option>
+            <option value="teams">Microsoft Teams</option>
+            <option value="googlechat">Google Chat</option>
+            <option value="mattermost">Mattermost</option>
+            <option value="rocketchat">Rocket.Chat</option>
+            <option value="matrix">Matrix</option>
+            <option value="gotify">Gotify</option>
+            <option value="pushover">Pushover</option>
+            <option value="pushbullet">Pushbullet</option>
+            <option value="ntfy">ntfy</option>
+            <option value="smtp">SMTP (Email)</option>
+            <option value="sendgrid">SendGrid</option>
+            <option value="generic">Generic Webhook</option>
+            <option value="ifttt">IFTTT</option>
+            <option value="opsgenie">OpsGenie</option>
+            <option value="pagerduty">PagerDuty</option>
+            <option value="alertmanager">Prometheus Alertmanager</option>
+            <option value="custom">(Custom URL)</option>
+          </select>
+        </div>
+        <div class="shoutrrr-builder" style="flex:1; min-width: 300px;">
+          <label>Configuration</label>
+          <div class="builder-fields" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:.5rem;"></div>
+        </div>
+        <div style="flex:1;">
+          <label>Notify URL (Shoutrrr)</label>
+          <input name="url" type="text" value="{{safeURL .URL}}" required class="shoutrrr-url" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}
+
+<script>
+(function(){
+  function openModal(id){ var el = document.getElementById(id); if(!el) return; el.classList.add('show'); el.setAttribute('aria-hidden','false'); }
+  function closeModal(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); }
+  window.openModal = openModal; window.closeModal = closeModal;
+  document.querySelectorAll('[data-open]').forEach(function(el){ el.addEventListener('click', function(e){ e.preventDefault(); openModal(el.getAttribute('data-open')); }); });
+  document.querySelectorAll('.modal-backdrop').forEach(function(bg){
+    bg.addEventListener('click', function(e){ if(e.target === bg){ closeModal(bg); } });
+    bg.querySelectorAll('[data-close]').forEach(function(x){ x.addEventListener('click', function(){ closeModal(bg); }); });
+  });
+
+// REST API integration for Notifications UI
+(function(){
+  async function api(path, options){
+    options = options || {};
+    options.credentials = 'same-origin';
+    options.headers = Object.assign({'Content-Type':'application/json'}, options.headers||{});
+    const res = await fetch(path, options);
+    if(res.status === 401 || res.status === 403){ window.location.href = '/login'; throw new Error('unauthorized'); }
+    return res;
+  }
+  // Create
+  const fc = document.getElementById('form-create-notification');
+  if(fc){ fc.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    const fd = new FormData(fc);
+    const name = (fd.get('name')||'').trim();
+    const url = (fd.get('url')||'').trim();
+    if(!name || !url){ alert('Name und URL sind erforderlich'); return; }
+    const res = await api('/api/notifications/', { method:'POST', body: JSON.stringify({ name, url })});
+    if(!res.ok) throw new Error('create failed');
+    window.location.reload();
+  }catch(err){ alert('Failed to create notification'); }}); }
+
+  // Edit
+  document.querySelectorAll('form.form-edit-notification').forEach(function(f){
+    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
+      const id = f.getAttribute('data-id');
+      const fd = new FormData(f);
+      const name = (fd.get('name')||'').trim();
+      const url = (fd.get('url')||'').trim();
+      if(!name || !url){ alert('Name und URL sind erforderlich'); return; }
+      const res = await api('/api/notifications/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify({ name, url })});
+      if(!res.ok) throw new Error('update failed');
+      window.location.reload();
+    }catch(err){ alert('Failed to update notification'); }});
+  });
+
+  // Delete
+  document.querySelectorAll('form.form-delete-notification').forEach(function(f){
+    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
+      const id = f.getAttribute('data-id');
+      const res = await api('/api/notifications/'+encodeURIComponent(id), { method:'DELETE' });
+      if(!res.ok) throw new Error('delete failed');
+      window.location.reload();
+    }catch(err){ alert('Failed to delete notification'); }});
+  });
+
+  // Test
+  document.querySelectorAll('button.icon.test').forEach(function(btn){
+    btn.addEventListener('click', async function(){
+      const id = btn.getAttribute('data-id');
+      try {
+        const res = await api('/api/notifications/'+encodeURIComponent(id)+'/test', { method:'POST' });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || 'test failed');
+        }
+        alert('Test notification sent');
+      } catch (err) {
+        alert('Failed to send test notification');
+      }
+    });
+  });
+})();
+
+  // Shoutrrr type helper
+  var examples = {
+    discord: 'https://discord.com/api/webhooks/ID/TOKEN',
+    slack: 'slack://tokenA:tokenB@tokenC/Channel',
+    telegram: 'telegram://token@chatid',
+    teams: 'teams://tenant@group/channel',
+    googlechat: 'googlechat://key@token/space',
+    mattermost: 'mattermost://user@host/token/channel',
+    rocketchat: 'rocketchat://user@host/token/channel',
+    matrix: 'matrix://user:server@roomid',
+    gotify: 'gotify://host/token?title=Upturtle',
+    pushover: 'pushover://token@user?title=Upturtle',
+    pushbullet: 'pushbullet://token/device',
+    ntfy: 'ntfy://host/topic',
+    smtp: 'smtp://user:pass@host:587/?from=me@example.com&to=you@example.com',
+    sendgrid: 'sendgrid://apikey@sender@example.com?to=you@example.com',
+    generic: 'generic://host/path?title=Upturtle',
+    ifttt: 'ifttt://key/event',
+    opsgenie: 'opsgenie://apikey/priority',
+    pagerduty: 'pagerduty://integration_key',
+    alertmanager: 'alertmanager://user:pass@host:9093'
+  };
+
+  // Field schemas for each type to build the URL
+  var schemas = {
+    discord: {
+      pattern: 'discord://{token}@{id}/webhook',
+      fields: [
+        { key: 'webhook', label: 'Webhook URL', placeholder: 'https://discord.com/api/webhooks/ID/TOKEN', required: true }
+      ]
+    },
+    slack: {
+      pattern: 'slack://{tokenA}:{tokenB}@{tokenC}/{channel}',
+      fields: [
+        { key: 'tokenA', label: 'Token A', required: true },
+        { key: 'tokenB', label: 'Token B', required: true },
+        { key: 'tokenC', label: 'Token C', required: true },
+        { key: 'channel', label: 'Channel', placeholder: 'general', required: true }
+      ]
+    },
+    telegram: {
+      pattern: 'telegram://{token}@{chatid}',
+      fields: [
+        { key: 'token', label: 'Bot token', required: true },
+        { key: 'chatid', label: 'Chat ID', required: true }
+      ]
+    },
+    teams: {
+      pattern: 'teams://{tenant}@{group}/{channel}',
+      fields: [
+        { key: 'tenant', label: 'Tenant', required: true },
+        { key: 'group', label: 'Group', required: true },
+        { key: 'channel', label: 'Channel', required: true }
+      ]
+    },
+    googlechat: {
+      pattern: 'googlechat://{key}@{token}/{space}',
+      fields: [
+        { key: 'key', label: 'Key', required: true },
+        { key: 'token', label: 'Token', required: true },
+        { key: 'space', label: 'Space', required: true }
+      ]
+    },
+    mattermost: {
+      pattern: 'mattermost://{user}@{host}/{token}/{channel}',
+      fields: [
+        { key: 'user', label: 'User', required: true },
+        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
+        { key: 'token', label: 'Token', required: true },
+        { key: 'channel', label: 'Channel', required: true }
+      ]
+    },
+    rocketchat: {
+      pattern: 'rocketchat://{user}@{host}/{token}/{channel}',
+      fields: [
+        { key: 'user', label: 'User', required: true },
+        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
+        { key: 'token', label: 'Token', required: true },
+        { key: 'channel', label: 'Channel', required: true }
+      ]
+    },
+    matrix: {
+      pattern: 'matrix://{user}:{server}@{roomid}',
+      fields: [
+        { key: 'user', label: 'User', required: true },
+        { key: 'server', label: 'Server', placeholder: 'matrix.org', required: true },
+        { key: 'roomid', label: 'Room ID', required: true }
+      ]
+    },
+    gotify: {
+      pattern: 'gotify://{host}/{token}',
+      fields: [
+        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
+        { key: 'token', label: 'Token', required: true }
+      ]
+    },
+    pushover: {
+      pattern: 'pushover://{token}@{user}',
+      fields: [
+        { key: 'token', label: 'App Token', required: true },
+        { key: 'user', label: 'User/Group Key', required: true }
+      ]
+    },
+    pushbullet: {
+      pattern: 'pushbullet://{token}/{device}',
+      fields: [
+        { key: 'token', label: 'Access Token', required: true },
+        { key: 'device', label: 'Device ID (optional)', required: false }
+      ]
+    },
+    ntfy: {
+      pattern: 'ntfy://{host}/{topic}',
+      fields: [
+        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
+        { key: 'topic', label: 'Topic', required: true }
+      ]
+    },
+    smtp: {
+      pattern: 'smtp://{user}:{pass}@{host}:{port}/?from={from}&to={to}',
+      fields: [
+        { key: 'user', label: 'User', required: true },
+        { key: 'pass', label: 'Password', required: true },
+        { key: 'host', label: 'Host', required: true },
+        { key: 'port', label: 'Port', placeholder: '587', required: true },
+        { key: 'from', label: 'From', placeholder: 'me@example.com', required: true },
+        { key: 'to', label: 'To', placeholder: 'you@example.com', required: true }
+      ]
+    },
+    sendgrid: {
+      pattern: 'sendgrid://{apikey}@{sender}?to={to}',
+      fields: [
+        { key: 'apikey', label: 'API Key', required: true },
+        { key: 'sender', label: 'Sender', placeholder: 'sender@example.com', required: true },
+        { key: 'to', label: 'To', placeholder: 'you@example.com', required: true }
+      ]
+    },
+    generic: {
+      pattern: 'generic://{host}/{path}',
+      fields: [
+        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
+        { key: 'path', label: 'Path', placeholder: 'webhook', required: true }
+      ]
+    },
+    ifttt: {
+      pattern: 'ifttt://{key}/{event}',
+      fields: [
+        { key: 'key', label: 'Key', required: true },
+        { key: 'event', label: 'Event', required: true }
+      ]
+    },
+    opsgenie: {
+      pattern: 'opsgenie://{apikey}/{priority}',
+      fields: [
+        { key: 'apikey', label: 'API Key', required: true },
+        { key: 'priority', label: 'Priority', placeholder: 'P3', required: false }
+      ]
+    },
+    pagerduty: {
+      pattern: 'pagerduty://{integration_key}',
+      fields: [
+        { key: 'integration_key', label: 'Integration Key', required: true }
+      ]
+    },
+    alertmanager: {
+      pattern: 'alertmanager://{user}:{pass}@{host}',
+      fields: [
+        { key: 'user', label: 'User', required: false },
+        { key: 'pass', label: 'Password', required: false },
+        { key: 'host', label: 'Host', placeholder: 'host:9093', required: true }
+      ]
+    }
+  };
+  function detectTypeFromURL(url){
+    if(!url) return '';
+    url = (url || '').trim();
+    var m = url.match(/^([a-z0-9+.-]+):\/\//i);
+    var scheme = m ? m[1].toLowerCase() : '';
+    // If it's already a shoutrrr scheme, return it directly
+    if (scheme && scheme !== 'http' && scheme !== 'https') {
+      return scheme;
+    }
+    // Heuristics for common HTTPS webhook URLs to infer type
+    try {
+      var u = new URL(url);
+      var host = (u.host || '').toLowerCase();
+      var path = (u.pathname || '').toLowerCase();
+      // Discord webhook
+      if (/discord\.com$/.test(host) && path.indexOf('/api/webhooks/') === 0) return 'discord';
+      // Slack webhook
+      if (/hooks\.slack\.com$/.test(host) && path.indexOf('/services/') === 0) return 'slack';
+      // Microsoft Teams incoming webhook typically uses office.com or office365.com with /webhook/
+      if ((/office\.com$/.test(host) || /office365\.com$/.test(host) || /office365\.[^/]+$/.test(host)) && path.indexOf('/webhook/') === 0) return 'teams';
+      // Google Chat webhook
+      if (/chat\.googleapis\.com$/.test(host) && path.indexOf('/v1/spaces/') === 0) return 'googlechat';
+      // Mattermost webhook
+      if (path.indexOf('/hooks/') === 0 && (/mattermost\./.test(host) || /mattermost$/.test(host))) return 'mattermost';
+      // Rocket.Chat webhook
+      if (path.indexOf('/hooks/') === 0 && (/rocket\.chat$/.test(host) || /rocketchat/.test(host))) return 'rocketchat';
+    } catch(e){}
+    return scheme;
+  }
+  function updateForSelect(select){
+    var wrapper = select.closest('.form-row');
+    var urlInput = wrapper ? wrapper.querySelector('.shoutrrr-url') : null;
+    var builder = wrapper ? wrapper.querySelector('.shoutrrr-builder') : null;
+    var fieldsContainer = builder ? builder.querySelector('.builder-fields') : null;
+    if(!urlInput) return;
+    var val = select.value;
+    var ex = examples[val] || 'scheme://...';
+    urlInput.placeholder = ex;
+    // Toggle builder visibility and URL readonly based on type
+    if (builder && fieldsContainer) {
+      if (val && val !== 'custom' && schemas[val]) {
+        builder.style.display = '';
+        urlInput.readOnly = true;
+        // render fields
+        fieldsContainer.innerHTML = '';
+        var schema = schemas[val];
+        schema.fields.forEach(function(f){
+          var div = document.createElement('div');
+          var id = 'fld-' + val + '-' + f.key + '-' + Math.random().toString(36).slice(2,7);
+          var label = document.createElement('label');
+          label.setAttribute('for', id);
+          label.textContent = f.label + (f.required ? ' *' : '');
+          var input = document.createElement('input');
+          input.type = 'text';
+          input.id = id;
+          input.dataset.key = f.key;
+          input.placeholder = f.placeholder || '';
+          if (f.required) input.required = true;
+          input.addEventListener('input', function(){ buildURL(select); });
+          div.appendChild(label);
+          div.appendChild(input);
+          fieldsContainer.appendChild(div);
+        });
+        // Initialize: if an existing URL is present (edit case), do NOT overwrite it now.
+        // Wait until user starts typing in a field or changes the type.
+        var hasExisting = !!(select.getAttribute('data-existing-url') || urlInput.value);
+        if (!hasExisting) { buildURL(select); }
+      } else if (val === 'custom') {
+        builder.style.display = 'none';
+        urlInput.readOnly = false;
+      } else {
+        builder.style.display = 'none';
+        urlInput.readOnly = true;
+        // Do not clear existing URL if one is present (e.g., edit initialization)
+        if (!select.getAttribute('data-existing-url') && !urlInput.value) {
+          urlInput.value = '';
+        }
+      }
+    }
+  }
+  function buildURL(select){
+    var wrapper = select.closest('.form-row');
+    var urlInput = wrapper ? wrapper.querySelector('.shoutrrr-url') : null;
+    var builder = wrapper ? wrapper.querySelector('.shoutrrr-builder') : null;
+    var fieldsContainer = builder ? builder.querySelector('.builder-fields') : null;
+    if(!urlInput || !fieldsContainer) return;
+    var t = select.value;
+    var schema = schemas[t];
+    if(!schema){ return; }
+    var url = schema.pattern;
+    // Special handling for Discord: accept full webhook URL and convert
+    if (t === 'discord') {
+      var inp = fieldsContainer.querySelector('input[data-key="webhook"]');
+      var v = (inp && inp.value || '').trim();
+      if (v) {
+        // Allow either direct shoutrrr format or raw webhook URL
+        var m1 = v.match(/^https?:\/\/(?:ptb\.|canary\.)?discord\.com\/api\/webhooks\/([^\/]+)\/([^\/?#\s]+)/i);
+        if (m1) {
+          var id = encodeURIComponent(m1[1]);
+          var token = encodeURIComponent(m1[2]);
+          url = 'discord://' + token + '@' + id + '/webhook';
+          urlInput.value = url;
+          return;
+        }
+        var m2 = v.match(/^discord:\/\/.+@.+/i);
+        if (m2) {
+          urlInput.value = v;
+          return;
+        }
+      }
+    }
+    fieldsContainer.querySelectorAll('input').forEach(function(inp){
+      var v = (inp.value || '').trim();
+      url = url.replace(new RegExp('\\{' + inp.dataset.key + '\\}', 'g'), encodeURIComponent(v));
+    });
+    urlInput.value = url;
+  }
+  function initShoutrrrSelect(sel){
+    if(!sel) return;
+    var existing = (sel.getAttribute('data-existing-url') || '').trim();
+    var urlInput = sel.closest('.form-row')?.querySelector('.shoutrrr-url');
+    if(existing){
+      var t = detectTypeFromURL(existing);
+      if(t && sel.querySelector('option[value="'+t+'"]')){
+        sel.value = t;
+      } else if (sel.querySelector('option[value="custom"]')) {
+        sel.value = 'custom';
+      }
+      if (urlInput) {
+        urlInput.placeholder = examples[sel.value] || urlInput.placeholder;
+        urlInput.value = existing;
+      }
+    }
+    // Always ensure UI reflects current selection
+    updateForSelect(sel);
+  }
+
+  // Initialize all selects on page load
+  document.querySelectorAll('select.shoutrrr-type').forEach(function(sel){
+    sel.addEventListener('change', function(){ updateForSelect(sel); });
+    initShoutrrrSelect(sel);
+  });
+
+  // Re-initialize when opening a modal (ensures late-loaded values are respected)
+  document.querySelectorAll('[data-open]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var target = btn.getAttribute('data-open');
+      var modal = document.getElementById(target);
+      if (!modal) return;
+      // Initialize all selects within this modal (support future multiple)
+      modal.querySelectorAll('select.shoutrrr-type').forEach(function(sel){
+        initShoutrrrSelect(sel);
+      });
+    });
+  });
+})();
+</script>
+{{end}}

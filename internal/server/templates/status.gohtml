@@ -1,0 +1,285 @@
+{{define "status.gohtml"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "status.content"}}
+<h2>Current status</h2>
+{{if .Groups}}
+  {{range .Groups}}
+    <div class="card">
+      <h3 style="margin-top:0;">{{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}</h3>
+      {{if .Monitors}}
+      <table class="status-table" data-group="{{.Name}}">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Last check</th>
+            <th>History</th>
+            <th>Uptime</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Monitors}}
+          <tr class="{{statusClass .Status}}" data-id="{{.ID}}">
+            <td>
+              <div>{{.Name}}</div>
+              <div class="muted">{{.ID}}</div>
+            </td>
+            <td>
+              {{if not .Enabled}}
+                <span class="badge status-disabled">Disabled</span>
+              {{else}}
+                {{if .MasterDown}}
+                  <span class="badge status-unknown" data-tip="Master monitor is down">Master down</span>
+                {{else}}
+                  <span class="badge {{statusClass .Status}}" data-field="status">{{.Status}}</span>
+                {{end}}
+              {{end}}
+            </td>
+            <td>
+              <span class="muted" data-field="last-checked-rel">{{formatRelative .LastChecked}}</span>
+            </td>
+            <td>
+              <div class="history" data-field="history">
+                {{range .History}}
+                  {{if .Success}}
+                    <span class="up" data-tip="{{formatTime .Timestamp}} · OK"></span>
+                  {{else}}
+                    <span class="down" data-tip="{{formatTime .Timestamp}} · {{.Message}}"></span>
+                  {{end}}
+                {{end}}
+              </div>
+            </td>
+            <td><span data-field="uptime">{{printf "%.1f" .SuccessRate}}%</span></td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+      {{else}}
+        <p class="muted">No monitors in this group.</p>
+      {{end}}
+    </div>
+  {{end}}
+{{else}}
+  <p class="muted">No monitors configured yet. Visit the admin area to create one.</p>
+{{end}}
+<style>
+  /* Lightweight tooltip styling scoped to status page */
+  #upturtle-tooltip {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    background: rgba(24,24,24,0.95);
+    color: #e2e8f0;
+    border: 1px solid rgba(160,160,160,0.25);
+    padding: .35rem .5rem;
+    border-radius: 6px;
+    font-size: .8rem;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+    max-width: 420px;
+    white-space: pre-line; /* preserve \n from data-tip while wrapping */
+    line-height: 1.25;
+    overflow: visible;
+    display: none;
+  }
+  /* Break long continuous strings to avoid overflow */
+  #upturtle-tooltip { word-break: break-word; }
+</style>
+<script>
+(function(){
+  // Simple tooltip for elements with [data-tip]
+  let tipEl;
+  function ensureTip(){
+    if(!tipEl){
+      tipEl = document.createElement('div');
+      tipEl.id = 'upturtle-tooltip';
+      document.body.appendChild(tipEl);
+    }
+    return tipEl;
+  }
+  function showTip(text, x, y){
+    const el = ensureTip();
+    el.textContent = String(text || '');
+    el.style.display = 'block';
+    // Position with viewport bounds checking
+    const margin = 10;
+    const rect = { w: el.offsetWidth, h: el.offsetHeight };
+    let left = x + 12;
+    let top = y + 12;
+    if(left + rect.w + margin > window.innerWidth){ left = x - rect.w - 12; }
+    if(top + rect.h + margin > window.innerHeight){ top = y - rect.h - 12; }
+    el.style.left = Math.max(margin, left) + 'px';
+    el.style.top = Math.max(margin, top) + 'px';
+  }
+  function hideTip(){ if(tipEl){ tipEl.style.display = 'none'; } }
+  let currentTarget = null;
+  document.addEventListener('mouseover', function(ev){
+    const t = ev.target.closest('[data-tip]');
+    if(t){ currentTarget = t; showTip(t.getAttribute('data-tip'), ev.clientX, ev.clientY); }
+  });
+  document.addEventListener('mousemove', function(ev){ if(currentTarget){ showTip(currentTarget.getAttribute('data-tip'), ev.clientX, ev.clientY); } });
+  document.addEventListener('mouseout', function(ev){
+    if(currentTarget && !ev.relatedTarget){ currentTarget = null; hideTip(); return; }
+    if(currentTarget && !ev.relatedTarget?.closest('[data-tip]')){ currentTarget = null; hideTip(); }
+  });
+})();
+</script>
+<div id="refresh-control" style="position:fixed; left:12px; bottom:12px; background: rgba(24,24,24,0.85); border:1px solid rgba(160,160,160,0.2); padding:.5rem .75rem; border-radius: 8px; font-size:.9rem; color:#d1d5db;">
+  <label for="refresh-select" style="margin-right:.5rem;">Refresh:</label>
+  <select id="refresh-select" style="background: transparent; color: inherit; border:1px solid rgba(160,160,160,0.3); border-radius:6px; padding:.25rem .5rem;">
+    <option value="5000">5s</option>
+    <option value="10000" selected>10s</option>
+    <option value="15000">15s</option>
+    <option value="30000">30s</option>
+    <option value="60000">60s</option>
+  </select>
+  <span class="muted" style="margin-left:.5rem;">auto refresh</span>
+  </div>
+<script>
+(function(){
+  const KEY = 'upturtle_status_poll_ms';
+  function getPollMs(){
+    const v = localStorage.getItem(KEY);
+    const n = parseInt(v||'10000', 10);
+    if (!isFinite(n) || n < 1000) return 10000;
+    return n;
+  }
+  function setPollMs(n){ localStorage.setItem(KEY, String(n)); }
+  function initControl(){
+    const sel = document.getElementById('refresh-select');
+    if(!sel) return;
+    const current = getPollMs();
+    for(const o of sel.options){ if(parseInt(o.value,10)===current){ o.selected = true; break; } }
+    sel.addEventListener('change', function(){
+      const n = parseInt(sel.value,10); setPollMs(n);
+    });
+  }
+  function statusClass(s){
+    if(s === 'up') return 'status-up';
+    if(s === 'down') return 'status-down';
+    return 'status-unknown';
+  }
+  const HISTORY_PREVIEW = 20;
+  function formatDuration(ms){
+    if(ms <= 0) return '-';
+    if(ms < 1000) return Math.round(ms) + 'ms';
+    return (ms/1000).toFixed(3) + 's';
+  }
+  function formatAbs(ts){
+    if(!ts) return '-';
+    const d = new Date(ts);
+    if(isNaN(d.getTime())) return '-';
+    return d.toLocaleString();
+  }
+  function formatRel(ts){
+    if(!ts) return '-';
+    const d = new Date(ts);
+    if(isNaN(d.getTime())) return '-';
+    const diff = Date.now() - d.getTime();
+    const s = Math.max(1, Math.floor(diff/1000));
+    if(s < 60) return s + 's ago';
+    const m = Math.floor(s/60); if(m < 60) return m + 'm ago';
+    const h = Math.floor(m/60); if(h < 24) return h + 'h ago';
+    const ddays = Math.floor(h/24); return ddays + 'd ago';
+  }
+  let timer = null; let running = false;
+
+  function renderHistoryHTML(arr){
+    const items = Array.isArray(arr) ? arr : [];
+    const real = items.map(h => h.success ?
+      `<span class="up" data-tip="${formatAbs(h.timestamp)} · OK"></span>` :
+      `<span class="down" data-tip="${formatAbs(h.timestamp)} · ${h.message || ''}"></span>`
+    );
+    const placeholders = [];
+    const need = Math.max(0, HISTORY_PREVIEW - real.length);
+    for (let i = 0; i < need; i++) {
+      placeholders.push('<span class="unknown" data-tip="unknown"></span>');
+    }
+    // unknown placeholders should be on the LEFT of the real values
+    return placeholders.join('') + real.join('');
+  }
+
+  function padExistingHistories(){
+    document.querySelectorAll('.history').forEach(el => {
+      const current = el.children.length;
+      const need = Math.max(0, HISTORY_PREVIEW - current);
+      for(let i=0; i < need; i++){
+        const sp = document.createElement('span');
+        sp.className = 'unknown';
+        sp.setAttribute('data-tip', 'unknown');
+        el.insertBefore(sp, el.firstChild);
+      }
+    });
+  }
+  async function poll(){
+    try {
+      const res = await fetch('/api/status', { cache: 'no-store', redirect: 'follow', credentials: 'same-origin' });
+      // If session expired, the server redirects to /login; detect and navigate
+      if (res.redirected || (res.url && res.url.indexOf('/login') !== -1)) {
+        window.location.href = '/login';
+        return;
+      }
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = '/login';
+        return;
+      }
+      const ct = res.headers.get('content-type') || '';
+      if (ct.indexOf('application/json') === -1) {
+        // Likely got HTML (e.g., login page). Redirect to login.
+        window.location.href = '/login';
+        return;
+      }
+      if(!res.ok) throw new Error('http '+res.status);
+      const data = await res.json();
+      const byId = {};
+      data.forEach(x => { byId[x.id] = x; });
+      document.querySelectorAll('table.status-table tbody tr[data-id]').forEach(tr => {
+        const id = tr.getAttribute('data-id');
+        const it = byId[id];
+        if(!it) return;
+        // Update row class
+        tr.classList.remove('status-up','status-down','status-unknown');
+        tr.classList.add(statusClass(it.status));
+        // Status cell (now column 2)
+        const statusCell = tr.querySelector('[data-field="status"]');
+        const statusContainer = tr.querySelector('td:nth-child(2)');
+        // Determine master-down badge
+        const isMasterDown = !!(it.master_id && byId[it.master_id] && byId[it.master_id].status === 'down');
+        if(isMasterDown){
+          // Replace content with only Master down badge
+          if(statusContainer){ statusContainer.innerHTML = '<span class="badge status-unknown" data-tip="Master monitor is down">Master down<\/span>'; }
+        } else if(statusCell){
+          statusCell.className = 'badge ' + statusClass(it.status);
+          statusCell.textContent = it.status;
+        }
+        // Times (only relative)
+        const relEl = tr.querySelector('[data-field="last-checked-rel"]');
+        if(relEl) relEl.textContent = formatRel(it.last_checked);
+        // History
+        const histEl = tr.querySelector('[data-field="history"]');
+        if(histEl && Array.isArray(it.history)){
+          histEl.innerHTML = renderHistoryHTML(it.history);
+        }
+        // Uptime
+        const upEl = tr.querySelector('[data-field="uptime"]');
+        if(upEl && Array.isArray(it.history) && it.history.length){
+          const ok = it.history.filter(h => h.success).length;
+          upEl.textContent = ((ok / it.history.length) * 100).toFixed(1) + '%';
+        }
+      });
+    } catch(e) { /* ignore transient errors */ }
+    finally {
+      const next = getPollMs();
+      timer = setTimeout(poll, next);
+    }
+  }
+  initControl();
+  padExistingHistories();
+  poll();
+  // React to user changes immediately
+  const sel = document.getElementById('refresh-select');
+  if(sel){ sel.addEventListener('change', function(){ if(timer){ clearTimeout(timer); } poll(); }); }
+})();
+</script>
+{{end}}

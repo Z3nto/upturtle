@@ -1,0 +1,43 @@
+# Project-level ignores
+.devcontainer/
+
+# Go build artifacts
+bin/
+upturtle
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Configuration files (may contain sensitive data)
+config.json
+conf/
+*.conf
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Dependency and build caches
+vendor/
+node_modules/
+.coverage/
+*.log
+
+# Docker volumes and data
+docker-data/
+volumes/
+
+# Temporary files
+*.tmp
+*.temp

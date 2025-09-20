@@ -1,0 +1,27 @@
+{{ define "login.gohtml" }}
+{{ template "layout" . }}
+{{ end }}
+
+{{ define "login.content" }}
+<div class="container" style="max-width:560px; margin:0 auto;">
+  <div style="display:flex; align-items:center; justify-content:center; margin: 1rem 0 1.25rem;">
+    <img src="/static/logo.png" alt="Upturtle" style="max-width: 190px; width: 100%; height: auto; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.45));" /> <!-- Todo: Move style to layout -->
+  </div>
+  <h2>Login</h2>
+  {{ if .Error }}
+    <div class="message error">{{.Error}}</div>
+  {{ end }}
+  <form method="post" action="/login" class="form">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="form-group">
+      <input id="username" name="username" type="text" placeholder="Username" required autocomplete="username" autofocus />
+    </div>
+    <div class="form-group">
+      <input id="password" name="password" type="password" placeholder="Password" required autocomplete="current-password" />
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary">Sign in</button>
+    </div>
+  </form>
+</div>
+{{ end }}

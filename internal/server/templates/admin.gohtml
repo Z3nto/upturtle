@@ -1,0 +1,601 @@
+{{define "admin.gohtml"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "admin.content"}}
+<div>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;"> <!-- Todo: move to layout -->
+    <h2 style="margin:0;">Monitors</h2>
+    <div style="display:flex; align-items:center; gap:.5rem;"> <!-- TODO: move to layout -->
+      <button id="btn-add-group" class="primary" type="button" title="Create new group">Add Group</button>
+      <button id="btn-new" class="primary" type="button" title="Create new monitor">+ New</button>
+    </div>
+  </div>
+  {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
+  {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
+
+  {{if .Groups}}
+    {{range .Groups}}
+      <div class="card group-card">
+        <div class="group-header" style="display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin:.5rem 0;"> <!-- Todo: move to layout -->
+          <div style="display:flex; align-items:center; gap:.5rem;">
+            <h3 style="margin:0; display:flex; align-items:center; gap:.5rem;">
+              {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}
+              {{if .Name}}
+                <button type="button" class="icon edit" data-open="modal-rename-{{idSafe .Name}}" title="Rename group">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+                  </svg>
+                </button>
+                <button type="button" class="icon delete" data-open="modal-delete-group-{{idSafe .Name}}" title="Delete group" aria-label="Delete group">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
+                  </svg>
+                </button>
+              {{end}}
+            </h3>
+          </div>
+          {{if .Name}}
+          <div style="display:flex; align-items:center; gap:.35rem;"> <!-- TODO: move to layout -->
+            <form class="btn-group-move" data-group-id="{{.ID}}" data-move="up" action="#" method="post" style="display:inline;">
+              <button type="submit" title="Move group up" class="icon">▲</button>
+            </form>
+            <form class="btn-group-move" data-group-id="{{.ID}}" data-move="down" action="#" method="post" style="display:inline;">
+              <button type="submit" title="Move group down" class="icon">▼</button>
+            </form>
+          </div>
+          {{end}}
+        </div>
+        <div class="group-body">
+          <table data-group-id="{{.ID}}" class="draggable-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Target</th>
+                <th>Status</th>
+                <th style="width:1%; white-space:nowrap;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{if .Monitors}}
+              {{range .Monitors}}
+              <tr class="draggable-row" draggable="true" data-id="{{.ID}}">
+                <td><strong>{{.Name}}</strong><div class="muted">{{.ID}}</div></td>
+                <td>{{.Type}}</td>
+                <td class="muted">{{.Target}}</td>
+                <td>
+                  {{if not .Enabled}}
+                    <span class="badge status-disabled">Disabled</span>
+                  {{else}}
+                    {{if .MasterDown}}
+                      <span class="badge status-unknown" title="Master monitor is down">Master down</span>
+                    {{else}}
+                      <span class="badge {{statusClass .Status}}">{{.Status}}</span>
+                    {{end}}
+                  {{end}}
+                </td>
+                <td>
+                  <div class="actions">
+                    <button type="button" class="icon edit" data-open="modal-edit-{{.ID}}" title="Edit">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+                      </svg>
+                    </button>
+                    <button type="button" class="icon delete" data-open="modal-delete-monitor-{{.ID}}" title="Delete">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              {{end}}
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+        {{/* Inline Delete Group Modal for this group */}}
+        {{if .Name}}
+        <div id="modal-delete-group-{{idSafe .Name}}" class="modal-backdrop" aria-hidden="true">
+          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-group-title-{{idSafe .Name}}">
+            <header>
+              <h3 id="modal-delete-group-title-{{idSafe .Name}}">Delete group</h3>
+              <button class="close" type="button" data-close>&times;</button>
+            </header>
+            <form class="form-delete-group" data-group-id="{{.ID}}" method="post" action="#">
+              <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+              <p>Delete group <strong>{{.Name}}</strong>?</p>
+              <label><input type="checkbox" name="delete_monitors"> Also delete monitors in this group</label>
+              <p class="muted">If unchecked, monitors will be moved to Ungrouped.</p>
+              <div class="actions">
+                <button type="button" data-close>Cancel</button>
+                <button type="submit" class="danger">Delete group</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        {{end}}
+      </div>
+    {{end}}
+  {{else}}
+    <p class="muted">No monitors configured yet.</p>
+  {{end}}
+</div>
+
+<!-- Create modal -->
+<div id="modal-new" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-new-title">
+    <header>
+      <h3 id="modal-new-title">Create monitor</h3>
+      <button class="close" type="button" data-close>&times;</button>
+    </header>
+    <form id="form-create-monitor" action="#" method="post">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <div class="form-row">
+        <div>
+          <label for="new-name">Name</label>
+          <input id="new-name" name="name" type="text" required placeholder="API health" autocomplete="off">
+        </div>
+        <div>
+          <label for="new-type">Type</label>
+          <select id="new-type" name="type">
+            <option value="http">HTTP(S)</option>
+            <option value="icmp" selected>ICMP</option>
+          </select>
+        </div>
+        <div>
+          <label for="new-target">Target</label>
+          <input id="new-target" name="target" type="text" placeholder="https://example.com or host" required>
+        </div>
+        <div>
+          <label for="new-group">Group</label>
+          <select id="new-group" name="group_id">
+            <option value="0" selected>(none)</option>
+            {{range .Groups}}
+              {{if .Name}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+            {{end}}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="new-interval">Interval (seconds)</label>
+          <input id="new-interval" name="interval_seconds" type="number" min="5" value="60">
+        </div>
+        <div>
+          <label for="new-timeout">Timeout (seconds)</label>
+          <input id="new-timeout" name="timeout_seconds" type="number" min="1" value="10">
+        </div>
+        <div>
+          <label for="new-master">Master monitor</label>
+          <select id="new-master" name="master_id">
+            <option value="" selected>(none)</option>
+            {{range .Groups}}
+              <optgroup label="---- {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}} ----">
+                {{range .Monitors}}
+                  <option value="{{.ID}}">{{.Name}} ({{.ID}})</option>
+                {{end}}
+              </optgroup>
+            {{end}}
+          </select>
+        </div>
+        <div>
+          <label for="new-notification">Notification</label>
+          <select id="new-notification" name="notification_id">
+            <option value="0" selected>(none)</option>
+            {{range .Notifications}}
+              <option value="{{.ID}}">{{.Name}}</option>
+            {{end}}
+          </select>
+        </div>
+        <div>
+          <label for="new-fail-threshold">Fail threshold</label>
+          <input id="new-fail-threshold" name="fail_threshold" type="number" min="1" value="3">
+        </div>
+      </div>
+      <div class="form-row">
+        <label><input type="checkbox" name="enabled" value="true" checked> Enabled</label>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary">Create</button>
+      </div>
+    </form>
+  </div>
+  </div>
+
+<!-- Edit modals per monitor (grouped) -->
+{{range .Groups}}
+  {{range .Monitors}}
+  <div id="modal-edit-{{.ID}}" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title-{{.ID}}">
+      <header>
+        <h3 id="modal-edit-title-{{.ID}}">Edit monitor</h3>
+        <button class="close" type="button" data-close>&times;</button>
+      </header>
+      <form class="form-edit-monitor" data-monitor-id="{{.ID}}" action="#" method="post">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="form-row">
+          <div>
+            <label>Name</label>
+            <input name="name" type="text" value="{{.Name}}" required>
+          </div>
+          <div>
+            <label>Type</label>
+            <select name="type">
+              <option value="http" {{if eq .Type "http"}}selected{{end}}>HTTP(S)</option>
+              <option value="icmp" {{if eq .Type "icmp"}}selected{{end}}>ICMP</option>
+            </select>
+          </div>
+          <div>
+            <label>Target</label>
+            <input name="target" type="text" value="{{.Target}}" required>
+          </div>
+          <div>
+            <label>Group</label>
+            {{$currentID := .GroupID}}
+            <select name="group_id">
+              <option value="0" {{if eq $currentID 0}}selected{{end}}>Ungrouped</option>
+              {{range $.Groups}}
+                {{if .Name}}
+                  <option value="{{.ID}}" {{if eq .ID $currentID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+              {{end}}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>Interval (seconds)</label>
+            <input name="interval_seconds" type="number" min="5" value="{{.IntervalSeconds}}">
+          </div>
+          <div>
+            <label>Timeout (seconds)</label>
+            <input name="timeout_seconds" type="number" min="1" value="{{.TimeoutSeconds}}">
+          </div>
+          <div>
+            <label>Master monitor</label>
+            {{$self := .ID}}
+            {{$current := .MasterID}}
+            <select name="master_id">
+              <option value="" {{if not $current}}selected{{end}}>(none)</option>
+              {{range $.Groups}}
+                <optgroup label="---- {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}} ----">
+                  {{range .Monitors}}
+                    {{if ne .ID $self}}
+                      <option value="{{.ID}}" {{if eq .ID $current}}selected{{end}}>{{.Name}} ({{.ID}})</option>
+                    {{end}}
+                  {{end}}
+                </optgroup>
+              {{end}}
+            </select>
+          </div>
+          <div>
+            <label>Notification</label>
+            {{$notif := .NotificationID}}
+            <select name="notification_id">
+              <option value="0" {{if not $notif}}selected{{end}}>(none)</option>
+              {{range $.Notifications}}
+                <option value="{{.ID}}" {{if eq .ID $notif}}selected{{end}}>{{.Name}}</option>
+              {{end}}
+            </select>
+          </div>
+          <div>
+            <label>Fail threshold</label>
+            <input name="fail_threshold" type="number" min="1" value="{{.FailThreshold}}">
+          </div>
+        </div>
+        <div class="form-row">
+          <label><input type="checkbox" name="enabled" value="true" {{if .Enabled}}checked{{end}}> Enabled</label>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- Delete monitor modal -->
+  <div id="modal-delete-monitor-{{.ID}}" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-monitor-title-{{.ID}}">
+      <header>
+        <h3 id="modal-delete-monitor-title-{{.ID}}">Delete monitor</h3>
+        <button class="close" type="button" data-close>&times;</button>
+      </header>
+      <form class="form-delete-monitor" data-monitor-id="{{.ID}}" action="#" method="post">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <p>Are you sure you want to delete <strong>{{.Name}}</strong>? This action cannot be undone.</p>
+        <div class="actions">
+          <button type="button" data-close>Cancel</button>
+          <button type="submit" class="danger">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {{end}}
+{{end}}
+
+<!-- Create Group Modal -->
+<div id="modal-new-group" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-new-group-title">
+    <header>
+      <h3 id="modal-new-group-title">Create group</h3>
+      <button class="close" type="button" data-close>&times;</button>
+    </header>
+    <form id="form-create-group" method="post" action="#">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <div class="form-row">
+        <div>
+          <label>Group name</label>
+          <input name="name" type="text" required placeholder="Group name (e.g., Google)">
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary">Add Group</button>
+      </div>
+    </form>
+  </div>
+  </div>
+
+<!-- Rename Group Modals -->
+{{range .Groups}}
+  {{if .Name}}
+  <div id="modal-rename-{{idSafe .Name}}" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-rename-title-{{idSafe .Name}}">
+      <header>
+        <h3 id="modal-rename-title-{{idSafe .Name}}">Rename group</h3>
+        <button class="close" type="button" data-close>&times;</button>
+      </header>
+      <form class="form-rename-group" data-group-id="{{.ID}}" method="post" action="#">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="form-row">
+          <div>
+            <label>New name</label>
+            <input name="name" type="text" value="{{.Name}}" required>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary">Rename</button>
+        </div>
+      </form>
+    </div>
+    </div>
+  {{end}}
+{{end}}
+
+<script>
+(function(){
+  // Import SortableJS
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+  s.onload = function(){
+    // Initialize Sortable on each group tbody; allow cross-group moves
+    const groups = document.querySelectorAll('table.draggable-table');
+    window.__upt_dragging = false;
+    function updatePlaceholders(){
+      document.querySelectorAll('table.draggable-table').forEach(function(table){
+        const tbody = table.querySelector('tbody');
+        if(!tbody) return;
+        let placeholder = tbody.querySelector('tr.placeholder');
+        const isEmpty = tbody.querySelectorAll('tr.draggable-row').length === 0;
+        if (window.__upt_dragging && isEmpty) {
+          if (!placeholder) {
+            placeholder = document.createElement('tr');
+            placeholder.className = 'placeholder';
+            const td = document.createElement('td');
+            td.colSpan = 5;
+            td.textContent = 'Drop monitors here';
+            placeholder.appendChild(td);
+            tbody.appendChild(placeholder);
+          }
+          placeholder.style.display = 'table-row';
+        } else if (placeholder) {
+          placeholder.style.display = 'none';
+        }
+      });
+    }
+
+    groups.forEach(function(table){
+      const tbody = table.querySelector('tbody');
+      if(!tbody) return;
+      Sortable.create(tbody, {
+        group: 'monitors',
+        animation: 150,
+        handle: 'tr',
+        draggable: 'tr.draggable-row',
+        chosenClass: 'sortable-chosen',
+        dragClass: 'sortable-drag',
+        ghostClass: 'sortable-ghost',
+        emptyInsertThreshold: 5,
+        forceFallback: false,
+        fallbackOnBody: true,
+        removeCloneOnHide: true,
+        // Do NOT start drag when interacting with action buttons/links/forms
+        filter: 'button, .actions, form, a, [data-open], input, select, textarea',
+        // Keep default events (click) working on filtered elements
+        preventOnFilter: false,
+        dragoverBubble: true,
+        onStart: function(){ window.__upt_dragging = true; updatePlaceholders(); },
+        onEnd: function(){ window.__upt_dragging = false; cleanupDnD(); updatePlaceholders(); sendAllOrders(); },
+        onCancel: function(){ window.__upt_dragging = false; cleanupDnD(); updatePlaceholders(); },
+        onAdd: function(){ updatePlaceholders(); },
+        onRemove: function(){ updatePlaceholders(); },
+        onSort: function(){ updatePlaceholders(); }
+      });
+    });
+    function cleanupDnD(){
+      // Remove any lingering ghost/chosen classes
+      document.querySelectorAll('.sortable-ghost, .sortable-chosen, .sortable-drag').forEach(function(el){
+        el.classList.remove('sortable-ghost','sortable-chosen','sortable-drag');
+      });
+      // Remove fallback clones if any
+      document.querySelectorAll('.sortable-fallback').forEach(function(el){
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      });
+    }
+    // Failsafe: also clean up on mouseup/touchend globally
+    ['mouseup','touchend','touchcancel','keydown'].forEach(function(evt){
+      document.addEventListener(evt, function(e){ if(evt==='keydown' && e.key!=='Escape') return; cleanupDnD(); updatePlaceholders(); }, true);
+    });
+    function sendAllOrders(){
+      const payload = { groups: [] };
+      document.querySelectorAll('table.draggable-table').forEach(function(table){
+        const groupId = parseInt(table.getAttribute('data-group-id')||'0',10) || 0;
+        const ids = Array.from(table.querySelectorAll('tbody tr.draggable-row')).map(function(tr){ return tr.getAttribute('data-id'); });
+        payload.groups.push({ group_id: groupId, order: ids });
+      });
+      // Use global api to include credentials for session auth
+      (window.apiFetch || fetch)('/api/monitors/reorder', { method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'same-origin', body: JSON.stringify(payload) });
+    }
+  };
+  document.head.appendChild(s);
+  function openModal(id){ var el = document.getElementById(id); if(!el) return; el.classList.add('show'); el.setAttribute('aria-hidden','false'); }
+  function closeModal(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); }
+  // Expose to global for inline onclick handlers
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+  document.getElementById('btn-new')?.addEventListener('click', function(){ openModal('modal-new'); });
+  document.getElementById('btn-add-group')?.addEventListener('click', function(){ openModal('modal-new-group'); });
+  // Explicit listeners for elements with data-open (belt-and-suspenders)
+  document.querySelectorAll('[data-open]').forEach(function(el){
+    el.addEventListener('click', function(e){ if (window.__upt_dragging) { e.preventDefault(); return; } e.preventDefault(); openModal(el.getAttribute('data-open')); });
+  });
+  // Use event delegation for reliability
+  document.addEventListener('click', function(e){
+    const t = e.target.closest('[data-open]');
+    if(!t) return;
+    if (window.__upt_dragging) { e.preventDefault(); e.stopPropagation(); return; }
+    e.preventDefault(); e.stopPropagation();
+    openModal(t.getAttribute('data-open'));
+  }, true);
+  document.querySelectorAll('.modal-backdrop').forEach(function(bg){
+    bg.addEventListener('click', function(e){ if(e.target === bg){ closeModal(bg); } });
+    bg.querySelectorAll('[data-close]').forEach(function(x){ x.addEventListener('click', function(){ closeModal(bg); }); });
+  });
+  // No row-level click-to-open to avoid conflicts with dragging
+  // SortableJS will initialize on load
+})();
+
+// REST API integration for Admin UI
+(function(){
+  // Get CSRF token from page
+  function getCSRFToken() {
+    const tokenInput = document.querySelector('input[name="csrf_token"]');
+    return tokenInput ? tokenInput.value : '';
+  }
+  
+  async function api(path, options){
+    options = options || {};
+    options.credentials = 'same-origin';
+    options.headers = Object.assign({'Content-Type':'application/json'}, options.headers||{});
+    
+    // Add CSRF token to headers for non-GET requests
+    if (options.method && options.method !== 'GET') {
+      options.headers['X-CSRF-Token'] = getCSRFToken();
+    }
+    
+    const res = await fetch(path, options);
+    if(res.status === 401 || res.status === 403){ window.location.href = '/login'; return Promise.reject(new Error('unauthorized')); }
+    return res;
+  }
+  // expose globally for use in other modules/scopes on this page
+  window.apiFetch = api;
+  // Create monitor
+  const fmNew = document.getElementById('form-create-monitor');
+  if(fmNew){ fmNew.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    const fd = new FormData(fmNew);
+    const payload = {
+      name: fd.get('name')||'',
+      type: fd.get('type')||'http',
+      target: fd.get('target')||'',
+      interval_seconds: parseInt(fd.get('interval_seconds')||'60',10),
+      timeout_seconds: parseInt(fd.get('timeout_seconds')||'10',10),
+      notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
+      enabled: fd.get('enabled') ? true : false,
+      group_id: parseInt(fd.get('group_id')||'0',10) || 0,
+      master_id: fd.get('master_id')||'',
+      fail_threshold: parseInt(fd.get('fail_threshold')||'3',10)
+    };
+    const res = await api('/api/monitors/', { method:'POST', body: JSON.stringify(payload) });
+    if(!res.ok) throw new Error('create monitor failed');
+    window.location.reload();
+  }catch(err){ alert('Failed to create monitor'); }}); }
+
+  // Edit monitor
+  document.querySelectorAll('form.form-edit-monitor').forEach(function(f){
+    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
+      const fd = new FormData(f);
+      const id = f.getAttribute('data-monitor-id');
+      const payload = {
+        name: fd.get('name')||'',
+        type: fd.get('type')||'http',
+        target: fd.get('target')||'',
+        interval_seconds: parseInt(fd.get('interval_seconds')||'60',10),
+        timeout_seconds: parseInt(fd.get('timeout_seconds')||'10',10),
+        notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
+        enabled: fd.get('enabled') ? true : false,
+        group_id: parseInt(fd.get('group_id')||'0',10) || 0,
+        master_id: fd.get('master_id')||'',
+        fail_threshold: parseInt(fd.get('fail_threshold')||'3',10)
+      };
+      const res = await api('/api/monitors/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify(payload) });
+      if(!res.ok) throw new Error('update failed');
+      window.location.reload();
+    }catch(err){ alert('Failed to update monitor'); }});
+  });
+
+  // Delete monitor
+  document.querySelectorAll('form.form-delete-monitor').forEach(function(f){
+    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
+      const id = f.getAttribute('data-monitor-id');
+      const res = await api('/api/monitors/'+encodeURIComponent(id), { method:'DELETE' });
+      if(!res.ok) throw new Error('delete failed');
+      window.location.reload();
+    }catch(err){ alert('Failed to delete monitor'); }});
+  });
+
+  // Groups: create
+  const fg = document.getElementById('form-create-group');
+  if(fg){ fg.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    const name = (new FormData(fg).get('name')||'').trim();
+    if(!name){ alert('Group name required'); return; }
+    const res = await api('/api/groups/', { method:'POST', body: JSON.stringify({name}) });
+    if(!res.ok) throw new Error('create group failed');
+    window.location.reload();
+  }catch(err){ alert('Failed to create group'); }}); }
+
+  // Groups: move up/down
+  document.querySelectorAll('form.btn-group-move').forEach(function(f){
+    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
+      const id = parseInt(f.getAttribute('data-group-id')||'0',10) || 0;
+      const move = f.getAttribute('data-move');
+      const res = await api('/api/groups/'+id, { method:'PUT', body: JSON.stringify({move}) });
+      if(!res.ok) throw new Error('move failed');
+      window.location.reload();
+    }catch(err){ alert('Failed to reorder group'); }});
+  });
+
+  // Groups: rename
+  document.querySelectorAll('form.form-rename-group').forEach(function(f){
+    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
+      const id = parseInt(f.getAttribute('data-group-id')||'0',10) || 0;
+      const newName = (new FormData(f).get('name')||'').trim();
+      if(!newName){ alert('New name required'); return; }
+      const res = await api('/api/groups/'+id, { method:'PUT', body: JSON.stringify({name:newName}) });
+      if(!res.ok) throw new Error('rename failed');
+      window.location.reload();
+    }catch(err){ alert('Failed to rename group'); }});
+  });
+
+  // Groups: delete
+  document.querySelectorAll('form.form-delete-group').forEach(function(f){
+    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
+      const id = parseInt(f.getAttribute('data-group-id')||'0',10) || 0;
+      const del = new FormData(f).get('delete_monitors') ? '1' : '0';
+      const res = await api('/api/groups/'+id+'?delete_monitors='+del, { method:'DELETE' });
+      if(!res.ok) throw new Error('delete group failed');
+      window.location.reload();
+    }catch(err){ alert('Failed to delete group'); }});
+  });
+})();
+</script>
+{{end}}
