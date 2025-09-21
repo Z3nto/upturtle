@@ -1,6 +1,6 @@
 
 <div align="center" width="100%">
-    <img src="./static/logo.png" width="128" alt="" />
+    <img src="./internal/server/static/logo.png" width="200" alt="" />
 </div>
 
 # 🐢 Upturtle
