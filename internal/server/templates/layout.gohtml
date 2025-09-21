@@ -28,6 +28,7 @@
             background: rgba(24, 24, 24, 0.8);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(160, 160, 160, 0.2);
+            position: relative; /* allow absolute positioning of memory widget to screen edge */
         }
         header .container {
             display: flex;
@@ -41,13 +42,67 @@
         }
         header h1.brand { display:flex; align-items:center; gap: .6rem; }
         header h1.brand img { height: 28px; width: auto; display: block; }
+
         nav a {
             margin-left: 1rem;
             font-weight: 500;
+            line-height: 1.5;
+        }
+        /* Navigation layout */
+        nav {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: .25rem;
+        }
+        .nav-links > a, .nav-links > .menu {
+            display: inline-flex;
+            align-items: center;
+            line-height: 1.5;
+            vertical-align: top;
+        }
+        .nav-links > .menu > a {
+            line-height: 1.5;
+            vertical-align: baseline;
+        }
+        /* Force all nav items to same baseline */
+        .nav-links > * {
+            align-self: center;
+        }
+        .nav-toggle {
+            display: none; /* shown on small screens */
+            background: rgba(30, 30, 30, 0.6);
+            border: 1px solid rgba(160, 160, 160, 0.2);
+            border-radius: 6px;
+            padding: 0.4rem 0.8rem;
+            font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+            font-size: 0.8rem;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+            color: #d1d5db;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .nav-toggle:hover {
+            background: rgba(40, 40, 40, 0.8);
+            border-color: rgba(160, 160, 160, 0.3);
         }
         /* Admin dropdown menu */
-        nav .menu { position: relative; display: inline-block; padding-bottom: 8px; }
-        nav .menu > a { display: inline-flex; align-items: center; gap: .35rem; }
+        nav .menu { 
+            position: relative; 
+            display: inline-flex; 
+            align-items: center;
+        }
+        nav .menu > a { 
+            display: inline-flex; 
+            align-items: center; 
+            gap: .35rem;
+            vertical-align: baseline;
+        }
         nav .submenu {
             position: absolute;
             right: 0;
@@ -269,10 +324,57 @@
             padding: 2rem 0 3rem;
             color: #a1a1aa;
         }
+        /* Memory Display Styling */
+        #memory-display {
+            background: rgba(30, 30, 30, 0.6);
+            border: 1px solid rgba(160, 160, 160, 0.2);
+            border-radius: 6px;
+            padding: 0.4rem 0.8rem;
+            font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+            font-size: 0.8rem;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+            position: fixed; /* stick to viewport */
+            right: 20px;
+            bottom: 20px;
+            z-index: 1000;
+        }
+        #memory-display:hover {
+            background: rgba(40, 40, 40, 0.8);
+            border-color: rgba(160, 160, 160, 0.3);
+        }
+        #memory-display span {
+            font-weight: 500;
+        }
+        #memory-entries, #memory-db-status {
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        
+        /* Tablet breakpoint - push nav left and reveal toggle */
+        @media (max-width: 900px) {
+            header .container { gap: 0.75rem; }
+            nav { justify-content: flex-start; }
+            .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
+            /* Hide nav links and show burger menu at same breakpoint */
+            .nav-links { display: none; }
+            nav.open .nav-links { 
+                display: flex; 
+                flex-direction: column; 
+                align-items: flex-start; 
+                gap: .5rem; 
+                padding-top: .75rem;
+                width: 100%;
+            }
+        }
+
+        /* Mobile breakpoint - stack header */
         @media (max-width: 640px) {
-            header .container { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-            th, td { padding: 0.6rem 0.35rem; }
-            .draggable-table .actions button { padding: 0.28rem 0.55rem; font-size: 0.82rem; }
+            header .container { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+            /* memory-display stays fixed in bottom right on mobile too */
+            #memory-display { font-size: 0.75rem; padding: 0.3rem 0.6rem; right: 10px; bottom: 10px; }
+            /* nav links styling for mobile */
+            .nav-links { gap: .35rem; padding-top: .5rem; }
         }
     </style>
 </head>
@@ -288,17 +390,20 @@
                 <span>Upturtle</span>
             </a>
         </h1>
-        <nav>
-            <a href="/">Status</a>
-            <div class="menu">
-                <a href="/admin" aria-haspopup="true" aria-expanded="false">Admin ▾</a>
-                <div class="submenu" role="menu" aria-label="Admin submenu">
-                    <a href="/admin" role="menuitem">Monitors</a>
-                    <a href="/admin/notifications" role="menuitem">Notifications</a>
-                    <a href="/admin/settings" role="menuitem">Settings</a>
+        <nav aria-label="Primary navigation">
+            <button class="nav-toggle" aria-label="Toggle navigation" aria-controls="primary-links" aria-expanded="false">☰</button>
+            <div id="primary-links" class="nav-links">
+                <a href="/">Status</a>
+                <div class="menu">
+                    <a href="/admin" aria-haspopup="true" aria-expanded="false">Admin ▾</a>
+                    <div class="submenu" role="menu" aria-label="Admin submenu">
+                        <a href="/admin" role="menuitem">Monitors</a>
+                        <a href="/admin/notifications" role="menuitem">Notifications</a>
+                        <a href="/admin/settings" role="menuitem">Settings</a>
+                    </div>
                 </div>
+                <a href="/logout">Logout</a>
             </div>
-            <a href="/logout">Logout</a>
         </nav>
     </div>
 </header>
@@ -313,9 +418,33 @@
 <footer>
     uptime monitoring for lean deployments · {{currentYear}}
 </footer>
+{{if .ShowMemoryDisplay}}
+<div id="memory-display" style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:#a1a1aa;">
+    <span>Memory:</span>
+    <span id="memory-entries">-</span>
+    <span>entries</span>
+    <span style="margin-left:0.5rem;">DB:</span>
+    <span id="memory-db-status">-</span>
+</div>
+{{end}}
 <script>
 (function(){
   try{
+    // Burger menu toggle
+    const nav = document.querySelector('header nav');
+    const toggle = nav?.querySelector('.nav-toggle');
+    const links = nav?.querySelector('.nav-links');
+    
+    if (toggle && nav) {
+      toggle.addEventListener('click', function(e){
+        e.preventDefault();
+        const isOpen = nav.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', String(isOpen));
+        console.log('Burger menu toggled:', isOpen); // Debug log
+      });
+    }
+
+    // Admin dropdown behavior (hover + touch)
     const menu = document.querySelector('nav .menu');
     if(!menu) return;
     const trigger = menu.querySelector('a[href="/admin"]');
@@ -334,8 +463,57 @@
         if(menu.classList.contains('open')) closeMenu(); else openMenu();
       }
     });
+    // Close nav on link click (mobile UX)
+    links?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+      if (nav.classList.contains('open')) {
+        nav.classList.remove('open');
+        toggle?.setAttribute('aria-expanded','false');
+      }
+    }));
   }catch(err){ /* no-op */ }
 })();
+
+// Memory Display Auto-Refresh
+{{if .ShowMemoryDisplay}}
+(function(){
+  const memoryEntriesEl = document.getElementById('memory-entries');
+  const memoryDbStatusEl = document.getElementById('memory-db-status');
+  
+  if (!memoryEntriesEl || !memoryDbStatusEl) return;
+  
+  async function updateMemoryDisplay() {
+    try {
+      const response = await fetch('/api/memory');
+      if (!response.ok) throw new Error('Failed to fetch memory data');
+      
+      const data = await response.json();
+      
+      // Update memory entries count
+      memoryEntriesEl.textContent = data.total_history_entries || 0;
+      
+      // Update database status
+      if (data.database_integration) {
+        memoryDbStatusEl.textContent = 'SQLite';
+        memoryDbStatusEl.style.color = '#10b981'; // green
+      } else {
+        memoryDbStatusEl.textContent = 'Memory';
+        memoryDbStatusEl.style.color = '#f59e0b'; // amber
+      }
+    } catch (error) {
+      console.warn('Failed to update memory display:', error);
+      memoryEntriesEl.textContent = 'Error';
+      memoryDbStatusEl.textContent = 'Error';
+      memoryDbStatusEl.style.color = '#ef4444'; // red
+    }
+  }
+  
+  // Initial load
+  updateMemoryDisplay();
+  
+  // Auto-refresh every 60 seconds
+  setInterval(updateMemoryDisplay, 60000);
+})();
+{{end}}
 </script>
 </body>
 </html>

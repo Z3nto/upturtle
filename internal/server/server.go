@@ -21,6 +21,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"upturtle/internal/config"
+	"upturtle/internal/database"
 	"upturtle/internal/monitor"
 	"upturtle/internal/notifier"
 )
@@ -113,6 +114,12 @@ type Server struct {
 	monitorDebug      bool
 	notificationDebug bool
 	apiDebug          bool
+	// UI settings
+	showMemoryDisplay bool
+	// database configuration
+	databaseConfig    *database.Config
+	// persistent database connection (only for config storage)
+	configDB          database.Database
 }
 
 // Config holds the parameters for creating a server instance.
@@ -135,6 +142,10 @@ type Config struct {
 	MonitorDebug      bool
 	NotificationDebug bool
 	ApiDebug          bool
+	// UI settings
+	ShowMemoryDisplay bool
+	// Database configuration
+	DatabaseConfig    *database.Config
 }
 
 // New constructs a new HTTP server with the provided configuration.
@@ -167,7 +178,32 @@ func New(cfg Config) (*Server, error) {
 		monitorDebug:      cfg.MonitorDebug,
 		notificationDebug: cfg.NotificationDebug,
 		apiDebug:          cfg.ApiDebug,
+		showMemoryDisplay: cfg.ShowMemoryDisplay,
+		databaseConfig:    cfg.DatabaseConfig,
 	}
+	
+	// Initialize persistent database connection if configured
+	// Reuse the database connection from the manager if available
+	if cfg.DatabaseConfig != nil {
+		if dbIntegration := cfg.Manager.GetDatabaseIntegration(); dbIntegration != nil {
+			// Reuse existing database connection from manager
+			s.configDB = dbIntegration.GetDatabase()
+			s.logger.Printf("Reusing database connection from manager for config storage")
+		} else {
+			// Create new connection if manager doesn't have one
+			if db, err := database.NewDatabase(*cfg.DatabaseConfig); err == nil {
+				if err := db.Initialize(); err == nil {
+					s.configDB = db
+					s.logger.Printf("Persistent database connection established for config storage")
+				} else {
+					s.logger.Printf("Warning: Failed to initialize config database: %v", err)
+				}
+			} else {
+				s.logger.Printf("Warning: Failed to create config database: %v", err)
+			}
+		}
+	}
+	
 	// initialize session store
 	s.sessions = make(map[string]time.Time)
 	// initialize CSRF token store
@@ -203,6 +239,14 @@ func New(cfg Config) (*Server, error) {
 	}
 	notifier.ConfigureDebugLogging(s.notificationDebug)
 	return s, nil
+}
+
+// Close closes the server and its database connections
+func (s *Server) Close() error {
+	if s.configDB != nil {
+		return s.configDB.Close()
+	}
+	return nil
 }
 
 // getGroupName returns the name for a given group ID, or "" if not found.
@@ -262,9 +306,13 @@ func (s *Server) buildAdminData(r *http.Request, success, failure string) AdminP
 	}
 	return AdminPageData{
 		BasePageData:  BasePageData{
-			Title:           "Administration", 
-			ContentTemplate: "admin.content",
-			CSRFToken:       s.getCSRFToken(r),
+			Title:             "Administration", 
+			ContentTemplate:   "admin.content",
+			CSRFToken:         s.getCSRFToken(r),
+			DatabaseEnabled:   s.manager.HasDatabaseIntegration(),
+			DatabaseHealthy:   s.manager.IsDatabaseHealthy(),
+			DatabaseError:     s.manager.GetDatabaseError(),
+			ShowMemoryDisplay: s.showMemoryDisplay,
 		},
 		Groups:        groups,
 		Notifications: s.notifications,
@@ -298,6 +346,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 			MonitorDebug      bool
 			NotificationDebug bool
 			ApiDebug          bool
+			ShowMemoryDisplay bool
 			Error             string
 			Success           string
 		}{
@@ -309,6 +358,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 			MonitorDebug:      s.monitorDebug,
 			NotificationDebug: s.notificationDebug,
 			ApiDebug:          s.apiDebug,
+			ShowMemoryDisplay: s.showMemoryDisplay,
 			Error:             r.URL.Query().Get("error"),
 			Success:           r.URL.Query().Get("success"),
 		}
@@ -329,9 +379,11 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		monDbg := r.FormValue("monitor_debug") != ""
 		notifDbg := r.FormValue("notification_debug") != ""
 		apiDbg := r.FormValue("api_debug") != ""
+		showMemDisplay := r.FormValue("show_memory_display") != ""
 		s.monitorDebug = monDbg
 		s.notificationDebug = notifDbg
 		s.apiDebug = apiDbg
+		s.showMemoryDisplay = showMemDisplay
 		if s.manager != nil {
 			s.manager.SetMonitorDebug(monDbg)
 			s.manager.SetNotificationDebug(notifDbg)
@@ -591,6 +643,21 @@ func (s *Server) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleAPIMemory returns memory usage statistics
+func (s *Server) handleAPIMemory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.apiDebug {
+		s.logger.Printf("[API DEBUG] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+	}
+	
+	memoryUsage := s.manager.GetMemoryUsage()
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(memoryUsage)
+}
+
 // ==== API: Notifications ======================================================
 
 func (s *Server) handleAPINotificationsUnified(w http.ResponseWriter, r *http.Request) {
@@ -616,14 +683,26 @@ func (s *Server) handleAPINotificationsCollection(w http.ResponseWriter, r *http
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(s.notifications)
 	case http.MethodPost:
-		if !s.ensureAuthAndCSRF(w, r) {
+		// First check authentication
+		if !s.ensureAuth(w, r) {
 			return
 		}
-		var body struct{ Name, URL string }
+		
+		var body struct{ 
+			Name, URL string 
+			CSRFToken string `json:"csrf_token"`
+		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
 		}
+		
+		// Validate CSRF token from JSON body
+		if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
+			http.Error(w, "CSRF token validation failed", http.StatusForbidden)
+			return
+		}
+		
 		name := strings.TrimSpace(body.Name)
 		urlStr := normalizeShoutrrrURL(strings.TrimSpace(body.URL))
 		if name == "" || urlStr == "" {
@@ -669,12 +748,23 @@ func (s *Server) handleAPINotificationItem(w http.ResponseWriter, r *http.Reques
 		}
 		http.NotFound(w, r)
 	case http.MethodPut:
-		if !s.ensureAuthAndCSRF(w, r) {
+		// First check authentication
+		if !s.ensureAuth(w, r) {
 			return
 		}
-		var body struct{ Name, URL string }
+		
+		var body struct{ 
+			Name, URL string 
+			CSRFToken string `json:"csrf_token"`
+		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		
+		// Validate CSRF token from JSON body
+		if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
+			http.Error(w, "CSRF token validation failed", http.StatusForbidden)
 			return
 		}
 		for i := range s.notifications {
@@ -1003,6 +1093,7 @@ func (s *Server) routes() {
 	// Always allow status endpoints
 	s.mux.HandleFunc("/", s.handleStatus)
 	s.mux.HandleFunc("/api/status", s.handleAPIStatus)
+	s.mux.HandleFunc("/api/memory", s.handleAPIMemory)
 
 	// Static assets (e.g., logos) served from embedded FS with disk fallback and logo.png placeholder
 	s.mux.Handle("/static/", http.StripPrefix("/static/", newStaticHandler()))
@@ -1074,9 +1165,10 @@ func (s *Server) handleAdminNotifications(w http.ResponseWriter, r *http.Request
 			Success       string
 		}{
 			BasePageData:  BasePageData{
-				Title:           "Notifications", 
-				ContentTemplate: "notifications.content",
-				CSRFToken:       s.getCSRFToken(r),
+				Title:             "Notifications", 
+				ContentTemplate:   "notifications.content",
+				CSRFToken:         s.getCSRFToken(r),
+				ShowMemoryDisplay: s.showMemoryDisplay,
 			},
 			Notifications: append([]config.NotificationConfig(nil), s.notifications...),
 			Error:         r.URL.Query().Get("error"),
@@ -1413,6 +1505,31 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 		   expectedToken == providedToken
 }
 
+// validateCSRFTokenFromJSON validates CSRF token from a JSON body
+func (s *Server) validateCSRFTokenFromJSON(r *http.Request, jsonToken string) bool {
+	sessionID := s.getSessionID(r)
+	
+	var expectedToken string
+	var exists bool
+	
+	// For authenticated sessions, use session-based tokens
+	if sessionID != "" {
+		expectedToken, exists = s.csrfTokens[sessionID]
+	} else {
+		// For unauthenticated requests (login/install), use temporary tokens
+		tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
+		expectedToken, exists = s.csrfTokens[tempKey]
+	}
+	
+	if !exists || jsonToken == "" {
+		return false
+	}
+	
+	// Constant-time comparison to prevent timing attacks
+	return len(expectedToken) == len(jsonToken) && 
+		   expectedToken == jsonToken
+}
+
 // startSessionCleanup starts a background goroutine to periodically clean up expired sessions and CSRF tokens
 func (s *Server) startSessionCleanup() {
 	go func() {
@@ -1520,9 +1637,13 @@ func (s *Server) buildStatusData() StatusPageData {
 	}
 	return StatusPageData{
 		BasePageData: BasePageData{
-			Title:           "Service Status",
-			RefreshSeconds:  0,
-			ContentTemplate: "status.content",
+			Title:             "Service Status",
+			RefreshSeconds:    0,
+			ContentTemplate:   "status.content",
+			DatabaseEnabled:   s.manager.HasDatabaseIntegration(),
+			DatabaseHealthy:   s.manager.IsDatabaseHealthy(),
+			DatabaseError:     s.manager.GetDatabaseError(),
+			ShowMemoryDisplay: s.showMemoryDisplay,
 		},
 		Groups: views,
 	}
@@ -1589,6 +1710,24 @@ type BasePageData struct {
 	HideHeader bool
 	// CSRF token for form protection
 	CSRFToken string
+	// Database status information
+	DatabaseEnabled bool
+	DatabaseHealthy bool
+	DatabaseError   string
+	// UI settings
+	ShowMemoryDisplay bool
+}
+
+// newBasePageData creates a BasePageData with common server settings
+func (s *Server) newBasePageData(title, contentTemplate string) BasePageData {
+	return BasePageData{
+		Title:             title,
+		ContentTemplate:   contentTemplate,
+		CSRFToken:         s.getCSRFToken(nil), // Will be overridden with actual request
+		DatabaseEnabled:   s.databaseConfig != nil,
+		DatabaseHealthy:   s.manager != nil && s.manager.IsDatabaseHealthy(),
+		ShowMemoryDisplay: s.showMemoryDisplay,
+	}
 }
 
 // StatusGroupView is used by the public status page
@@ -1721,6 +1860,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 				HideHeader:      true,
 				CSRFToken:       s.getCSRFToken(r),
 			},
+			Error: r.URL.Query().Get("error"),
 		}
 		if err := s.templates.ExecuteTemplate(w, "install.gohtml", data); err != nil {
 			s.logger.Printf("install template error: %v", err)
@@ -1740,10 +1880,32 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		}
 		user := strings.TrimSpace(r.FormValue("username"))
 		pass := r.FormValue("password")
+		storageType := r.FormValue("storage_type")
+		sqlitePath := strings.TrimSpace(r.FormValue("sqlite_path"))
+		
 		if user == "" || pass == "" {
-			http.Error(w, "username and password are required", http.StatusBadRequest)
+			http.Redirect(w, r, "/install?error=Username+and+password+are+required", http.StatusSeeOther)
 			return
 		}
+		
+		// Validate storage configuration
+		var dbConfig *database.Config
+		if storageType == "sqlite" {
+			if sqlitePath == "" {
+				sqlitePath = "/data/upturtle.db" // Default path
+			}
+			dbConfig = &database.Config{
+				Type: database.DatabaseTypeSQLite,
+				Path: sqlitePath,
+			}
+			
+			// Validate the database configuration
+			if err := database.ValidateConfig(*dbConfig); err != nil {
+				http.Redirect(w, r, "/install?error=Invalid+database+configuration:+"+url.QueryEscape(err.Error()), http.StatusSeeOther)
+				return
+			}
+		}
+		// For "memory" storage type, dbConfig remains nil
 		hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 		if err != nil {
 			s.logger.Printf("failed to hash password: %v", err)
@@ -1752,7 +1914,66 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		}
 		s.adminUser = user
 		s.adminPassword = string(hash)
+		s.databaseConfig = dbConfig
 		s.installRequired = false
+		
+		// Initialize database if configured
+		if dbConfig != nil {
+			s.logger.Printf("Initializing database during installation: %s", dbConfig.Type)
+			db, err := database.NewDatabase(*dbConfig)
+			if err != nil {
+				s.logger.Printf("Failed to create database during installation: %v", err)
+				http.Redirect(w, r, "/install?error=Failed+to+create+database:+"+url.QueryEscape(err.Error()), http.StatusSeeOther)
+				return
+			}
+			
+			if err := db.Initialize(); err != nil {
+				s.logger.Printf("Failed to initialize database during installation: %v", err)
+				http.Redirect(w, r, "/install?error=Failed+to+initialize+database:+"+url.QueryEscape(err.Error()), http.StatusSeeOther)
+				return
+			}
+			
+			// Set up database integration for the manager
+			dbIntegration := monitor.NewDatabaseIntegration(db)
+			s.manager.SetDatabaseIntegration(dbIntegration)
+			s.logger.Printf("Database integration enabled during installation")
+			
+			// Set the persistent config database connection
+			s.configDB = db
+			
+			// Store admin credentials in database for future use
+			adminConfig := map[string]interface{}{
+				"username":      user,
+				"password_hash": string(hash),
+			}
+			if err := db.SaveConfig("admin_credentials", adminConfig); err != nil {
+				s.logger.Printf("Warning: Failed to save admin credentials to database: %v", err)
+			} else {
+				s.logger.Printf("Admin credentials saved to database")
+			}
+			
+			// Store all other configurations in database as well
+			if len(s.groups) > 0 {
+				if err := db.SaveConfig("groups", s.groups); err != nil {
+					s.logger.Printf("Warning: Failed to save groups to database: %v", err)
+				}
+			}
+			if len(s.notifications) > 0 {
+				if err := db.SaveConfig("notifications", s.notifications); err != nil {
+					s.logger.Printf("Warning: Failed to save notifications to database: %v", err)
+				}
+			}
+			
+			// Save debug settings
+			debugConfig := map[string]interface{}{
+				"monitor_debug":      s.monitorDebug,
+				"notification_debug": s.notificationDebug,
+				"api_debug":          s.apiDebug,
+			}
+			if err := db.SaveConfig("debug_settings", debugConfig); err != nil {
+				s.logger.Printf("Warning: Failed to save debug settings to database: %v", err)
+			}
+		}
 		// If no monitors are configured yet, add sensible defaults as requested.
 		if len(s.manager.List()) == 0 {
 			// Ensure default group exists first with ID=1
@@ -1808,15 +2029,58 @@ func (s *Server) saveConfig() error {
 	if s.configPath == "" {
 		return nil
 	}
+	
+	// If database is configured, save everything to database and minimal config to file
+	if s.databaseConfig != nil && s.configDB != nil {
+		// Save admin credentials to database
+		adminConfig := map[string]interface{}{
+			"username":      s.adminUser,
+			"password_hash": s.adminPassword,
+		}
+		s.configDB.SaveConfig("admin_credentials", adminConfig)
+		
+		// Save groups to database
+		s.configDB.SaveConfig("groups", s.groups)
+		
+		// Save notifications to database
+		s.configDB.SaveConfig("notifications", s.notifications)
+		
+		// Save debug settings and UI settings to database
+		debugConfig := map[string]interface{}{
+			"monitor_debug":      s.monitorDebug,
+			"notification_debug": s.notificationDebug,
+			"api_debug":          s.apiDebug,
+			"show_memory_display": s.showMemoryDisplay,
+		}
+		s.configDB.SaveConfig("debug_settings", debugConfig)
+		
+		// Save monitors to database as well
+		configs := s.manager.GetAllConfigs()
+		monitorConfigs := make([]config.PersistedMonitorConfig, 0, len(configs))
+		for _, mc := range configs {
+			monitorConfigs = append(monitorConfigs, config.FromMonitorConfig(mc))
+		}
+		s.configDB.SaveConfig("monitors", monitorConfigs)
+		
+		// Save only database config to config file (no monitors)
+		cfg := config.AppConfig{
+			Database: s.databaseConfig,
+		}
+		return config.Save(s.configPath, cfg)
+	}
+	
+	// In-memory mode: save everything to config file
 	cfg := config.AppConfig{
 		AdminUser:         s.adminUser,
 		AdminPasswordHash: s.adminPassword,
+		Database:          s.databaseConfig,
 	}
 	cfg.Groups = append([]config.GroupConfig(nil), s.groups...)
 	cfg.Notifications = append([]config.NotificationConfig(nil), s.notifications...)
 	cfg.MonitorDebug = s.monitorDebug
 	cfg.NotificationDebug = s.notificationDebug
 	cfg.ApiDebug = s.apiDebug
+	cfg.ShowMemoryDisplay = s.showMemoryDisplay
 	configs := s.manager.GetAllConfigs()
 	cfg.Monitors = make([]config.PersistedMonitorConfig, 0, len(configs))
 	for _, mc := range configs {

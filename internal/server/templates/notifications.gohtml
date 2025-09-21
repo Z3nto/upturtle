@@ -165,10 +165,33 @@
 
 // REST API integration for Notifications UI
 (function(){
+  const csrfToken = '{{.CSRFToken}}';
   async function api(path, options){
     options = options || {};
     options.credentials = 'same-origin';
     options.headers = Object.assign({'Content-Type':'application/json'}, options.headers||{});
+    
+    // Add CSRF token for non-GET requests
+    if (options.method && options.method !== 'GET') {
+      // Always add CSRF token header so middleware can validate without parsing body
+      options.headers['X-CSRF-Token'] = csrfToken;
+      if (options.body && typeof options.body === 'string') {
+        try {
+          const bodyObj = JSON.parse(options.body);
+          bodyObj.csrf_token = csrfToken;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {
+          // If body is not JSON, add as form data
+          const formData = new FormData();
+          formData.append('csrf_token', csrfToken);
+          options.body = formData;
+        }
+      } else {
+        // For requests without body, add as JSON
+        options.body = JSON.stringify({ csrf_token: csrfToken });
+      }
+    }
+    
     const res = await fetch(path, options);
     if(res.status === 401 || res.status === 403){ window.location.href = '/login'; throw new Error('unauthorized'); }
     return res;
@@ -231,7 +254,7 @@
   var examples = {
     discord: 'https://discord.com/api/webhooks/ID/TOKEN',
     slack: 'slack://tokenA:tokenB@tokenC/Channel',
-    telegram: 'telegram://token@chatid',
+    telegram: 'telegram://token@telegram?chats=chatid',
     teams: 'teams://tenant@group/channel',
     googlechat: 'googlechat://key@token/space',
     mattermost: 'mattermost://user@host/token/channel',
@@ -253,7 +276,7 @@
   // Field schemas for each type to build the URL
   var schemas = {
     discord: {
-      pattern: 'discord://{token}@{id}/webhook',
+      pattern: 'discord://{token}@{id}/',
       fields: [
         { key: 'webhook', label: 'Webhook URL', placeholder: 'https://discord.com/api/webhooks/ID/TOKEN', required: true }
       ]
@@ -261,16 +284,16 @@
     slack: {
       pattern: 'slack://{tokenA}:{tokenB}@{tokenC}/{channel}',
       fields: [
-        { key: 'tokenA', label: 'Token A', required: true },
-        { key: 'tokenB', label: 'Token B', required: true },
-        { key: 'tokenC', label: 'Token C', required: true },
+        { key: 'tokenA', label: 'Token A', required: true, noEncode: true },
+        { key: 'tokenB', label: 'Token B', required: true, noEncode: true },
+        { key: 'tokenC', label: 'Token C', required: true, noEncode: true },
         { key: 'channel', label: 'Channel', placeholder: 'general', required: true }
       ]
     },
     telegram: {
-      pattern: 'telegram://{token}@{chatid}',
+      pattern: 'telegram://{token}@telegram?chats={chatid}',
       fields: [
-        { key: 'token', label: 'Bot token', required: true },
+        { key: 'token', label: 'Bot token', required: true, noEncode: true },
         { key: 'chatid', label: 'Chat ID', required: true }
       ]
     },
@@ -285,8 +308,8 @@
     googlechat: {
       pattern: 'googlechat://{key}@{token}/{space}',
       fields: [
-        { key: 'key', label: 'Key', required: true },
-        { key: 'token', label: 'Token', required: true },
+        { key: 'key', label: 'Key', required: true, noEncode: true },
+        { key: 'token', label: 'Token', required: true, noEncode: true },
         { key: 'space', label: 'Space', required: true }
       ]
     },
@@ -295,7 +318,7 @@
       fields: [
         { key: 'user', label: 'User', required: true },
         { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
-        { key: 'token', label: 'Token', required: true },
+        { key: 'token', label: 'Token', required: true, noEncode: true },
         { key: 'channel', label: 'Channel', required: true }
       ]
     },
@@ -304,7 +327,7 @@
       fields: [
         { key: 'user', label: 'User', required: true },
         { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
-        { key: 'token', label: 'Token', required: true },
+        { key: 'token', label: 'Token', required: true, noEncode: true },
         { key: 'channel', label: 'Channel', required: true }
       ]
     },
@@ -320,20 +343,20 @@
       pattern: 'gotify://{host}/{token}',
       fields: [
         { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
-        { key: 'token', label: 'Token', required: true }
+        { key: 'token', label: 'Token', required: true, noEncode: true }
       ]
     },
     pushover: {
       pattern: 'pushover://{token}@{user}',
       fields: [
-        { key: 'token', label: 'App Token', required: true },
-        { key: 'user', label: 'User/Group Key', required: true }
+        { key: 'token', label: 'App Token', required: true, noEncode: true },
+        { key: 'user', label: 'User/Group Key', required: true, noEncode: true }
       ]
     },
     pushbullet: {
       pattern: 'pushbullet://{token}/{device}',
       fields: [
-        { key: 'token', label: 'Access Token', required: true },
+        { key: 'token', label: 'Access Token', required: true, noEncode: true },
         { key: 'device', label: 'Device ID (optional)', required: false }
       ]
     },
@@ -347,8 +370,8 @@
     smtp: {
       pattern: 'smtp://{user}:{pass}@{host}:{port}/?from={from}&to={to}',
       fields: [
-        { key: 'user', label: 'User', required: true },
-        { key: 'pass', label: 'Password', required: true },
+        { key: 'user', label: 'User', required: true, noEncode: true },
+        { key: 'pass', label: 'Password', required: true, noEncode: true },
         { key: 'host', label: 'Host', required: true },
         { key: 'port', label: 'Port', placeholder: '587', required: true },
         { key: 'from', label: 'From', placeholder: 'me@example.com', required: true },
@@ -358,7 +381,7 @@
     sendgrid: {
       pattern: 'sendgrid://{apikey}@{sender}?to={to}',
       fields: [
-        { key: 'apikey', label: 'API Key', required: true },
+        { key: 'apikey', label: 'API Key', required: true, noEncode: true },
         { key: 'sender', label: 'Sender', placeholder: 'sender@example.com', required: true },
         { key: 'to', label: 'To', placeholder: 'you@example.com', required: true }
       ]
@@ -373,28 +396,28 @@
     ifttt: {
       pattern: 'ifttt://{key}/{event}',
       fields: [
-        { key: 'key', label: 'Key', required: true },
+        { key: 'key', label: 'Key', required: true, noEncode: true },
         { key: 'event', label: 'Event', required: true }
       ]
     },
     opsgenie: {
       pattern: 'opsgenie://{apikey}/{priority}',
       fields: [
-        { key: 'apikey', label: 'API Key', required: true },
+        { key: 'apikey', label: 'API Key', required: true, noEncode: true },
         { key: 'priority', label: 'Priority', placeholder: 'P3', required: false }
       ]
     },
     pagerduty: {
       pattern: 'pagerduty://{integration_key}',
       fields: [
-        { key: 'integration_key', label: 'Integration Key', required: true }
+        { key: 'integration_key', label: 'Integration Key', required: true, noEncode: true }
       ]
     },
     alertmanager: {
       pattern: 'alertmanager://{user}:{pass}@{host}',
       fields: [
-        { key: 'user', label: 'User', required: false },
-        { key: 'pass', label: 'Password', required: false },
+        { key: 'user', label: 'User', required: false, noEncode: true },
+        { key: 'pass', label: 'Password', required: false, noEncode: true },
         { key: 'host', label: 'Host', placeholder: 'host:9093', required: true }
       ]
     }
@@ -499,7 +522,7 @@
         if (m1) {
           var id = encodeURIComponent(m1[1]);
           var token = encodeURIComponent(m1[2]);
-          url = 'discord://' + token + '@' + id + '/webhook';
+          url = 'discord://' + token + '@' + id;
           urlInput.value = url;
           return;
         }
@@ -512,7 +535,11 @@
     }
     fieldsContainer.querySelectorAll('input').forEach(function(inp){
       var v = (inp.value || '').trim();
-      url = url.replace(new RegExp('\\{' + inp.dataset.key + '\\}', 'g'), encodeURIComponent(v));
+      var key = inp.dataset.key;
+      // Check if this field should not be URL encoded
+      var field = schema.fields.find(function(f) { return f.key === key; });
+      var encodedValue = (field && field.noEncode) ? v : encodeURIComponent(v);
+      url = url.replace(new RegExp('\\{' + key + '\\}', 'g'), encodedValue);
     });
     urlInput.value = url;
   }

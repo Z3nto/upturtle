@@ -5,15 +5,22 @@
 {{ define "install.content" }}
 <div class="container" style="max-width:560px; margin:0 auto;">
   <div style="display:flex; align-items:center; justify-content:center; margin: 1rem 0 1.25rem;">
-    <img src="/static/logo.png" alt="Upturtle" style="max-width: 190px; width: 100%; height: auto; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.45));" /> <!-- Todo: Move style to layout -->
+    <img src="/static/logo.png" alt="Upturtle" style="max-width: 350px; width: 100%; height: auto; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.45));" /> <!-- Todo: Move style to layout -->
   </div>
   <h1>Initial Setup</h1>
-  <p>Set up the administrator account</p>
+  <p>Set up the administrator account and data storage</p>
+
+  {{if .Error}}
+  <div class="alert alert-error" style="background:#fee; border:1px solid #fcc; color:#c00; padding:0.75rem; margin:1rem 0; border-radius:4px;">
+    {{.Error}}
+  </div>
+  {{end}}
 
   <form method="post" action="/install" class="form">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    
+    <h3>Administrator Account</h3>
     <div class="form-group">
-
       <input id="username" name="username" type="text" required placeholder="Username" autofocus />
     </div>
 
@@ -26,11 +33,51 @@
       <small id="pw-match-error" role="alert" style="color:#c00; display:none;">Passwords do not match</small>
     </div>
 
+    <h3>Data Storage</h3>
+    <div class="form-group">
+      <label>
+        <input type="radio" name="storage_type" value="memory" checked onchange="toggleStorageOptions()"> 
+        <strong>In-Memory Storage</strong>
+      </label>
+      <small style="display:block; margin-top:0.25rem; color:#666;">
+        Measurement data stored in memory. Suitable for basic monitoring (recommended for &lt; 20 monitors).
+      </small>
+    </div>
+
+    <div class="form-group">
+      <label>
+        <input type="radio" name="storage_type" value="sqlite" onchange="toggleStorageOptions()"> 
+        <strong>SQLite Database</strong>
+      </label>
+      <small style="display:block; margin-top:0.25rem; color:#666;">
+        Persistent storage with automatic cleanup. Recommended for production use.
+      </small>
+    </div>
+
+    <div id="sqlite-options" style="display:none; margin-left:1.5rem; padding:0.75rem; background:#f8f9fa; border-radius:4px;">
+      <div class="form-group">
+        <label for="sqlite_path">Database Path:</label>
+        <input id="sqlite_path" name="sqlite_path" type="text" placeholder="/data/upturtle.db" value="/data/upturtle.db" />
+        <small style="display:block; margin-top:0.25rem; color:#666;">
+          Path where the SQLite database file will be stored.
+        </small>
+      </div>
+    </div>
+
     <div class="actions">
       <button type="submit" class="primary">Save and Continue</button>
     </div>
     
     <script>
+      // Toggle storage options visibility
+      function toggleStorageOptions() {
+        const sqliteRadio = document.querySelector('input[name="storage_type"][value="sqlite"]');
+        const sqliteOptions = document.getElementById('sqlite-options');
+        if (sqliteRadio && sqliteOptions) {
+          sqliteOptions.style.display = sqliteRadio.checked ? 'block' : 'none';
+        }
+      }
+
       (function () {
         const form = document.querySelector('form[action="/install"]');
         if (!form) return;
@@ -64,6 +111,7 @@
 
         // Initialize
         validate();
+        toggleStorageOptions(); // Initialize storage options visibility
       })();
     </script>
   </form>

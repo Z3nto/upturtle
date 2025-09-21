@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"upturtle/internal/database"
 	"upturtle/internal/monitor"
 )
 
@@ -23,10 +24,14 @@ type AppConfig struct {
 	Groups []GroupConfig `json:"groups,omitempty"`
 	// Notifications is the list of reusable notification targets (Shoutrrr URLs)
 	Notifications []NotificationConfig `json:"notifications,omitempty"`
+	// Database configuration - if set, measurement data will be stored in database
+	Database *database.Config `json:"database,omitempty"`
 	// Debug flags
 	MonitorDebug      bool `json:"monitor_debug,omitempty"`
 	NotificationDebug bool `json:"notification_debug,omitempty"`
 	ApiDebug          bool `json:"api_debug,omitempty"`
+	// UI settings
+	ShowMemoryDisplay bool `json:"show_memory_display,omitempty"`
 }
 
 // GroupConfig defines a group with a stable integer ID and a name.

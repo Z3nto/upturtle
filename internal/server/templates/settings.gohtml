@@ -13,10 +13,24 @@
   <div class="card">
     <h3 style="margin-top:0;">Debug logging</h3>
     <form method="post" action="/admin/settings">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <div class="form-row" style="display:flex; gap:1.5rem; align-items:center;">
         <label><input type="checkbox" name="monitor_debug" value="true" {{if .MonitorDebug}}checked{{end}}> Monitor Debug</label>
         <label><input type="checkbox" name="notification_debug" value="true" {{if .NotificationDebug}}checked{{end}}> Notification Debug</label>
         <label><input type="checkbox" name="api_debug" value="true" {{if .ApiDebug}}checked{{end}}> REST API Debug</label>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">UI Settings</h3>
+    <form method="post" action="/admin/settings">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <div class="form-row" style="display:flex; gap:1.5rem; align-items:center;">
+        <label><input type="checkbox" name="show_memory_display" value="true" {{if .ShowMemoryDisplay}}checked{{end}}> Show Memory Usage in Header</label>
       </div>
       <div class="actions">
         <button type="submit" class="primary">Save</button>

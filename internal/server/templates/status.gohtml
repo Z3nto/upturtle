@@ -85,6 +85,36 @@
   }
   /* Break long continuous strings to avoid overflow */
   #upturtle-tooltip { word-break: break-word; }
+
+  /* Refresh control dark styling */
+  #refresh-control {
+    background: rgba(24,24,24,0.85);
+    border: 1px solid rgba(160,160,160,0.2);
+    color: #d1d5db;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  }
+  #refresh-select {
+    background-color: rgba(40,40,40,0.6);
+    color: #e2e8f0;
+    border: 1px solid rgba(160,160,160,0.3);
+    border-radius: 6px;
+    padding: .32rem 2rem .32rem .6rem;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .5rem center;
+    background-size: 16px 16px;
+  }
+  #refresh-select:hover { border-color: rgba(160,160,160,0.45); }
+  #refresh-select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.25); }
+  #refresh-select option {
+    background: #1f1f23;
+    color: #e2e8f0;
+  }
 </style>
 <script>
 (function(){
@@ -127,7 +157,7 @@
 </script>
 <div id="refresh-control" style="position:fixed; left:12px; bottom:12px; background: rgba(24,24,24,0.85); border:1px solid rgba(160,160,160,0.2); padding:.5rem .75rem; border-radius: 8px; font-size:.9rem; color:#d1d5db;">
   <label for="refresh-select" style="margin-right:.5rem;">Refresh:</label>
-  <select id="refresh-select" style="background: transparent; color: inherit; border:1px solid rgba(160,160,160,0.3); border-radius:6px; padding:.25rem .5rem;">
+  <select id="refresh-select">
     <option value="5000">5s</option>
     <option value="10000" selected>10s</option>
     <option value="15000">15s</option>

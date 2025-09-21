@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"upturtle/internal/config"
+	"upturtle/internal/database"
 	"upturtle/internal/monitor"
 	"upturtle/internal/notifier"
 	"upturtle/internal/server"
@@ -49,7 +50,92 @@ func main() {
 	manager := monitor.NewManager(cfg.HistoryLimit, notif)
 	defer manager.Close()
 
+	// Initialize database if configured
+	var dbIntegration *monitor.DatabaseIntegration
+	if exists && persisted.Database != nil {
+		log.Printf("Initializing database: %s", persisted.Database.Type)
+		
+		if err := database.ValidateConfig(*persisted.Database); err != nil {
+			log.Printf("Database configuration invalid: %v", err)
+		} else {
+			db, err := database.NewDatabase(*persisted.Database)
+			if err != nil {
+				log.Printf("Failed to create database: %v", err)
+			} else {
+				if err := db.Initialize(); err != nil {
+					log.Printf("Failed to initialize database: %v", err)
+				} else {
+					dbIntegration = monitor.NewDatabaseIntegration(db)
+					manager.SetDatabaseIntegration(dbIntegration)
+					log.Printf("Database integration enabled")
+				}
+			}
+		}
+	}
+
 	if exists {
+		// Load configuration from database if available
+		if persisted.Database != nil && manager.HasDatabaseIntegration() {
+			if dbIntegration := manager.GetDatabaseIntegration(); dbIntegration != nil {
+				db := dbIntegration.GetDatabase()
+				log.Printf("Loading configurations from existing database connection...")
+				
+				// Load admin credentials if not set
+				installRequired := (persisted.AdminUser == "" || persisted.AdminPasswordHash == "")
+				if installRequired {
+					var adminConfig map[string]interface{}
+					if err := db.GetConfig("admin_credentials", &adminConfig); err == nil {
+						if user, ok := adminConfig["username"].(string); ok && user != "" {
+							if hash, ok := adminConfig["password_hash"].(string); ok && hash != "" {
+								persisted.AdminUser = user
+								persisted.AdminPasswordHash = hash
+								log.Printf("Loaded admin credentials from database")
+							}
+						}
+					}
+				}
+				
+				// Load groups from database (override config file)
+				var dbGroups []config.GroupConfig
+				if err := db.GetConfig("groups", &dbGroups); err == nil && len(dbGroups) > 0 {
+					persisted.Groups = dbGroups
+					log.Printf("Loaded %d groups from database", len(dbGroups))
+				}
+				
+				// Load notifications from database (override config file)
+				var dbNotifications []config.NotificationConfig
+				if err := db.GetConfig("notifications", &dbNotifications); err == nil && len(dbNotifications) > 0 {
+					persisted.Notifications = dbNotifications
+					log.Printf("Loaded %d notifications from database", len(dbNotifications))
+				}
+				
+				// Load debug settings from database (override config file)
+				var debugConfig map[string]interface{}
+				if err := db.GetConfig("debug_settings", &debugConfig); err == nil {
+					if val, ok := debugConfig["monitor_debug"].(bool); ok {
+						persisted.MonitorDebug = val
+					}
+					if val, ok := debugConfig["notification_debug"].(bool); ok {
+						persisted.NotificationDebug = val
+					}
+					if val, ok := debugConfig["api_debug"].(bool); ok {
+						persisted.ApiDebug = val
+					}
+					if val, ok := debugConfig["show_memory_display"].(bool); ok {
+						persisted.ShowMemoryDisplay = val
+					}
+					log.Printf("Loaded debug settings from database")
+				}
+				
+				// Load monitors from database (override config file)
+				var dbMonitors []config.PersistedMonitorConfig
+				if err := db.GetConfig("monitors", &dbMonitors); err == nil && len(dbMonitors) > 0 {
+					persisted.Monitors = dbMonitors
+					log.Printf("Loaded %d monitors from database", len(dbMonitors))
+				}
+			}
+		}
+
 		// Initialize monitors from file
 		// Resolve NotifyURL from NotificationID if URL is not persisted
 		idToURL := make(map[int]string, len(persisted.Notifications))
@@ -69,9 +155,17 @@ func main() {
 		manager.LoadMonitors(mons)
 	}
 
-	// Installation page is required until admin credentials are set in the persisted config.
+	// Installation page is required until admin credentials are set.
 	installRequired := (persisted.AdminUser == "" || persisted.AdminPasswordHash == "")
+	
+	// Set default values for UI settings if not configured
+	if !exists || persisted.ShowMemoryDisplay == false {
+		persisted.ShowMemoryDisplay = true // Default: enabled
+	}
 
+	log.Printf("Creating server with %d groups, %d notifications, %d monitors", 
+		len(persisted.Groups), len(persisted.Notifications), len(persisted.Monitors))
+	
 	srv, err := server.New(server.Config{
 		Manager:           manager,
 		AdminUser:         persisted.AdminUser,
@@ -86,6 +180,8 @@ func main() {
 		MonitorDebug:      persisted.MonitorDebug,
 		NotificationDebug: persisted.NotificationDebug,
 		ApiDebug:          persisted.ApiDebug,
+		ShowMemoryDisplay: persisted.ShowMemoryDisplay,
+		DatabaseConfig:    persisted.Database,
 	})
 	if err != nil {
 		log.Fatalf("server init error: %v", err)
@@ -113,6 +209,12 @@ func main() {
 	log.Printf("shutdown signal received, stopping...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	
+	// Close server and its database connections
+	if err := srv.Close(); err != nil {
+		log.Printf("server close error: %v", err)
+	}
+	
 	if err := httpServer.Shutdown(ctx); err != nil {
 		log.Printf("server shutdown error: %v", err)
 	}

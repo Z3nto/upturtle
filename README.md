@@ -1,3 +1,8 @@
+
+<div align="center" width="100%">
+    <img src="./static/logo.png" width="128" alt="" />
+</div>
+
 # 🐢 Upturtle
 
 A lightweight, self-hosted monitoring solution written in Go that keeps track of your services and infrastructure with real-time status updates and flexible notification options.
@@ -13,6 +18,9 @@ A lightweight, self-hosted monitoring solution written in Go that keeps track of
 - **Docker Ready**: Containerized deployment with Docker Compose
 - **Secure by Design**: Session-based authentication with bcrypt password hashing
 - **Persistent Configuration**: JSON-based configuration with atomic updates
+- **Database Storage**: Optional SQLite/MySQL support for persistent measurement data
+- **Automatic Cleanup**: Intelligent data retention with configurable cleanup schedules
+- **Health Monitoring**: Built-in database connectivity monitoring and error reporting
 - **Graceful Shutdown**: Proper signal handling for clean shutdowns
 
 ## 🚀 Quick Start
@@ -27,12 +35,11 @@ cd upturtle
 
 2. Start the application:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 3. Open your browser and navigate to `http://localhost:8080`
 
-4. Complete the initial setup by creating an admin account
 
 ### Manual Installation
 
@@ -61,6 +68,54 @@ go build -o upturtle ./cmd/upturtle
 |----------|---------|-------------|
 | `LISTEN_ADDR` | `:8080` | Address and port to listen on |
 | `UPTURTLE_CONFIG_PATH` | `/conf/config.json` | Path to the configuration file |
+
+### Database Configuration
+
+Upturtle supports two storage modes:
+
+#### In-Memory Storage (Default)
+By default, Upturtle stores measurement data in memory. This is suitable for basic monitoring setups.
+
+#### Database Storage
+For persistent storage and larger deployments, you can configure a database backend. Currently supported:
+
+- **SQLite** - Lightweight, file-based database (recommended for most users)
+- **MySQL** - Full-featured database server (planned for future release)
+
+You can choose the deployment type at the installation page.
+
+
+#### Database Features
+
+When database storage is enabled:
+
+- **Persistent Data**: Measurement data survives application restarts
+- **Per-Day Tables**: Data is organized in daily tables for efficient cleanup
+- **Automatic Cleanup**: Old measurement data is automatically removed (default: 1 day retention)
+- **Live Queries**: Data is read directly from the database (no in-memory cache for less oberhead)
+- **Health Monitoring**: Database connectivity is monitored and displayed in the web interface
+- **Configuration Storage**: Admin credentials and settings are stored in the database
+
+#### Data Retention
+
+- **Default**: 1 day 
+- **Cleanup Schedule**: Daily at 00:01 AM
+- **Method**: Old daily tables are dropped entirely for efficient cleanup
+
+#### When to Use Database Storage
+
+**Use In-Memory Storage when:**
+- Running a small number of monitors (< 20)
+- Short-term monitoring needs
+- Minimal disk usage is priority
+- Simple deployment requirements
+
+**Use Database Storage when:**
+- Need persistent historical data
+- Running many monitors or high-frequency checks
+- Require data analysis or reporting
+- Planning for horizontal scaling
+- Want to survive application restarts without data loss
 
 ### Monitor Types
 
@@ -109,19 +164,6 @@ upturtle/
 └── go.mod              # Go module definition
 ```
 
-## 🔧 API Endpoints
-
-### Public Endpoints
-- `GET /` - Main dashboard
-- `GET /status` - Status page (JSON)
-
-### Admin Endpoints (Authentication Required)
-- `GET /admin` - Admin dashboard
-- `POST /admin/monitors` - Create/update monitors
-- `DELETE /admin/monitors/{id}` - Delete monitor
-- `POST /admin/groups` - Manage monitor groups
-- `POST /admin/notifications` - Manage notification targets
-- `POST /admin/settings` - Update application settings
 
 ## 🔒 Security Considerations
 
@@ -153,12 +195,15 @@ services:
       - "8080:8080"
     environment:
       LISTEN_ADDR: ":8080"
-      STATUS_REFRESH_SECONDS: "30"
-      HISTORY_LIMIT: "200"
       UPTURTLE_CONFIG_PATH: "/conf/config.json"
     volumes:
       - upturtle_conf:/conf
+      - upturtle_data:/data  # For SQLite database storage
     restart: unless-stopped
+
+volumes:
+  upturtle_conf:
+  upturtle_data:  # Persistent storage for database
 ```
 
 ## 📊 Monitoring Best Practices
@@ -170,26 +215,6 @@ services:
 5. **Test Notifications**: Verify your notification channels are working
 6. **Monitor the Monitor**: Keep an eye on Upturtle's own resource usage
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/Z3nto/upturtle.git
-cd upturtle
-
-# Install dependencies
-go mod download
-
-# Run tests
-go test ./...
-
-# Run the application in development mode
-go run ./cmd/upturtle
-```
 
 ## 📝 License
 
