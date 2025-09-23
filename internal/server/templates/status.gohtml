@@ -221,7 +221,8 @@
       const tipText = formatAbs(h.timestamp) + ' · ' + (h.success ? 'OK' : (h.message || ''));
       const encodedTip = btoa(encodeURIComponent(tipText));
       const className = h.success ? 'up' : 'down';
-      return `<span class="${className}" data-tip-encoded="${encodedTip}" onmouseover="this.setAttribute('data-tip', decodeURIComponent(atob(this.getAttribute('data-tip-encoded'))))"></span>`;
+      // include data-ts for incremental updates
+      return `<span class="${className}" data-ts="${String(h.timestamp)}" data-tip-encoded="${encodedTip}" onmouseover="this.setAttribute('data-tip', decodeURIComponent(atob(this.getAttribute('data-tip-encoded'))))"></span>`;
     });
     const placeholders = [];
     const need = Math.max(0, HISTORY_PREVIEW - real.length);
@@ -243,6 +244,64 @@
         el.insertBefore(sp, el.firstChild);
       }
     });
+  }
+  // Create a history span DOM node from a history item
+  function createHistorySpan(h){
+    const tipText = formatAbs(h.timestamp) + ' · ' + (h.success ? 'OK' : (h.message || ''));
+    const encodedTip = btoa(encodeURIComponent(tipText));
+    const sp = document.createElement('span');
+    sp.className = h.success ? 'up' : 'down';
+    sp.setAttribute('data-ts', String(h.timestamp));
+    sp.setAttribute('data-tip-encoded', encodedTip);
+    sp.onmouseover = function(){
+      this.setAttribute('data-tip', decodeURIComponent(atob(this.getAttribute('data-tip-encoded'))));
+    };
+    return sp;
+  }
+  // Incrementally update history: append new items (by timestamp) and remove oldest to keep length
+  function updateHistoryIncremental(histEl, incoming){
+    if(!histEl) return;
+    const items = Array.isArray(incoming) ? incoming : [];
+    if(items.length === 0) return;
+
+    // Determine last known timestamp on the RIGHT-most real item
+    let lastKnownTs = null;
+    for(let i = histEl.children.length - 1; i >= 0; i--){
+      const ch = histEl.children[i];
+      const ts = ch.getAttribute && ch.getAttribute('data-ts');
+      if(ts){ lastKnownTs = ts; break; }
+    }
+
+    // If no timestamps in DOM (first-time or server-rendered), full render
+    if(!lastKnownTs){
+      histEl.innerHTML = renderHistoryHTML(items);
+      return;
+    }
+
+    // Collect new items strictly newer than lastKnownTs, in correct order
+    const toAppend = [];
+    for(let i = 0; i < items.length; i++){
+      const it = items[i];
+      if(String(it.timestamp) > String(lastKnownTs)){
+        toAppend.push(it);
+      }
+    }
+    if(toAppend.length === 0){
+      return; // nothing new
+    }
+
+    // Append new ones to the right
+    toAppend.forEach(h => {
+      histEl.appendChild(createHistorySpan(h));
+    });
+
+    // Ensure length: remove from left first real or unknowns to maintain HISTORY_PREVIEW
+    // Compute excess
+    let total = histEl.children.length;
+    const maxLen = HISTORY_PREVIEW;
+    while(total > maxLen){
+      if(histEl.firstChild){ histEl.removeChild(histEl.firstChild); total--; } else { break; }
+    }
   }
   async function poll(){
     try {
@@ -270,34 +329,58 @@
         const id = tr.getAttribute('data-id');
         const it = byId[id];
         if(!it) return;
-        // Update row class
+
+        // Always update row class (cheap) and master-dependent status badge
         tr.classList.remove('status-up','status-down','status-unknown');
         tr.classList.add(statusClass(it.status));
-        // Status cell (now column 2)
         const statusCell = tr.querySelector('[data-field="status"]');
         const statusContainer = tr.querySelector('td:nth-child(2)');
-        // Determine master-down badge
         const isMasterDown = !!(it.master_id && byId[it.master_id] && byId[it.master_id].status === 'down');
         if(isMasterDown){
-          // Replace content with only Master down badge
           if(statusContainer){ statusContainer.innerHTML = '<span class="badge status-unknown" data-tip="Master monitor is down">Master down<\/span>'; }
         } else if(statusCell){
           statusCell.className = 'badge ' + statusClass(it.status);
           statusCell.textContent = it.status;
         }
-        // Times (only relative)
+
+        // Always refresh relative time text
         const relEl = tr.querySelector('[data-field="last-checked-rel"]');
         if(relEl) relEl.textContent = formatRel(it.last_checked);
-        // History
+
+        // History and uptime: initialize once, then incremental updates only when new data
         const histEl = tr.querySelector('[data-field="history"]');
-        if(histEl && Array.isArray(it.history)){
-          histEl.innerHTML = renderHistoryHTML(it.history);
-        }
-        // Uptime
         const upEl = tr.querySelector('[data-field="uptime"]');
-        if(upEl && Array.isArray(it.history) && it.history.length){
-          const ok = it.history.filter(h => h.success).length;
-          upEl.textContent = ((ok / it.history.length) * 100).toFixed(1) + '%';
+        const initialized = tr.getAttribute('data-init') === '1';
+        if(!initialized){
+          if(histEl && Array.isArray(it.history)){
+            histEl.innerHTML = renderHistoryHTML(it.history);
+          }
+          if(upEl && Array.isArray(it.history) && it.history.length){
+            const ok = it.history.filter(h => h.success).length;
+            upEl.textContent = ((ok / it.history.length) * 100).toFixed(1) + '%';
+          }
+          tr.setAttribute('data-last-checked', String(it.last_checked || ''));
+          tr.setAttribute('data-init', '1');
+        } else {
+          const prevLC = tr.getAttribute('data-last-checked') || '';
+          const currLC = String(it.last_checked || '');
+          if(prevLC !== currLC){
+            // Incremental history update
+            if(histEl && Array.isArray(it.history)){
+              updateHistoryIncremental(histEl, it.history);
+            }
+            // Recompute uptime from current 20-window
+            if(upEl){
+              const children = histEl ? Array.from(histEl.children) : [];
+              if(children.length){
+                const total = Math.min(children.length, HISTORY_PREVIEW);
+                let okCount = 0;
+                for(const ch of children){ if(ch.classList.contains('up')) okCount++; }
+                upEl.textContent = ((okCount / total) * 100).toFixed(1) + '%';
+              }
+            }
+            tr.setAttribute('data-last-checked', currLC);
+          }
         }
       });
     } catch(e) { /* ignore transient errors */ }
