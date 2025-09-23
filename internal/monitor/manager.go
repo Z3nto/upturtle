@@ -337,9 +337,10 @@ func (m *Manager) UpdateMonitor(cfg MonitorConfig) (MonitorConfig, error) {
 	entry.config.Order = cfg.Order
 	entry.config.MasterID = cfg.MasterID
 	entry.config.FailThreshold = cfg.FailThreshold
+	entry.config.CertValidation = cfg.CertValidation
 	entry.mu.Unlock()
 
-	needsRestart := oldCfg.Interval != cfg.Interval || oldCfg.Type != cfg.Type || oldCfg.Target != cfg.Target || oldCfg.Timeout != cfg.Timeout || oldCfg.Enabled != cfg.Enabled
+	needsRestart := oldCfg.Interval != cfg.Interval || oldCfg.Type != cfg.Type || oldCfg.Target != cfg.Target || oldCfg.Timeout != cfg.Timeout || oldCfg.Enabled != cfg.Enabled || oldCfg.CertValidation != cfg.CertValidation
 
 	if needsRestart {
 		entry.mu.Lock()

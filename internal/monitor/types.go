@@ -28,6 +28,18 @@ const (
 	StatusDown    Status = "down"
 )
 
+// CertValidationMode represents the certificate validation mode for HTTPS monitors.
+type CertValidationMode string
+
+const (
+	// CertValidationFull performs full certificate validation (default)
+	CertValidationFull CertValidationMode = "full"
+	// CertValidationExpiryOnly only checks certificate expiry date
+	CertValidationExpiryOnly CertValidationMode = "expiry_only"
+	// CertValidationIgnore skips all certificate validation
+	CertValidationIgnore CertValidationMode = "ignore"
+)
+
 // MonitorConfig describes the configuration for a monitor.
 type MonitorConfig struct {
 	ID             string        `json:"id"`
@@ -53,6 +65,9 @@ type MonitorConfig struct {
 	// notification should be sent via the notifier. Defaults to 3 if not set
 	// in forms; must be >= 1.
 	FailThreshold int `json:"fail_threshold"`
+	// CertValidation specifies the certificate validation mode for HTTPS monitors.
+	// Only applies to HTTP monitors with HTTPS targets.
+	CertValidation CertValidationMode `json:"cert_validation,omitempty"`
 }
 
 // CheckResult captures the outcome of a monitor check.

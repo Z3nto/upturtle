@@ -117,9 +117,9 @@ type Server struct {
 	// UI settings
 	showMemoryDisplay bool
 	// database configuration
-	databaseConfig    *database.Config
+	databaseConfig *database.Config
 	// persistent database connection (only for config storage)
-	configDB          database.Database
+	configDB database.Database
 }
 
 // Config holds the parameters for creating a server instance.
@@ -145,7 +145,7 @@ type Config struct {
 	// UI settings
 	ShowMemoryDisplay bool
 	// Database configuration
-	DatabaseConfig    *database.Config
+	DatabaseConfig *database.Config
 }
 
 // New constructs a new HTTP server with the provided configuration.
@@ -181,7 +181,7 @@ func New(cfg Config) (*Server, error) {
 		showMemoryDisplay: cfg.ShowMemoryDisplay,
 		databaseConfig:    cfg.DatabaseConfig,
 	}
-	
+
 	// Initialize persistent database connection if configured
 	// Reuse the database connection from the manager if available
 	if cfg.DatabaseConfig != nil {
@@ -203,7 +203,7 @@ func New(cfg Config) (*Server, error) {
 			}
 		}
 	}
-	
+
 	// initialize session store
 	s.sessions = make(map[string]time.Time)
 	// initialize CSRF token store
@@ -305,8 +305,8 @@ func (s *Server) buildAdminData(r *http.Request, success, failure string) AdminP
 		groups = append(groups, AdminGroupView{ID: g, Name: s.getGroupName(g), Monitors: mons})
 	}
 	return AdminPageData{
-		BasePageData:  BasePageData{
-			Title:             "Administration", 
+		BasePageData: BasePageData{
+			Title:             "Administration",
 			ContentTemplate:   "admin.content",
 			CSRFToken:         s.getCSRFToken(r),
 			DatabaseEnabled:   s.manager.HasDatabaseIntegration(),
@@ -350,8 +350,8 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 			Error             string
 			Success           string
 		}{
-			BasePageData:      BasePageData{
-				Title:           "Settings", 
+			BasePageData: BasePageData{
+				Title:           "Settings",
 				ContentTemplate: "settings.content",
 				CSRFToken:       s.getCSRFToken(r),
 			},
@@ -652,7 +652,7 @@ func (s *Server) handleAPIMemory(w http.ResponseWriter, r *http.Request) {
 	if s.apiDebug {
 		s.logger.Printf("[API DEBUG] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
 	}
-	
+
 	memoryUsage := s.manager.GetMemoryUsage()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(memoryUsage)
@@ -687,22 +687,22 @@ func (s *Server) handleAPINotificationsCollection(w http.ResponseWriter, r *http
 		if !s.ensureAuth(w, r) {
 			return
 		}
-		
-		var body struct{ 
-			Name, URL string 
+
+		var body struct {
+			Name, URL string
 			CSRFToken string `json:"csrf_token"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
 		}
-		
+
 		// Validate CSRF token from JSON body
 		if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
 			http.Error(w, "CSRF token validation failed", http.StatusForbidden)
 			return
 		}
-		
+
 		name := strings.TrimSpace(body.Name)
 		urlStr := normalizeShoutrrrURL(strings.TrimSpace(body.URL))
 		if name == "" || urlStr == "" {
@@ -752,16 +752,16 @@ func (s *Server) handleAPINotificationItem(w http.ResponseWriter, r *http.Reques
 		if !s.ensureAuth(w, r) {
 			return
 		}
-		
-		var body struct{ 
-			Name, URL string 
+
+		var body struct {
+			Name, URL string
 			CSRFToken string `json:"csrf_token"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
 		}
-		
+
 		// Validate CSRF token from JSON body
 		if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
 			http.Error(w, "CSRF token validation failed", http.StatusForbidden)
@@ -1164,8 +1164,8 @@ func (s *Server) handleAdminNotifications(w http.ResponseWriter, r *http.Request
 			Error         string
 			Success       string
 		}{
-			BasePageData:  BasePageData{
-				Title:             "Notifications", 
+			BasePageData: BasePageData{
+				Title:             "Notifications",
 				ContentTemplate:   "notifications.content",
 				CSRFToken:         s.getCSRFToken(r),
 				ShowMemoryDisplay: s.showMemoryDisplay,
@@ -1202,7 +1202,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-	
+
 	// If installation is required, redirect all requests to /install
 	// until credentials are configured, except when already on /install.
 	if s.installRequired && r.URL.Path != "/install" && !strings.HasPrefix(r.URL.Path, "/static/") {
@@ -1341,23 +1341,23 @@ func (s *Server) ensureAuthAndCSRF(w http.ResponseWriter, r *http.Request) bool 
 	if !s.ensureAuth(w, r) {
 		return false
 	}
-	
+
 	// Skip CSRF check for GET requests (they should be safe)
 	if r.Method == http.MethodGet {
 		return true
 	}
-	
+
 	// Skip CSRF check for HTTP Basic Auth (API clients)
 	if _, _, ok := r.BasicAuth(); ok {
 		return true
 	}
-	
+
 	// For session-based requests, validate CSRF token
 	if !s.validateCSRFToken(r) {
 		http.Error(w, "CSRF token validation failed", http.StatusForbidden)
 		return false
 	}
-	
+
 	return true
 }
 
@@ -1379,11 +1379,11 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) error {
 	id := hex.EncodeToString(b)
 	// 24h session
 	s.sessions[id] = time.Now().Add(24 * time.Hour)
-	
+
 	// Clean up any temporary CSRF token for this client
 	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 	delete(s.csrfTokens, tempKey)
-	
+
 	cookie := &http.Cookie{
 		Name:     "upturtle_session",
 		Value:    id,
@@ -1433,27 +1433,27 @@ func (s *Server) generateCSRFToken() string {
 // For requests without sessions (login/install), generates a temporary token
 func (s *Server) getCSRFToken(r *http.Request) string {
 	sessionID := s.getSessionID(r)
-	
+
 	// For authenticated sessions, use session-based tokens
 	if sessionID != "" {
 		// Check if token already exists for this session
 		if token, exists := s.csrfTokens[sessionID]; exists {
 			return token
 		}
-		
+
 		// Generate new token for this session
 		token := s.generateCSRFToken()
 		s.csrfTokens[sessionID] = token
 		return token
 	}
-	
+
 	// For unauthenticated requests (login/install), generate a temporary token
 	// Store it with a special key based on remote address and user agent
 	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 	if token, exists := s.csrfTokens[tempKey]; exists {
 		return token
 	}
-	
+
 	token := s.generateCSRFToken()
 	s.csrfTokens[tempKey] = token
 	return token
@@ -1471,10 +1471,10 @@ func (s *Server) getSessionID(r *http.Request) string {
 // validateCSRFToken validates the CSRF token from the request
 func (s *Server) validateCSRFToken(r *http.Request) bool {
 	sessionID := s.getSessionID(r)
-	
+
 	var expectedToken string
 	var exists bool
-	
+
 	// For authenticated sessions, use session-based tokens
 	if sessionID != "" {
 		expectedToken, exists = s.csrfTokens[sessionID]
@@ -1483,11 +1483,11 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 		tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 		expectedToken, exists = s.csrfTokens[tempKey]
 	}
-	
+
 	if !exists {
 		return false
 	}
-	
+
 	// Get token from request (try header first, then form)
 	var providedToken string
 	if headerToken := r.Header.Get("X-CSRF-Token"); headerToken != "" {
@@ -1495,23 +1495,23 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 	} else if err := r.ParseForm(); err == nil {
 		providedToken = r.FormValue("csrf_token")
 	}
-	
+
 	if providedToken == "" {
 		return false
 	}
-	
+
 	// Constant-time comparison to prevent timing attacks
-	return len(expectedToken) == len(providedToken) && 
-		   expectedToken == providedToken
+	return len(expectedToken) == len(providedToken) &&
+		expectedToken == providedToken
 }
 
 // validateCSRFTokenFromJSON validates CSRF token from a JSON body
 func (s *Server) validateCSRFTokenFromJSON(r *http.Request, jsonToken string) bool {
 	sessionID := s.getSessionID(r)
-	
+
 	var expectedToken string
 	var exists bool
-	
+
 	// For authenticated sessions, use session-based tokens
 	if sessionID != "" {
 		expectedToken, exists = s.csrfTokens[sessionID]
@@ -1520,14 +1520,14 @@ func (s *Server) validateCSRFTokenFromJSON(r *http.Request, jsonToken string) bo
 		tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 		expectedToken, exists = s.csrfTokens[tempKey]
 	}
-	
+
 	if !exists || jsonToken == "" {
 		return false
 	}
-	
+
 	// Constant-time comparison to prevent timing attacks
-	return len(expectedToken) == len(jsonToken) && 
-		   expectedToken == jsonToken
+	return len(expectedToken) == len(jsonToken) &&
+		expectedToken == jsonToken
 }
 
 // startSessionCleanup starts a background goroutine to periodically clean up expired sessions and CSRF tokens
@@ -1535,7 +1535,7 @@ func (s *Server) startSessionCleanup() {
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour) // Clean up every hour
 		defer ticker.Stop()
-		
+
 		for range ticker.C {
 			s.cleanupExpiredSessions()
 		}
@@ -1546,20 +1546,20 @@ func (s *Server) startSessionCleanup() {
 func (s *Server) cleanupExpiredSessions() {
 	now := time.Now()
 	expiredSessions := make([]string, 0)
-	
+
 	// Find expired sessions
 	for sessionID, expiry := range s.sessions {
 		if now.After(expiry) {
 			expiredSessions = append(expiredSessions, sessionID)
 		}
 	}
-	
+
 	// Remove expired sessions and their CSRF tokens
 	for _, sessionID := range expiredSessions {
 		delete(s.sessions, sessionID)
 		delete(s.csrfTokens, sessionID)
 	}
-	
+
 	// Also clean up old temporary CSRF tokens (older than 24 hours)
 	tempTokensRemoved := 0
 	for key := range s.csrfTokens {
@@ -1569,12 +1569,11 @@ func (s *Server) cleanupExpiredSessions() {
 			tempTokensRemoved++
 		}
 	}
-	
+
 	if len(expiredSessions) > 0 || tempTokensRemoved > 0 {
 		s.logger.Printf("Cleaned up %d expired sessions and %d temporary CSRF tokens", len(expiredSessions), tempTokensRemoved)
 	}
 }
-
 
 // ==== Public Pages ============================================================
 
@@ -1662,14 +1661,25 @@ type monitorRequest struct {
 	Order          int    `json:"order"`
 	MasterID       string `json:"master_id"`
 	FailThreshold  int    `json:"fail_threshold"`
+	CertValidation string `json:"cert_validation"`
 }
 
 func (m monitorRequest) toConfig(id string) (monitor.MonitorConfig, error) {
+	target := strings.TrimSpace(m.Target)
+	monitorType := monitor.Type(strings.TrimSpace(m.Type))
+
+	// Auto-add schema for HTTP monitors if missing
+	if monitorType == monitor.TypeHTTP && target != "" {
+		if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+			target = "https://" + target
+		}
+	}
+
 	cfg := monitor.MonitorConfig{
 		ID:             id,
 		Name:           strings.TrimSpace(m.Name),
-		Type:           monitor.Type(strings.TrimSpace(m.Type)),
-		Target:         strings.TrimSpace(m.Target),
+		Type:           monitorType,
+		Target:         target,
 		NotificationID: m.NotificationID,
 		Enabled:        true,
 		GroupID:        m.GroupID,
@@ -1694,6 +1704,12 @@ func (m monitorRequest) toConfig(id string) (monitor.MonitorConfig, error) {
 	if m.FailThreshold > 0 {
 		cfg.FailThreshold = m.FailThreshold
 	}
+	// Set certificate validation mode
+	certValidation := strings.TrimSpace(m.CertValidation)
+	if certValidation == "" {
+		certValidation = "full" // default to full validation
+	}
+	cfg.CertValidation = monitor.CertValidationMode(certValidation)
 	// If NotificationID provided, do not attempt to override here; resolution happens in API handlers
 	if cfg.Timeout > cfg.Interval {
 		cfg.Timeout = cfg.Interval
@@ -1790,6 +1806,7 @@ type AdminMonitorView struct {
 	NotifyURL       string
 	FailThreshold   int
 	NotificationID  int
+	CertValidation  string
 }
 
 const historyPreview = 20
@@ -1840,6 +1857,7 @@ func toAdminMonitorView(snap monitor.Snapshot) AdminMonitorView {
 		NotifyURL:         snap.Config.NotifyURL,
 		FailThreshold:     snap.Config.FailThreshold,
 		NotificationID:    snap.Config.NotificationID,
+		CertValidation:    string(snap.Config.CertValidation),
 	}
 }
 
@@ -1882,12 +1900,12 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		pass := r.FormValue("password")
 		storageType := r.FormValue("storage_type")
 		sqlitePath := strings.TrimSpace(r.FormValue("sqlite_path"))
-		
+
 		if user == "" || pass == "" {
 			http.Redirect(w, r, "/install?error=Username+and+password+are+required", http.StatusSeeOther)
 			return
 		}
-		
+
 		// Validate storage configuration
 		var dbConfig *database.Config
 		if storageType == "sqlite" {
@@ -1898,7 +1916,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 				Type: database.DatabaseTypeSQLite,
 				Path: sqlitePath,
 			}
-			
+
 			// Validate the database configuration
 			if err := database.ValidateConfig(*dbConfig); err != nil {
 				http.Redirect(w, r, "/install?error=Invalid+database+configuration:+"+url.QueryEscape(err.Error()), http.StatusSeeOther)
@@ -1916,7 +1934,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		s.adminPassword = string(hash)
 		s.databaseConfig = dbConfig
 		s.installRequired = false
-		
+
 		// Initialize database if configured
 		if dbConfig != nil {
 			s.logger.Printf("Initializing database during installation: %s", dbConfig.Type)
@@ -1926,21 +1944,21 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/install?error=Failed+to+create+database:+"+url.QueryEscape(err.Error()), http.StatusSeeOther)
 				return
 			}
-			
+
 			if err := db.Initialize(); err != nil {
 				s.logger.Printf("Failed to initialize database during installation: %v", err)
 				http.Redirect(w, r, "/install?error=Failed+to+initialize+database:+"+url.QueryEscape(err.Error()), http.StatusSeeOther)
 				return
 			}
-			
+
 			// Set up database integration for the manager
 			dbIntegration := monitor.NewDatabaseIntegration(db)
 			s.manager.SetDatabaseIntegration(dbIntegration)
 			s.logger.Printf("Database integration enabled during installation")
-			
+
 			// Set the persistent config database connection
 			s.configDB = db
-			
+
 			// Store admin credentials in database for future use
 			adminConfig := map[string]interface{}{
 				"username":      user,
@@ -1951,7 +1969,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			} else {
 				s.logger.Printf("Admin credentials saved to database")
 			}
-			
+
 			// Store all other configurations in database as well
 			if len(s.groups) > 0 {
 				if err := db.SaveConfig("groups", s.groups); err != nil {
@@ -1963,7 +1981,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 					s.logger.Printf("Warning: Failed to save notifications to database: %v", err)
 				}
 			}
-			
+
 			// Save debug settings
 			debugConfig := map[string]interface{}{
 				"monitor_debug":      s.monitorDebug,
@@ -2029,7 +2047,7 @@ func (s *Server) saveConfig() error {
 	if s.configPath == "" {
 		return nil
 	}
-	
+
 	// If database is configured, save everything to database and minimal config to file
 	if s.databaseConfig != nil && s.configDB != nil {
 		// Save admin credentials to database
@@ -2038,22 +2056,22 @@ func (s *Server) saveConfig() error {
 			"password_hash": s.adminPassword,
 		}
 		s.configDB.SaveConfig("admin_credentials", adminConfig)
-		
+
 		// Save groups to database
 		s.configDB.SaveConfig("groups", s.groups)
-		
+
 		// Save notifications to database
 		s.configDB.SaveConfig("notifications", s.notifications)
-		
+
 		// Save debug settings and UI settings to database
 		debugConfig := map[string]interface{}{
-			"monitor_debug":      s.monitorDebug,
-			"notification_debug": s.notificationDebug,
-			"api_debug":          s.apiDebug,
+			"monitor_debug":       s.monitorDebug,
+			"notification_debug":  s.notificationDebug,
+			"api_debug":           s.apiDebug,
 			"show_memory_display": s.showMemoryDisplay,
 		}
 		s.configDB.SaveConfig("debug_settings", debugConfig)
-		
+
 		// Save monitors to database as well
 		configs := s.manager.GetAllConfigs()
 		monitorConfigs := make([]config.PersistedMonitorConfig, 0, len(configs))
@@ -2061,14 +2079,14 @@ func (s *Server) saveConfig() error {
 			monitorConfigs = append(monitorConfigs, config.FromMonitorConfig(mc))
 		}
 		s.configDB.SaveConfig("monitors", monitorConfigs)
-		
+
 		// Save only database config to config file (no monitors)
 		cfg := config.AppConfig{
 			Database: s.databaseConfig,
 		}
 		return config.Save(s.configPath, cfg)
 	}
-	
+
 	// In-memory mode: save everything to config file
 	cfg := config.AppConfig{
 		AdminUser:         s.adminUser,

@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -32,8 +33,31 @@ func checkHTTP(cfg MonitorConfig) CheckResult {
 	}
 	req.Header.Set("User-Agent", "upturtle/1.0")
 
+	// Configure TLS settings based on certificate validation mode
+	transport := &http.Transport{}
+	if strings.HasPrefix(cfg.Target, "https://") {
+		tlsConfig := &tls.Config{}
+		
+		switch cfg.CertValidation {
+		case CertValidationIgnore:
+			// Skip all certificate validation
+			tlsConfig.InsecureSkipVerify = true
+		case CertValidationExpiryOnly:
+			// Skip certificate verification but still get certificate info
+			tlsConfig.InsecureSkipVerify = true
+		case CertValidationFull:
+			fallthrough
+		default:
+			// Full certificate validation (default behavior)
+			tlsConfig.InsecureSkipVerify = false
+		}
+		
+		transport.TLSClientConfig = tlsConfig
+	}
+
 	client := &http.Client{
-		Timeout: timeout,
+		Timeout:   timeout,
+		Transport: transport,
 	}
 
 	start := time.Now()
@@ -51,9 +75,30 @@ func checkHTTP(cfg MonitorConfig) CheckResult {
 	result.Timestamp = time.Now()
 	result.Latency = latency
 
+	// Check certificate expiry if this is an HTTPS request with expiry-only validation
+	if strings.HasPrefix(cfg.Target, "https://") && cfg.CertValidation == CertValidationExpiryOnly {
+		if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
+			cert := resp.TLS.PeerCertificates[0]
+			now := time.Now()
+			
+			// Check if certificate is expired or will expire soon (within 30 days)
+			if cert.NotAfter.Before(now) {
+				result.Success = false
+				result.Message = fmt.Sprintf("Certificate expired on %s", cert.NotAfter.Format("2006-01-02"))
+				return result
+			} else if cert.NotAfter.Before(now.Add(30 * 24 * time.Hour)) {
+				// Certificate expires within 30 days - still considered "up" but with warning
+				result.Message = fmt.Sprintf("%s (Certificate expires %s)", resp.Status, cert.NotAfter.Format("2006-01-02"))
+			}
+		}
+	}
+	// Note: For CertValidationIgnore, no certificate checks are performed at all
+
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		result.Success = true
-		result.Message = resp.Status
+		if result.Message == "" {
+			result.Message = resp.Status
+		}
 	} else {
 		result.Success = false
 		result.Message = resp.Status

@@ -148,6 +148,14 @@
           <label for="new-target">Target</label>
           <input id="new-target" name="target" type="text" placeholder="https://example.com or host" required>
         </div>
+        <div id="new-cert-validation-div" style="display: none;">
+          <label for="new-cert-validation">Certificate Validation</label>
+          <select id="new-cert-validation" name="cert_validation">
+            <option value="full" selected>Valid (Full validation)</option>
+            <option value="expiry_only">Expiry only</option>
+            <option value="ignore">Ignore</option>
+          </select>
+        </div>
         <div>
           <label for="new-group">Group</label>
           <select id="new-group" name="group_id">
@@ -230,6 +238,14 @@
           <div>
             <label>Target</label>
             <input name="target" type="text" value="{{.Target}}" required>
+          </div>
+          <div class="cert-validation-div" {{if ne .Type "http"}}style="display: none;"{{end}}>
+            <label>Certificate Validation</label>
+            <select name="cert_validation">
+              <option value="full" {{if or (eq .CertValidation "full") (eq .CertValidation "")}}selected{{end}}>Valid (Full validation)</option>
+              <option value="expiry_only" {{if eq .CertValidation "expiry_only"}}selected{{end}}>Expiry only</option>
+              <option value="ignore" {{if eq .CertValidation "ignore"}}selected{{end}}>Ignore</option>
+            </select>
           </div>
           <div>
             <label>Group</label>
@@ -455,6 +471,36 @@
   window.closeModal = closeModal;
   document.getElementById('btn-new')?.addEventListener('click', function(){ openModal('modal-new'); });
   document.getElementById('btn-add-group')?.addEventListener('click', function(){ openModal('modal-new-group'); });
+  
+  // Handle certificate validation visibility based on monitor type
+  function toggleCertValidation(typeSelect, certDiv) {
+    if (typeSelect && certDiv) {
+      const isHTTP = typeSelect.value === 'http';
+      certDiv.style.display = isHTTP ? 'block' : 'none';
+    }
+  }
+  
+  // For new monitor form
+  const newTypeSelect = document.getElementById('new-type');
+  const newCertDiv = document.getElementById('new-cert-validation-div');
+  if (newTypeSelect && newCertDiv) {
+    newTypeSelect.addEventListener('change', function() {
+      toggleCertValidation(newTypeSelect, newCertDiv);
+    });
+    // Set initial state
+    toggleCertValidation(newTypeSelect, newCertDiv);
+  }
+  
+  // For edit monitor forms
+  document.querySelectorAll('form.form-edit-monitor').forEach(function(form) {
+    const typeSelect = form.querySelector('select[name="type"]');
+    const certDiv = form.querySelector('.cert-validation-div');
+    if (typeSelect && certDiv) {
+      typeSelect.addEventListener('change', function() {
+        toggleCertValidation(typeSelect, certDiv);
+      });
+    }
+  });
   // Explicit listeners for elements with data-open (belt-and-suspenders)
   document.querySelectorAll('[data-open]').forEach(function(el){
     el.addEventListener('click', function(e){ if (window.__upt_dragging) { e.preventDefault(); return; } e.preventDefault(); openModal(el.getAttribute('data-open')); });
@@ -509,17 +555,17 @@
       target: fd.get('target')||'',
       interval_seconds: parseInt(fd.get('interval_seconds')||'60',10),
       timeout_seconds: parseInt(fd.get('timeout_seconds')||'10',10),
-      notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
-      enabled: fd.get('enabled') ? true : false,
       group_id: parseInt(fd.get('group_id')||'0',10) || 0,
       master_id: fd.get('master_id')||'',
-      fail_threshold: parseInt(fd.get('fail_threshold')||'3',10)
+      notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
+      fail_threshold: parseInt(fd.get('fail_threshold')||'3',10) || 3,
+      enabled: !!fd.get('enabled'),
+      cert_validation: fd.get('cert_validation')||'full'
     };
     const res = await api('/api/monitors/', { method:'POST', body: JSON.stringify(payload) });
     if(!res.ok) throw new Error('create monitor failed');
     window.location.reload();
   }catch(err){ alert('Failed to create monitor'); }}); }
-
   // Edit monitor
   document.querySelectorAll('form.form-edit-monitor').forEach(function(f){
     f.addEventListener('submit', async function(e){ e.preventDefault(); try{
@@ -535,7 +581,8 @@
         enabled: fd.get('enabled') ? true : false,
         group_id: parseInt(fd.get('group_id')||'0',10) || 0,
         master_id: fd.get('master_id')||'',
-        fail_threshold: parseInt(fd.get('fail_threshold')||'3',10)
+        fail_threshold: parseInt(fd.get('fail_threshold')||'3',10),
+        cert_validation: fd.get('cert_validation')||'full'
       };
       const res = await api('/api/monitors/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify(payload) });
       if(!res.ok) throw new Error('update failed');

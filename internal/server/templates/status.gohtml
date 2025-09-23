@@ -217,10 +217,12 @@
 
   function renderHistoryHTML(arr){
     const items = Array.isArray(arr) ? arr : [];
-    const real = items.map(h => h.success ?
-      `<span class="up" data-tip="${formatAbs(h.timestamp)} · OK"></span>` :
-      `<span class="down" data-tip="${formatAbs(h.timestamp)} · ${h.message || ''}"></span>`
-    );
+    const real = items.map(h => {
+      const tipText = formatAbs(h.timestamp) + ' · ' + (h.success ? 'OK' : (h.message || ''));
+      const encodedTip = btoa(encodeURIComponent(tipText));
+      const className = h.success ? 'up' : 'down';
+      return `<span class="${className}" data-tip-encoded="${encodedTip}" onmouseover="this.setAttribute('data-tip', decodeURIComponent(atob(this.getAttribute('data-tip-encoded'))))"></span>`;
+    });
     const placeholders = [];
     const need = Math.max(0, HISTORY_PREVIEW - real.length);
     for (let i = 0; i < need; i++) {

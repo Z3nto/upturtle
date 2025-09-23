@@ -51,18 +51,19 @@ type NotificationConfig struct {
 
 // PersistedMonitorConfig mirrors monitor.MonitorConfig but uses seconds for durations.
 type PersistedMonitorConfig struct {
-	ID             string       `json:"id"`
-	Name           string       `json:"name"`
-	Type           monitor.Type `json:"type"`
-	Target         string       `json:"target"`
-	IntervalSec    int          `json:"interval_seconds"`
-	TimeoutSec     int          `json:"timeout_seconds"`
-	NotificationID int          `json:"notification_id,omitempty"`
-	Enabled        bool         `json:"enabled"`
-	GroupID        int          `json:"group_id,omitempty"`
-	Order          int          `json:"order,omitempty"`
-	MasterID       string       `json:"master_id,omitempty"`
-	FailThreshold  int          `json:"fail_threshold"`
+	ID             string                   `json:"id"`
+	Name           string                   `json:"name"`
+	Type           monitor.Type             `json:"type"`
+	Target         string                   `json:"target"`
+	IntervalSec    int                      `json:"interval_seconds"`
+	TimeoutSec     int                      `json:"timeout_seconds"`
+	NotificationID int                      `json:"notification_id,omitempty"`
+	Enabled        bool                     `json:"enabled"`
+	GroupID        int                      `json:"group_id,omitempty"`
+	Order          int                      `json:"order,omitempty"`
+	MasterID       string                   `json:"master_id,omitempty"`
+	FailThreshold  int                      `json:"fail_threshold"`
+	CertValidation monitor.CertValidationMode `json:"cert_validation,omitempty"`
 }
 
 func FromMonitorConfig(m monitor.MonitorConfig) PersistedMonitorConfig {
@@ -79,6 +80,7 @@ func FromMonitorConfig(m monitor.MonitorConfig) PersistedMonitorConfig {
 		Order:          m.Order,
 		MasterID:       m.MasterID,
 		FailThreshold:  m.FailThreshold,
+		CertValidation: m.CertValidation,
 	}
 }
 
@@ -107,6 +109,7 @@ func (p PersistedMonitorConfig) ToMonitorConfig() monitor.MonitorConfig {
 		Order:          p.Order,
 		MasterID:       p.MasterID,
 		FailThreshold:  p.FailThreshold,
+		CertValidation: p.CertValidation,
 	}
 }
 
