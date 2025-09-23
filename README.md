@@ -5,7 +5,7 @@
 
 # 🐢 Upturtle
 
-A lightweight, self-hosted monitoring solution written in Go that keeps track of your services and infrastructure with real-time status updates and flexible notification options.
+A lightweight, easy-to-use self-hosted monitoring solution written in Go that keeps track of your services and infrastructure with real-time status updates and flexible notification options.
 
 ## ✨ Features
 
