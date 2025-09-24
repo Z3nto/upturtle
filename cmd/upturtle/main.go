@@ -109,22 +109,13 @@ func main() {
 					log.Printf("Loaded %d notifications from database", len(dbNotifications))
 				}
 				
-				// Load debug settings from database (override config file)
-				var debugConfig map[string]interface{}
-				if err := db.GetConfig("debug_settings", &debugConfig); err == nil {
-					if val, ok := debugConfig["monitor_debug"].(bool); ok {
-						persisted.MonitorDebug = val
-					}
-					if val, ok := debugConfig["notification_debug"].(bool); ok {
-						persisted.NotificationDebug = val
-					}
-					if val, ok := debugConfig["api_debug"].(bool); ok {
-						persisted.ApiDebug = val
-					}
-					if val, ok := debugConfig["show_memory_display"].(bool); ok {
+				// Load UI settings from database (only ShowMemoryDisplay). Debug flags must come from config file.
+				var settings map[string]interface{}
+				if err := db.GetConfig("settings", &settings); err == nil {
+					if val, ok := settings["show_memory_display"].(bool); ok {
 						persisted.ShowMemoryDisplay = val
 					}
-					log.Printf("Loaded debug settings from database")
+					log.Printf("Loaded UI settings from database")
 				}
 				
 				// Load monitors from database (override config file)
@@ -158,8 +149,8 @@ func main() {
 	// Installation page is required until admin credentials are set.
 	installRequired := (persisted.AdminUser == "" || persisted.AdminPasswordHash == "")
 	
-	// Set default values for UI settings if not configured
-	if !exists || persisted.ShowMemoryDisplay == false {
+	// Set default values for UI settings if not configured and no database is used
+	if !exists {
 		persisted.ShowMemoryDisplay = true // Default: enabled
 	}
 

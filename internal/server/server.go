@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"io"
 	"io/fs"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -337,65 +339,92 @@ func (s *Server) handleAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---- Settings page ----
-// handleAdminSettings renders and updates application settings like debug flags.
+// handleAdminSettings renders the settings page (GET only).
 func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		data := struct {
-			BasePageData
-			MonitorDebug      bool
-			NotificationDebug bool
-			ApiDebug          bool
-			ShowMemoryDisplay bool
-			Error             string
-			Success           string
-		}{
-			BasePageData: BasePageData{
-				Title:           "Settings",
-				ContentTemplate: "settings.content",
-				CSRFToken:       s.getCSRFToken(r),
-			},
-			MonitorDebug:      s.monitorDebug,
-			NotificationDebug: s.notificationDebug,
-			ApiDebug:          s.apiDebug,
-			ShowMemoryDisplay: s.showMemoryDisplay,
-			Error:             r.URL.Query().Get("error"),
-			Success:           r.URL.Query().Get("success"),
-		}
-		if err := s.templates.ExecuteTemplate(w, "settings.gohtml", data); err != nil {
-			s.logger.Printf("settings template error: %v", err)
-			http.Error(w, "template error", http.StatusInternalServerError)
-		}
-	case http.MethodPost:
-		// Validate CSRF token for form submissions
-		if !s.validateCSRFToken(r) {
-			http.Redirect(w, r, "/admin/settings?error="+url.QueryEscape("CSRF token validation failed"), http.StatusSeeOther)
-			return
-		}
-		if err := r.ParseForm(); err != nil {
-			http.Redirect(w, r, "/admin/settings?error="+url.QueryEscape("invalid form"), http.StatusSeeOther)
-			return
-		}
-		monDbg := r.FormValue("monitor_debug") != ""
-		notifDbg := r.FormValue("notification_debug") != ""
-		apiDbg := r.FormValue("api_debug") != ""
-		showMemDisplay := r.FormValue("show_memory_display") != ""
-		s.monitorDebug = monDbg
-		s.notificationDebug = notifDbg
-		s.apiDebug = apiDbg
-		s.showMemoryDisplay = showMemDisplay
-		if s.manager != nil {
-			s.manager.SetMonitorDebug(monDbg)
-			s.manager.SetNotificationDebug(notifDbg)
-		}
-		notifier.ConfigureDebugLogging(notifDbg)
-		if err := s.saveConfig(); err != nil {
-			s.logger.Printf("persist after settings update: %v", err)
-		}
-		http.Redirect(w, r, "/admin/settings?success="+url.QueryEscape("Settings updated"), http.StatusSeeOther)
-	default:
+	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
+	data := struct {
+		BasePageData
+		MonitorDebug      bool
+		NotificationDebug bool
+		ApiDebug          bool
+		ShowMemoryDisplay bool
+		Error             string
+		Success           string
+	}{
+		BasePageData: BasePageData{
+			Title:           "Settings",
+			ContentTemplate: "settings.content",
+			CSRFToken:       s.getCSRFToken(r),
+		},
+		MonitorDebug:      s.monitorDebug,
+		NotificationDebug: s.notificationDebug,
+		ApiDebug:          s.apiDebug,
+		ShowMemoryDisplay: s.showMemoryDisplay,
+		Error:             r.URL.Query().Get("error"),
+		Success:           r.URL.Query().Get("success"),
+	}
+	if err := s.templates.ExecuteTemplate(w, "settings.gohtml", data); err != nil {
+		s.logger.Printf("settings template error: %v", err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+// ==== API: Settings ===========================================================
+
+// handleAPISettings handles PUT requests to update application settings
+func (s *Server) handleAPISettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.apiDebug {
+		s.logger.Printf("[API DEBUG] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+	}
+
+	// First check authentication
+	if !s.ensureAuth(w, r) {
+		return
+	}
+
+	var body struct {
+		MonitorDebug      bool   `json:"monitor_debug"`
+		NotificationDebug bool   `json:"notification_debug"`
+		ApiDebug          bool   `json:"api_debug"`
+		ShowMemoryDisplay bool   `json:"show_memory_display"`
+		CSRFToken         string `json:"csrf_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	// Validate CSRF token from JSON body
+	if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
+		http.Error(w, "CSRF token validation failed", http.StatusForbidden)
+		return
+	}
+
+	s.monitorDebug = body.MonitorDebug
+	s.notificationDebug = body.NotificationDebug
+	s.apiDebug = body.ApiDebug
+	s.showMemoryDisplay = body.ShowMemoryDisplay
+
+	if s.manager != nil {
+		s.manager.SetMonitorDebug(body.MonitorDebug)
+		s.manager.SetNotificationDebug(body.NotificationDebug)
+	}
+	notifier.ConfigureDebugLogging(body.NotificationDebug)
+
+	if err := s.saveConfig(); err != nil {
+		s.logger.Printf("persist after settings update: %v", err)
+		http.Error(w, "failed to save settings", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ==== API: Monitors ===========================================================
@@ -1123,6 +1152,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/notifications/", s.ensureInstalled(s.handleAPINotificationsUnified))
 	s.mux.HandleFunc("/api/groups", s.ensureInstalled(s.handleAPIGroupsUnified))
 	s.mux.HandleFunc("/api/groups/", s.ensureInstalled(s.handleAPIGroupsUnified))
+	s.mux.HandleFunc("/api/settings", s.ensureInstalled(s.handleAPISettings))
 }
 
 // ensureInstalled is a simple middleware wrapper that can enforce installation
@@ -1982,15 +2012,21 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// Save debug settings
-			debugConfig := map[string]interface{}{
-				"monitor_debug":      s.monitorDebug,
-				"notification_debug": s.notificationDebug,
-				"api_debug":          s.apiDebug,
+			// Save UI setting (ShowMemoryDisplay) to database under 'settings'
+			uiConfig := map[string]interface{}{
+				"show_memory_display": s.showMemoryDisplay,
 			}
-			if err := db.SaveConfig("debug_settings", debugConfig); err != nil {
-				s.logger.Printf("Warning: Failed to save debug settings to database: %v", err)
+			if err := db.SaveConfig("settings", uiConfig); err != nil {
+				s.logger.Printf("Warning: Failed to save UI settings to database during install: %v", err)
 			}
+
+			// Store monitors to database as well
+			configs := s.manager.GetAllConfigs()
+			monitorConfigs := make([]config.PersistedMonitorConfig, 0, len(configs))
+			for _, mc := range configs {
+				monitorConfigs = append(monitorConfigs, config.FromMonitorConfig(mc))
+			}
+			s.configDB.SaveConfig("monitors", monitorConfigs)
 		}
 		// If no monitors are configured yet, add sensible defaults as requested.
 		if len(s.manager.List()) == 0 {
@@ -2063,14 +2099,13 @@ func (s *Server) saveConfig() error {
 		// Save notifications to database
 		s.configDB.SaveConfig("notifications", s.notifications)
 
-		// Save debug settings and UI settings to database
-		debugConfig := map[string]interface{}{
-			"monitor_debug":       s.monitorDebug,
-			"notification_debug":  s.notificationDebug,
-			"api_debug":           s.apiDebug,
+		// Save UI setting (ShowMemoryDisplay) in the database for DB mode; keep debug flags out of DB
+		uiConfig := map[string]interface{}{
 			"show_memory_display": s.showMemoryDisplay,
 		}
-		s.configDB.SaveConfig("debug_settings", debugConfig)
+		if err := s.configDB.SaveConfig("settings", uiConfig); err != nil {
+			s.logger.Printf("Warning: Failed to save UI settings to database: %v", err)
+		}
 
 		// Save monitors to database as well
 		configs := s.manager.GetAllConfigs()
@@ -2080,11 +2115,36 @@ func (s *Server) saveConfig() error {
 		}
 		s.configDB.SaveConfig("monitors", monitorConfigs)
 
-		// Save only database config to config file (no monitors)
-		cfg := config.AppConfig{
-			Database: s.databaseConfig,
+		// Save only database config and debug flags to config file in DB mode
+		// Create a minimal config structure to avoid empty fields
+		minimalCfg := struct {
+			Database          *database.Config `json:"database,omitempty"`
+			MonitorDebug      bool             `json:"monitor_debug,omitempty"`
+			NotificationDebug bool             `json:"notification_debug,omitempty"`
+			ApiDebug          bool             `json:"api_debug,omitempty"`
+		}{
+			Database:          s.databaseConfig,
+			MonitorDebug:      s.monitorDebug,
+			NotificationDebug: s.notificationDebug,
+			ApiDebug:          s.apiDebug,
 		}
-		return config.Save(s.configPath, cfg)
+		
+		// Manually save the minimal config
+		if err := os.MkdirAll(filepath.Dir(s.configPath), 0o755); err != nil {
+			return fmt.Errorf("ensure config dir: %w", err)
+		}
+		b, err := json.MarshalIndent(minimalCfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal config: %w", err)
+		}
+		tmp := s.configPath + ".tmp"
+		if err := os.WriteFile(tmp, b, 0o600); err != nil {
+			return fmt.Errorf("write temp config: %w", err)
+		}
+		if err := os.Rename(tmp, s.configPath); err != nil {
+			return fmt.Errorf("atomic replace config: %w", err)
+		}
+		return nil
 	}
 
 	// In-memory mode: save everything to config file

@@ -7,35 +7,78 @@
   <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
     <h2 style="margin:0;">Settings</h2>
   </div>
-  {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
-  {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
+  <div id="settings-message" class="message" style="display:none;"></div>
 
-  <div class="card">
-    <h3 style="margin-top:0;">Debug logging</h3>
-    <form method="post" action="/admin/settings">
-      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <form id="settings-form">
+    <div class="card">
+      <h3 style="margin-top:0;">Debug logging</h3>
       <div class="form-row" style="display:flex; gap:1.5rem; align-items:center;">
-        <label><input type="checkbox" name="monitor_debug" value="true" {{if .MonitorDebug}}checked{{end}}> Monitor Debug</label>
-        <label><input type="checkbox" name="notification_debug" value="true" {{if .NotificationDebug}}checked{{end}}> Notification Debug</label>
-        <label><input type="checkbox" name="api_debug" value="true" {{if .ApiDebug}}checked{{end}}> REST API Debug</label>
+        <label><input type="checkbox" id="monitor_debug" {{if .MonitorDebug}}checked{{end}}> Monitor Debug</label>
+        <label><input type="checkbox" id="notification_debug" {{if .NotificationDebug}}checked{{end}}> Notification Debug</label>
+        <label><input type="checkbox" id="api_debug" {{if .ApiDebug}}checked{{end}}> REST API Debug</label>
       </div>
-      <div class="actions">
-        <button type="submit" class="primary">Save</button>
-      </div>
-    </form>
-  </div>
+    </div>
 
-  <div class="card">
-    <h3 style="margin-top:0;">UI Settings</h3>
-    <form method="post" action="/admin/settings">
-      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="card">
+      <h3 style="margin-top:0;">UI Settings</h3>
       <div class="form-row" style="display:flex; gap:1.5rem; align-items:center;">
-        <label><input type="checkbox" name="show_memory_display" value="true" {{if .ShowMemoryDisplay}}checked{{end}}> Show Memory Usage in Header</label>
+        <label><input type="checkbox" id="show_memory_display" {{if .ShowMemoryDisplay}}checked{{end}}> Show Memory Usage in Header</label>
       </div>
-      <div class="actions">
-        <button type="submit" class="primary">Save</button>
-      </div>
-    </form>
-  </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="primary">Save Settings</button>
+    </div>
+  </form>
 </div>
+
+<script>
+document.getElementById('settings-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const messageEl = document.getElementById('settings-message');
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  
+  // Disable submit button during request
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving...';
+  
+  try {
+    const response = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        monitor_debug: document.getElementById('monitor_debug').checked,
+        notification_debug: document.getElementById('notification_debug').checked,
+        api_debug: document.getElementById('api_debug').checked,
+        show_memory_display: document.getElementById('show_memory_display').checked,
+        csrf_token: '{{.CSRFToken}}'
+      })
+    });
+    
+    if (response.ok) {
+      messageEl.className = 'message success';
+      messageEl.textContent = 'Settings updated successfully';
+      messageEl.style.display = 'block';
+      // Hide message after 3 seconds
+      setTimeout(() => {
+        messageEl.style.display = 'none';
+      }, 3000);
+    } else {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to save settings');
+    }
+  } catch (error) {
+    messageEl.className = 'message error';
+    messageEl.textContent = 'Error: ' + error.message;
+    messageEl.style.display = 'block';
+  } finally {
+    // Re-enable submit button
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Save Settings';
+  }
+});
+</script>
 {{end}}
