@@ -41,3 +41,4 @@ volumes/
 # Temporary files
 *.tmp
 *.temp
+docker-compose-sqlite.yml
