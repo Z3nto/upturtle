@@ -30,6 +30,7 @@ type AppConfig struct {
 	MonitorDebug      bool `json:"monitor_debug,omitempty"`
 	NotificationDebug bool `json:"notification_debug,omitempty"`
 	ApiDebug          bool `json:"api_debug,omitempty"`
+	AuthDebug         bool `json:"auth_debug,omitempty"`
 	// UI settings
 	ShowMemoryDisplay bool `json:"show_memory_display,omitempty"`
 }

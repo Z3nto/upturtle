@@ -116,6 +116,7 @@ type Server struct {
 	monitorDebug      bool
 	notificationDebug bool
 	apiDebug          bool
+	authDebug         bool
 	// UI settings
 	showMemoryDisplay bool
 	// database configuration
@@ -144,6 +145,7 @@ type Config struct {
 	MonitorDebug      bool
 	NotificationDebug bool
 	ApiDebug          bool
+	AuthDebug         bool
 	// UI settings
 	ShowMemoryDisplay bool
 	// Database configuration
@@ -180,6 +182,7 @@ func New(cfg Config) (*Server, error) {
 		monitorDebug:      cfg.MonitorDebug,
 		notificationDebug: cfg.NotificationDebug,
 		apiDebug:          cfg.ApiDebug,
+		authDebug:         cfg.AuthDebug,
 		showMemoryDisplay: cfg.ShowMemoryDisplay,
 		databaseConfig:    cfg.DatabaseConfig,
 	}
@@ -241,6 +244,13 @@ func New(cfg Config) (*Server, error) {
 	}
 	notifier.ConfigureDebugLogging(s.notificationDebug)
 	return s, nil
+}
+
+// authDebugf logs authentication debug messages if auth debugging is enabled
+func (s *Server) authDebugf(format string, args ...interface{}) {
+	if s.authDebug {
+		s.logger.Printf("[AUTH DEBUG] "+format, args...)
+	}
 }
 
 // Close closes the server and its database connections
@@ -350,6 +360,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		MonitorDebug      bool
 		NotificationDebug bool
 		ApiDebug          bool
+		AuthDebug         bool
 		ShowMemoryDisplay bool
 		Error             string
 		Success           string
@@ -362,6 +373,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		MonitorDebug:      s.monitorDebug,
 		NotificationDebug: s.notificationDebug,
 		ApiDebug:          s.apiDebug,
+		AuthDebug:         s.authDebug,
 		ShowMemoryDisplay: s.showMemoryDisplay,
 		Error:             r.URL.Query().Get("error"),
 		Success:           r.URL.Query().Get("success"),
@@ -393,6 +405,7 @@ func (s *Server) handleAPISettings(w http.ResponseWriter, r *http.Request) {
 		MonitorDebug      bool   `json:"monitor_debug"`
 		NotificationDebug bool   `json:"notification_debug"`
 		ApiDebug          bool   `json:"api_debug"`
+		AuthDebug         bool   `json:"auth_debug"`
 		ShowMemoryDisplay bool   `json:"show_memory_display"`
 		CSRFToken         string `json:"csrf_token"`
 	}
@@ -410,6 +423,7 @@ func (s *Server) handleAPISettings(w http.ResponseWriter, r *http.Request) {
 	s.monitorDebug = body.MonitorDebug
 	s.notificationDebug = body.NotificationDebug
 	s.apiDebug = body.ApiDebug
+	s.authDebug = body.AuthDebug
 	s.showMemoryDisplay = body.ShowMemoryDisplay
 
 	if s.manager != nil {
@@ -1242,7 +1256,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// If admin credentials are configured, enforce login globally
 	if s.adminUser != "" && s.adminPassword != "" {
-		if !s.isPublicPath(r.URL.Path) && !s.isAuthenticated(r) {
+		isPublic := s.isPublicPath(r.URL.Path)
+		isAuth := s.isAuthenticated(r)
+		s.authDebugf("Auth middleware: path='%s', isPublic=%t, isAuthenticated=%t", r.URL.Path, isPublic, isAuth)
+
+		if !isPublic && !isAuth {
+			s.authDebugf("Redirecting unauthenticated request to /login")
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
@@ -1275,6 +1294,10 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodGet:
+		s.authDebugf("Login GET request from %s, User-Agent: %s", r.RemoteAddr, r.UserAgent())
+		csrfToken := s.getCSRFToken(r)
+		s.authDebugf("Generated CSRF token for login form: %s...", csrfToken[:10])
+
 		data := struct {
 			BasePageData
 			Error string
@@ -1283,35 +1306,57 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 				Title:           "Login",
 				ContentTemplate: "login.content",
 				HideHeader:      true,
-				CSRFToken:       s.getCSRFToken(r),
+				CSRFToken:       csrfToken,
 			},
 			Error: r.URL.Query().Get("error"),
 		}
+
+		if errorMsg := r.URL.Query().Get("error"); errorMsg != "" {
+			s.authDebugf("Login form showing error: %s", errorMsg)
+		}
+
 		if err := s.templates.ExecuteTemplate(w, "login.gohtml", data); err != nil {
 			s.logger.Printf("login template error: %v", err)
 			http.Error(w, "template error", http.StatusInternalServerError)
 		}
 	case http.MethodPost:
 		// Validate CSRF token for login form
+		s.authDebugf("Login POST attempt from %s, User-Agent: %s", r.RemoteAddr, r.UserAgent())
 		if !s.validateCSRFToken(r) {
+			s.authDebugf("Login failed: CSRF token validation failed for %s", r.RemoteAddr)
 			http.Redirect(w, r, "/login?error="+url.QueryEscape("CSRF token validation failed"), http.StatusSeeOther)
 			return
 		}
 		if err := r.ParseForm(); err != nil {
+			s.authDebugf("Login failed: form parsing error: %v", err)
 			http.Redirect(w, r, "/login?error="+url.QueryEscape("invalid form"), http.StatusSeeOther)
 			return
 		}
 		user := strings.TrimSpace(r.FormValue("username"))
 		pass := r.FormValue("password")
-		if user == s.adminUser && s.verifyPassword(pass) {
+		s.authDebugf("Login attempt: username='%s', password_length=%d", user, len(pass))
+		s.authDebugf("Expected username='%s', admin_password_set=%t", s.adminUser, s.adminPassword != "")
+
+		// Check username match
+		usernameMatch := user == s.adminUser
+		s.authDebugf("Username match: %t", usernameMatch)
+
+		// Check password
+		passwordValid := s.verifyPassword(pass)
+		s.authDebugf("Password valid: %t", passwordValid)
+
+		if usernameMatch && passwordValid {
+			s.authDebugf("Login successful for user '%s', creating session", user)
 			if err := s.createSession(w, r); err != nil {
-				s.logger.Printf("create session error: %v", err)
+				s.logger.Printf("[ERROR] create session error: %v", err)
 				http.Redirect(w, r, "/login?error="+url.QueryEscape("internal error"), http.StatusSeeOther)
 				return
 			}
+			s.authDebugf("Session created successfully, redirecting to /")
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
+		s.authDebugf("Login failed: invalid credentials for user '%s'", user)
 		http.Redirect(w, r, "/login?error="+url.QueryEscape("invalid credentials"), http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1327,17 +1372,33 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 // isAuthenticated checks for a valid session cookie.
 func (s *Server) isAuthenticated(r *http.Request) bool {
 	if s.adminUser == "" || s.adminPassword == "" {
+		s.authDebugf("No admin credentials configured, allowing access")
 		return true
 	}
 	c, err := r.Cookie("upturtle_session")
-	if err != nil || c.Value == "" {
+	if err != nil {
+		s.authDebugf("No session cookie found: %v", err)
+		return false
+	}
+	if c.Value == "" {
+		s.authDebugf("Empty session cookie value")
 		return false
 	}
 	id := c.Value
+	s.authDebugf("Checking session: ID='%s'...", id[:8])
 	if exp, ok := s.sessions[id]; ok {
-		if time.Now().Before(exp) {
+		now := time.Now()
+		if now.Before(exp) {
+			s.authDebugf("Session valid: expires in %v", exp.Sub(now))
 			return true
+		} else {
+			s.authDebugf("Session expired: was valid until %s", exp.Format(time.RFC3339))
+			// Clean up expired session
+			delete(s.sessions, id)
+			delete(s.csrfTokens, id)
 		}
+	} else {
+		s.authDebugf("Session not found in server memory")
 	}
 	return false
 }
@@ -1394,36 +1455,62 @@ func (s *Server) ensureAuthAndCSRF(w http.ResponseWriter, r *http.Request) bool 
 // verifyPassword compares a raw password against the stored bcrypt hash
 func (s *Server) verifyPassword(password string) bool {
 	if s.adminPassword == "" {
+		s.authDebugf("Password verification failed: no admin password configured")
 		return false
 	}
+
+	s.authDebugf("Verifying password: provided_length=%d, stored_hash_length=%d", len(password), len(s.adminPassword))
+
+	// Check if the stored password looks like a bcrypt hash
+	if !strings.HasPrefix(s.adminPassword, "$2") {
+		s.authDebugf("Warning: stored admin password doesn't look like a bcrypt hash (should start with $2)")
+	}
+
 	err := bcrypt.CompareHashAndPassword([]byte(s.adminPassword), []byte(password))
-	return err == nil
+	if err != nil {
+		s.authDebugf("Password verification failed: %v", err)
+		return false
+	}
+
+	s.authDebugf("Password verification successful")
+	return true
 }
 
 // createSession creates a new session and sets a cookie.
 func (s *Server) createSession(w http.ResponseWriter, r *http.Request) error {
+	s.authDebugf("Creating session for %s, User-Agent: %s", r.RemoteAddr, r.UserAgent())
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
+		s.logger.Printf("[ERROR] Failed to generate session ID: %v", err)
 		return err
 	}
 	id := hex.EncodeToString(b)
 	// 24h session
-	s.sessions[id] = time.Now().Add(24 * time.Hour)
+	expiry := time.Now().Add(24 * time.Hour)
+	s.sessions[id] = expiry
+	s.authDebugf("Session created: ID='%s', expires=%s", id[:8]+"...", expiry.Format(time.RFC3339))
 
 	// Clean up any temporary CSRF token for this client
 	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 	delete(s.csrfTokens, tempKey)
+	s.authDebugf("Cleaned up temporary CSRF token: '%s'", tempKey)
+
+	// Check if request is over HTTPS
+	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+	s.authDebugf("Request is HTTPS: %t (TLS: %t, X-Forwarded-Proto: %s)", isHTTPS, r.TLS != nil, r.Header.Get("X-Forwarded-Proto"))
 
 	cookie := &http.Cookie{
 		Name:     "upturtle_session",
 		Value:    id,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		Expires:  s.sessions[id],
+		Secure:   isHTTPS,              // Only secure if actually HTTPS
+		SameSite: http.SameSiteLaxMode, // Changed from Strict to Lax for better compatibility
+		Expires:  expiry,
 	}
+	s.authDebugf("Setting cookie: Name=%s, Secure=%t, SameSite=%v, HttpOnly=%t", cookie.Name, cookie.Secure, cookie.SameSite, cookie.HttpOnly)
 	http.SetCookie(w, cookie)
+	s.authDebugf("Session cookie set successfully")
 	return nil
 }
 
@@ -1463,29 +1550,47 @@ func (s *Server) generateCSRFToken() string {
 // For requests without sessions (login/install), generates a temporary token
 func (s *Server) getCSRFToken(r *http.Request) string {
 	sessionID := s.getSessionID(r)
+	s.authDebugf("Getting CSRF token: sessionID='%s', RemoteAddr='%s', UserAgent='%s'", sessionID, r.RemoteAddr, r.UserAgent())
 
 	// For authenticated sessions, use session-based tokens
 	if sessionID != "" {
 		// Check if token already exists for this session
 		if token, exists := s.csrfTokens[sessionID]; exists {
+			s.authDebugf("Returning existing session CSRF token")
 			return token
 		}
 
 		// Generate new token for this session
 		token := s.generateCSRFToken()
 		s.csrfTokens[sessionID] = token
+		s.authDebugf("Generated new session CSRF token")
 		return token
 	}
 
 	// For unauthenticated requests (login/install), generate a temporary token
 	// Store it with a special key based on remote address and user agent
-	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
+	// Special handling for Safari mobile which may have changing User-Agent strings
+	userAgent := r.UserAgent()
+	isSafariMobile := strings.Contains(userAgent, "Safari") && (strings.Contains(userAgent, "Mobile") || strings.Contains(userAgent, "iPhone") || strings.Contains(userAgent, "iPad"))
+
+	var tempKey string
+	if isSafariMobile {
+		// For Safari mobile, use a simpler key that's less likely to change
+		tempKey = "temp_safari_" + r.RemoteAddr
+		s.authDebugf("Using Safari mobile CSRF key: '%s'", tempKey)
+	} else {
+		tempKey = "temp_" + r.RemoteAddr + "_" + userAgent
+		s.authDebugf("Using standard CSRF key: '%s'", tempKey)
+	}
+
 	if token, exists := s.csrfTokens[tempKey]; exists {
+		s.authDebugf("Returning existing temporary CSRF token")
 		return token
 	}
 
 	token := s.generateCSRFToken()
 	s.csrfTokens[tempKey] = token
+	s.authDebugf("Generated new temporary CSRF token")
 	return token
 }
 
@@ -1501,20 +1606,38 @@ func (s *Server) getSessionID(r *http.Request) string {
 // validateCSRFToken validates the CSRF token from the request
 func (s *Server) validateCSRFToken(r *http.Request) bool {
 	sessionID := s.getSessionID(r)
+	s.authDebugf("CSRF validation: sessionID='%s', RemoteAddr='%s', UserAgent='%s'", sessionID, r.RemoteAddr, r.UserAgent())
 
 	var expectedToken string
 	var exists bool
+	var tokenKey string
 
 	// For authenticated sessions, use session-based tokens
 	if sessionID != "" {
+		tokenKey = sessionID
 		expectedToken, exists = s.csrfTokens[sessionID]
+		s.authDebugf("CSRF: Using session-based token, key='%s', exists=%t", tokenKey, exists)
 	} else {
 		// For unauthenticated requests (login/install), use temporary tokens
-		tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-		expectedToken, exists = s.csrfTokens[tempKey]
+		// Special handling for Safari mobile
+		userAgent := r.UserAgent()
+		isSafariMobile := strings.Contains(userAgent, "Safari") && (strings.Contains(userAgent, "Mobile") || strings.Contains(userAgent, "iPhone") || strings.Contains(userAgent, "iPad"))
+
+		if isSafariMobile {
+			tokenKey = "temp_safari_" + r.RemoteAddr
+		} else {
+			tokenKey = "temp_" + r.RemoteAddr + "_" + userAgent
+		}
+		expectedToken, exists = s.csrfTokens[tokenKey]
+		s.authDebugf("CSRF: Using temporary token (Safari mobile: %t), key='%s', exists=%t", isSafariMobile, tokenKey, exists)
 	}
 
 	if !exists {
+		s.authDebugf("CSRF validation failed: no token found for key '%s'", tokenKey)
+		s.authDebugf("CSRF: Available tokens: %d", len(s.csrfTokens))
+		for k := range s.csrfTokens {
+			s.authDebugf("CSRF: Available key: '%s'", k)
+		}
 		return false
 	}
 
@@ -1522,17 +1645,31 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 	var providedToken string
 	if headerToken := r.Header.Get("X-CSRF-Token"); headerToken != "" {
 		providedToken = headerToken
+		tokenPreview := providedToken
+		if len(tokenPreview) > 10 {
+			tokenPreview = tokenPreview[:10] + "..."
+		}
+		s.authDebugf("CSRF: Got token from header: '%s'", tokenPreview)
 	} else if err := r.ParseForm(); err == nil {
 		providedToken = r.FormValue("csrf_token")
+		tokenPreview := providedToken
+		if len(tokenPreview) > 10 {
+			tokenPreview = tokenPreview[:10] + "..."
+		}
+		s.authDebugf("CSRF: Got token from form: '%s'", tokenPreview)
+	} else {
+		s.authDebugf("CSRF: Failed to parse form: %v", err)
 	}
 
 	if providedToken == "" {
+		s.authDebugf("CSRF validation failed: no token provided in request")
 		return false
 	}
 
 	// Constant-time comparison to prevent timing attacks
-	return len(expectedToken) == len(providedToken) &&
-		expectedToken == providedToken
+	valid := len(expectedToken) == len(providedToken) && expectedToken == providedToken
+	s.authDebugf("CSRF validation result: %t (expected length: %d, provided length: %d)", valid, len(expectedToken), len(providedToken))
+	return valid
 }
 
 // validateCSRFTokenFromJSON validates CSRF token from a JSON body
@@ -2122,13 +2259,15 @@ func (s *Server) saveConfig() error {
 			MonitorDebug      bool             `json:"monitor_debug,omitempty"`
 			NotificationDebug bool             `json:"notification_debug,omitempty"`
 			ApiDebug          bool             `json:"api_debug,omitempty"`
+			AuthDebug         bool             `json:"auth_debug,omitempty"`
 		}{
 			Database:          s.databaseConfig,
 			MonitorDebug:      s.monitorDebug,
 			NotificationDebug: s.notificationDebug,
 			ApiDebug:          s.apiDebug,
+			AuthDebug:         s.authDebug,
 		}
-		
+
 		// Manually save the minimal config
 		if err := os.MkdirAll(filepath.Dir(s.configPath), 0o755); err != nil {
 			return fmt.Errorf("ensure config dir: %w", err)
@@ -2158,6 +2297,7 @@ func (s *Server) saveConfig() error {
 	cfg.MonitorDebug = s.monitorDebug
 	cfg.NotificationDebug = s.notificationDebug
 	cfg.ApiDebug = s.apiDebug
+	cfg.AuthDebug = s.authDebug
 	cfg.ShowMemoryDisplay = s.showMemoryDisplay
 	configs := s.manager.GetAllConfigs()
 	cfg.Monitors = make([]config.PersistedMonitorConfig, 0, len(configs))

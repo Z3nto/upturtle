@@ -152,6 +152,7 @@ func main() {
 	// Set default values for UI settings if not configured and no database is used
 	if !exists {
 		persisted.ShowMemoryDisplay = true // Default: enabled
+		persisted.AuthDebug = true         // Default: enabled for debugging login issues
 	}
 
 	log.Printf("Creating server with %d groups, %d notifications, %d monitors", 
@@ -171,6 +172,7 @@ func main() {
 		MonitorDebug:      persisted.MonitorDebug,
 		NotificationDebug: persisted.NotificationDebug,
 		ApiDebug:          persisted.ApiDebug,
+		AuthDebug:         persisted.AuthDebug,
 		ShowMemoryDisplay: persisted.ShowMemoryDisplay,
 		DatabaseConfig:    persisted.Database,
 	})

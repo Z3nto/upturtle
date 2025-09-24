@@ -16,13 +16,14 @@
         <label><input type="checkbox" id="monitor_debug" {{if .MonitorDebug}}checked{{end}}> Monitor Debug</label>
         <label><input type="checkbox" id="notification_debug" {{if .NotificationDebug}}checked{{end}}> Notification Debug</label>
         <label><input type="checkbox" id="api_debug" {{if .ApiDebug}}checked{{end}}> REST API Debug</label>
+        <label><input type="checkbox" id="auth_debug" {{if .AuthDebug}}checked{{end}}> Authentication Debug</label>
       </div>
     </div>
 
     <div class="card">
       <h3 style="margin-top:0;">UI Settings</h3>
       <div class="form-row" style="display:flex; gap:1.5rem; align-items:center;">
-        <label><input type="checkbox" id="show_memory_display" {{if .ShowMemoryDisplay}}checked{{end}}> Show Memory Usage in Header</label>
+        <label><input type="checkbox" id="show_memory_display" {{if .ShowMemoryDisplay}}checked{{end}}> Show Memory Usage</label>
       </div>
     </div>
 
@@ -53,6 +54,7 @@ document.getElementById('settings-form').addEventListener('submit', async functi
         monitor_debug: document.getElementById('monitor_debug').checked,
         notification_debug: document.getElementById('notification_debug').checked,
         api_debug: document.getElementById('api_debug').checked,
+        auth_debug: document.getElementById('auth_debug').checked,
         show_memory_display: document.getElementById('show_memory_display').checked,
         csrf_token: '{{.CSRFToken}}'
       })
