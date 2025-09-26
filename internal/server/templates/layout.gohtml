@@ -4,7 +4,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{if .Title}}{{.Title}}{{else}}upturtle{{end}}</title>
+    <title>Upturtle{{if .Title}} · {{.Title}}{{end}}</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     {{if gt .RefreshSeconds 0}}
     <meta http-equiv="refresh" content="{{.RefreshSeconds}}">
     {{end}}
