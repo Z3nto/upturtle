@@ -111,6 +111,7 @@
     </header>
     <form id="form-create-monitor" action="#" method="post">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <input type="hidden" name="order" value="1">
       <div class="form-row">
         <div>
           <label for="new-name">Name</label>
@@ -200,6 +201,7 @@
     </header>
     <form id="form-edit-monitor" action="#" method="post">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <input type="hidden" name="order" value="1">
       <div class="form-row">
         <div>
           <label>Name</label>
@@ -455,7 +457,11 @@
   // Expose to global for inline onclick handlers
   window.openModal = openModal;
   window.closeModal = closeModal;
-  document.getElementById('btn-new')?.addEventListener('click', function(){ openModal('modal-new'); });
+  document.getElementById('btn-new')?.addEventListener('click', function(){ 
+    // Calculate initial order for default group (0)
+    updateOrderForNewMonitor(0);
+    openModal('modal-new'); 
+  });
   document.getElementById('btn-add-group')?.addEventListener('click', function(){ openModal('modal-new-group'); });
   
   // Handle certificate validation visibility based on monitor type
@@ -482,6 +488,27 @@
     }
   }
   
+  // Function to calculate and update order for new monitor based on selected group
+  function updateOrderForNewMonitor(groupId) {
+    const tables = document.querySelectorAll('table.draggable-table');
+    let maxOrder = 0;
+    
+    // Find the table for the selected group and get the highest order
+    tables.forEach(function(table) {
+      const tableGroupId = parseInt(table.getAttribute('data-group-id') || '0', 10);
+      if (tableGroupId === groupId) {
+        const rows = table.querySelectorAll('tbody tr.draggable-row');
+        maxOrder = Math.max(maxOrder, rows.length);
+      }
+    });
+    
+    // Set the order field to maxOrder + 1
+    const orderInput = document.querySelector('#form-create-monitor input[name="order"]');
+    if (orderInput) {
+      orderInput.value = maxOrder + 1;
+    }
+  }
+  
   // For new monitor form
   const newTypeSelect = document.getElementById('new-type');
   const newCertDiv = document.getElementById('new-cert-validation-div');
@@ -498,6 +525,15 @@
     if (newTargetInput) {
       toggleTargetValidation(newTypeSelect, newTargetInput);
     }
+  }
+  
+  // Add event listener for group selection change in new monitor form
+  const newGroupSelect = document.getElementById('new-group');
+  if (newGroupSelect) {
+    newGroupSelect.addEventListener('change', function() {
+      const selectedGroupId = parseInt(newGroupSelect.value || '0', 10);
+      updateOrderForNewMonitor(selectedGroupId);
+    });
   }
   
   // For universal edit monitor form
@@ -574,6 +610,7 @@
       form.querySelector('input[name="target"]').value = monitor.target || '';
       form.querySelector('select[name="cert_validation"]').value = monitor.cert_validation || 'full';
       form.querySelector('select[name="group_id"]').value = monitor.group_id || '0';
+      form.querySelector('input[name="order"]').value = monitor.order || 1;
       form.querySelector('input[name="interval_seconds"]').value = monitor.interval_seconds || 60;
       form.querySelector('input[name="timeout_seconds"]').value = monitor.timeout_seconds || 10;
       form.querySelector('select[name="master_id"]').value = monitor.master_id || '';
@@ -679,6 +716,7 @@
       interval_seconds: parseInt(fd.get('interval_seconds')||'60',10),
       timeout_seconds: parseInt(fd.get('timeout_seconds')||'10',10),
       group_id: parseInt(fd.get('group_id')||'0',10) || 0,
+      order: parseInt(fd.get('order')||'1',10) || 1,
       master_id: fd.get('master_id')||'',
       notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
       fail_threshold: parseInt(fd.get('fail_threshold')||'3',10) || 3,
@@ -703,6 +741,7 @@
       notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
       enabled: fd.get('enabled') ? true : false,
       group_id: parseInt(fd.get('group_id')||'0',10) || 0,
+      order: parseInt(fd.get('order')||'1',10) || 1,
       master_id: fd.get('master_id')||'',
       fail_threshold: parseInt(fd.get('fail_threshold')||'3',10),
       cert_validation: fd.get('cert_validation')||'full'

@@ -111,6 +111,7 @@ type APIMonitorConfig struct {
 	Enabled          bool   `json:"enabled"`
 	Group            string `json:"group"`
 	GroupID          int    `json:"group_id"`
+	Order            int    `json:"order"`
 	MasterID         string `json:"master_id"`
 	NotificationID   int    `json:"notification_id"`
 	FailThreshold    int    `json:"fail_threshold"`
@@ -148,6 +149,7 @@ func convertSnapshotToAPI(snap monitor.Snapshot) APISnapshot {
 			Enabled:          snap.Config.Enabled,
 			Group:            snap.Config.Group,
 			GroupID:          snap.Config.GroupID,
+			Order:            snap.Config.Order,
 			MasterID:         snap.Config.MasterID,
 			NotificationID:   snap.Config.NotificationID,
 			FailThreshold:    snap.Config.FailThreshold,
@@ -607,6 +609,10 @@ func (s *Server) handleAPIMonitorsCollection(w http.ResponseWriter, r *http.Requ
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+		// If no order specified or order is 0, calculate next order for the group
+		if cfg.Order <= 0 {
+			cfg.Order = s.getNextOrderForGroup(cfg.GroupID)
 		}
 		// Resolve NotifyURL from selected notification, or clear if none selected
 		if cfg.NotificationID > 0 {
@@ -2410,4 +2416,19 @@ func (s *Server) saveConfig() error {
 		cfg.Monitors = append(cfg.Monitors, config.FromMonitorConfig(mc))
 	}
 	return config.Save(s.configPath, cfg)
+}
+
+// getNextOrderForGroup calculates the next available order number for monitors in a specific group
+func (s *Server) getNextOrderForGroup(groupID int) int {
+	snapshots := s.manager.List()
+	maxOrder := 0
+	
+	// Find the highest order number in the specified group
+	for _, snap := range snapshots {
+		if snap.Config.GroupID == groupID && snap.Config.Order > maxOrder {
+			maxOrder = snap.Config.Order
+		}
+	}
+	
+	return maxOrder + 1
 }
