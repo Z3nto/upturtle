@@ -1947,13 +1947,6 @@ func (m monitorRequest) toConfig(id string) (monitor.MonitorConfig, error) {
 	target := strings.TrimSpace(m.Target)
 	monitorType := monitor.Type(strings.TrimSpace(m.Type))
 
-	// Auto-add schema for HTTP monitors if missing
-	if monitorType == monitor.TypeHTTP && target != "" {
-		if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
-			target = "https://" + target
-		}
-	}
-
 	cfg := monitor.MonitorConfig{
 		ID:             id,
 		Name:           strings.TrimSpace(m.Name),

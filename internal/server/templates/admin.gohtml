@@ -125,7 +125,7 @@
         </div>
         <div>
           <label for="new-target">Target</label>
-          <input id="new-target" name="target" type="text" placeholder="https://example.com or host" required>
+          <input id="new-target" name="target" type="text" placeholder="URL / Host / IP" required>
         </div>
         <div id="new-cert-validation-div" style="display: none;">
           <label for="new-cert-validation">Certificate Validation</label>
@@ -466,15 +466,38 @@
     }
   }
   
+  function toggleTargetValidation(typeSelect, targetInput) {
+    if (typeSelect && targetInput) {
+      if (typeSelect.value === 'icmp') {
+        // For ICMP monitors, prevent URLs with schema
+        targetInput.setAttribute('pattern', '^(?!.*:\/\/).*$');
+        targetInput.setAttribute('title', 'For ICMP monitors, enter hostname or IP address without http:// or https://');
+        targetInput.placeholder = 'Host / IP';
+      } else {
+        // For HTTP monitors, allow URLs
+        targetInput.setAttribute('pattern', '^(https?:\/\/).+$');
+        targetInput.setAttribute('title', 'Enter full URL for HTTP monitors');
+        targetInput.placeholder = 'https://example.com';
+      }
+    }
+  }
+  
   // For new monitor form
   const newTypeSelect = document.getElementById('new-type');
   const newCertDiv = document.getElementById('new-cert-validation-div');
+  const newTargetInput = document.getElementById('new-target');
   if (newTypeSelect && newCertDiv) {
     newTypeSelect.addEventListener('change', function() {
       toggleCertValidation(newTypeSelect, newCertDiv);
+      if (newTargetInput) {
+        toggleTargetValidation(newTypeSelect, newTargetInput);
+      }
     });
     // Set initial state
     toggleCertValidation(newTypeSelect, newCertDiv);
+    if (newTargetInput) {
+      toggleTargetValidation(newTypeSelect, newTargetInput);
+    }
   }
   
   // For universal edit monitor form
@@ -482,9 +505,13 @@
   if (editForm) {
     const typeSelect = editForm.querySelector('select[name="type"]');
     const certDiv = editForm.querySelector('.cert-validation-div');
+    const targetInput = editForm.querySelector('input[name="target"]');
     if (typeSelect && certDiv) {
       typeSelect.addEventListener('change', function() {
         toggleCertValidation(typeSelect, certDiv);
+        if (targetInput) {
+          toggleTargetValidation(typeSelect, targetInput);
+        }
       });
     }
   }
@@ -557,10 +584,12 @@
       // Set monitor ID for form submission
       form.setAttribute('data-monitor-id', monitorId);
       
-      // Update certificate validation visibility
+      // Update certificate validation visibility and target validation
       const typeSelect = form.querySelector('select[name="type"]');
       const certDiv = form.querySelector('.cert-validation-div');
+      const targetInput = form.querySelector('input[name="target"]');
       toggleCertValidation(typeSelect, certDiv);
+      toggleTargetValidation(typeSelect, targetInput);
       
       // Remove self from master monitor options
       const masterSelect = form.querySelector('select[name="master_id"]');
