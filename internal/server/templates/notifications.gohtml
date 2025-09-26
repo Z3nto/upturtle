@@ -79,7 +79,7 @@
           <td class="muted" style="max-width:480px; overflow:hidden; text-overflow:ellipsis;">{{.URL}}</td>
           <td>
             <div class="actions">
-              <button class="icon edit" type="button" data-open="modal-edit-{{.ID}}" title="Edit">✎</button>
+              <button class="icon edit" type="button" data-action="edit-notification" data-notification-id="{{.ID}}" title="Edit">✎</button>
               <button class="icon test" type="button" data-id="{{.ID}}" title="Test">🧪</button>
               <form class="form-delete-notification" data-id="{{.ID}}" method="post" action="#" style="display:inline;">
                 <button class="icon delete" type="submit" title="Delete">🗑️</button>
@@ -96,22 +96,22 @@
   </div>
 </div>
 
-{{range .Notifications}}
-<div id="modal-edit-{{.ID}}" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title-{{.ID}}">
+<!-- Universal Edit Notification Modal -->
+<div id="modal-edit-notification" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-notification-title">
     <header>
-      <h3 id="modal-edit-title-{{.ID}}">Edit notification</h3>
+      <h3 id="modal-edit-notification-title">Edit notification</h3>
       <button class="close" type="button" data-close>&times;</button>
     </header>
-    <form class="form-edit-notification" data-id="{{.ID}}" method="post" action="#">
+    <form id="form-edit-notification" method="post" action="#">
       <div class="form-row">
         <div>
           <label>Name</label>
-          <input name="name" type="text" value="{{.Name}}" required>
+          <input name="name" type="text" required>
         </div>
         <div>
           <label>Type</label>
-          <select name="type" class="shoutrrr-type" data-existing-url="{{safeURL .URL}}">
+          <select name="type" class="shoutrrr-type">
             <option value="">(Select)</option>
             <option value="discord">Discord</option>
             <option value="slack">Slack</option>
@@ -141,7 +141,7 @@
         </div>
         <div style="flex:1;">
           <label>Notify URL (Shoutrrr)</label>
-          <input name="url" type="text" value="{{safeURL .URL}}" required class="shoutrrr-url" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
+          <input name="url" type="text" required class="shoutrrr-url" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
         </div>
       </div>
       <div class="actions">
@@ -150,14 +150,61 @@
     </form>
   </div>
 </div>
-{{end}}
 
 <script>
 (function(){
   function openModal(id){ var el = document.getElementById(id); if(!el) return; el.classList.add('show'); el.setAttribute('aria-hidden','false'); }
   function closeModal(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); }
   window.openModal = openModal; window.closeModal = closeModal;
+  
+  // Handle dynamic modal actions
+  document.addEventListener('click', function(e){
+    const t = e.target.closest('[data-action]');
+    if(!t) return;
+    e.preventDefault(); e.stopPropagation();
+    
+    const action = t.getAttribute('data-action');
+    switch(action) {
+      case 'edit-notification':
+        openEditNotificationModal(t.getAttribute('data-notification-id'));
+        break;
+    }
+  }, true);
+  
+  // Legacy support for data-open attributes
   document.querySelectorAll('[data-open]').forEach(function(el){ el.addEventListener('click', function(e){ e.preventDefault(); openModal(el.getAttribute('data-open')); }); });
+  
+  // Modal population functions
+  async function openEditNotificationModal(notificationId) {
+    try {
+      const response = await (window.api || fetch)('/api/notifications/' + encodeURIComponent(notificationId), {
+        credentials: 'same-origin'
+      });
+      if (!response.ok) throw new Error('Failed to load notification data');
+      
+      const notification = await response.json();
+      const form = document.getElementById('form-edit-notification');
+      
+      // Populate form fields
+      form.querySelector('input[name="name"]').value = notification.name || '';
+      form.querySelector('input[name="url"]').value = notification.url || '';
+      
+      // Set notification ID for form submission
+      form.setAttribute('data-id', notificationId);
+      
+      // Initialize shoutrrr select with existing URL
+      const typeSelect = form.querySelector('select.shoutrrr-type');
+      typeSelect.setAttribute('data-existing-url', notification.url || '');
+      initShoutrrrSelect(typeSelect);
+      
+      openModal('modal-edit-notification');
+    } catch (error) {
+      alert('Failed to load notification data: ' + error.message);
+    }
+  }
+  
+  // Make function globally available
+  window.openEditNotificationModal = openEditNotificationModal;
   document.querySelectorAll('.modal-backdrop').forEach(function(bg){
     bg.addEventListener('click', function(e){ if(e.target === bg){ closeModal(bg); } });
     bg.querySelectorAll('[data-close]').forEach(function(x){ x.addEventListener('click', function(){ closeModal(bg); }); });
@@ -208,19 +255,18 @@
     window.location.reload();
   }catch(err){ alert('Failed to create notification'); }}); }
 
-  // Edit
-  document.querySelectorAll('form.form-edit-notification').forEach(function(f){
-    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
-      const id = f.getAttribute('data-id');
-      const fd = new FormData(f);
-      const name = (fd.get('name')||'').trim();
-      const url = (fd.get('url')||'').trim();
-      if(!name || !url){ alert('Name und URL sind erforderlich'); return; }
-      const res = await api('/api/notifications/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify({ name, url })});
-      if(!res.ok) throw new Error('update failed');
-      window.location.reload();
-    }catch(err){ alert('Failed to update notification'); }});
-  });
+  // Edit (universal form)
+  const editNotificationForm = document.getElementById('form-edit-notification');
+  if(editNotificationForm){ editNotificationForm.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    const id = editNotificationForm.getAttribute('data-id');
+    const fd = new FormData(editNotificationForm);
+    const name = (fd.get('name')||'').trim();
+    const url = (fd.get('url')||'').trim();
+    if(!name || !url){ alert('Name und URL sind erforderlich'); return; }
+    const res = await api('/api/notifications/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify({ name, url })});
+    if(!res.ok) throw new Error('update failed');
+    window.location.reload();
+  }catch(err){ alert('Failed to update notification'); }}); }
 
   // Delete
   document.querySelectorAll('form.form-delete-notification').forEach(function(f){
@@ -569,6 +615,12 @@
     initShoutrrrSelect(sel);
   });
 
+  // Initialize shoutrrr select for universal edit modal
+  const editModalSelect = document.querySelector('#modal-edit-notification select.shoutrrr-type');
+  if (editModalSelect) {
+    editModalSelect.addEventListener('change', function(){ updateForSelect(editModalSelect); });
+  }
+  
   // Re-initialize when opening a modal (ensures late-loaded values are respected)
   document.querySelectorAll('[data-open]').forEach(function(btn){
     btn.addEventListener('click', function(){

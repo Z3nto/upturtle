@@ -22,12 +22,12 @@
             <h3 style="margin:0; display:flex; align-items:center; gap:.5rem;">
               {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}
               {{if .Name}}
-                <button type="button" class="icon edit" data-open="modal-rename-{{idSafe .Name}}" title="Rename group">
+                <button type="button" class="icon edit" data-action="rename-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Rename group">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
                   </svg>
                 </button>
-                <button type="button" class="icon delete" data-open="modal-delete-group-{{idSafe .Name}}" title="Delete group" aria-label="Delete group">
+                <button type="button" class="icon delete" data-action="delete-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Delete group" aria-label="Delete group">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
                   </svg>
@@ -77,12 +77,12 @@
                 </td>
                 <td>
                   <div class="actions">
-                    <button type="button" class="icon edit" data-open="modal-edit-{{.ID}}" title="Edit">
+                    <button type="button" class="icon edit" data-action="edit-monitor" data-monitor-id="{{.ID}}" title="Edit">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
                       </svg>
                     </button>
-                    <button type="button" class="icon delete" data-open="modal-delete-monitor-{{.ID}}" title="Delete">
+                    <button type="button" class="icon delete" data-action="delete-monitor" data-monitor-id="{{.ID}}" data-monitor-name="{{.Name}}" title="Delete">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
                       </svg>
@@ -95,27 +95,6 @@
             </tbody>
           </table>
         </div>
-        {{/* Inline Delete Group Modal for this group */}}
-        {{if .Name}}
-        <div id="modal-delete-group-{{idSafe .Name}}" class="modal-backdrop" aria-hidden="true">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-group-title-{{idSafe .Name}}">
-            <header>
-              <h3 id="modal-delete-group-title-{{idSafe .Name}}">Delete group</h3>
-              <button class="close" type="button" data-close>&times;</button>
-            </header>
-            <form class="form-delete-group" data-group-id="{{.ID}}" method="post" action="#">
-              <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-              <p>Delete group <strong>{{.Name}}</strong>?</p>
-              <label><input type="checkbox" name="delete_monitors"> Also delete monitors in this group</label>
-              <p class="muted">If unchecked, monitors will be moved to Ungrouped.</p>
-              <div class="actions">
-                <button type="button" data-close>Cancel</button>
-                <button type="submit" class="danger">Delete group</button>
-              </div>
-            </form>
-          </div>
-        </div>
-        {{end}}
       </div>
     {{end}}
   {{else}}
@@ -212,123 +191,114 @@
   </div>
   </div>
 
-<!-- Edit modals per monitor (grouped) -->
-{{range .Groups}}
-  {{range .Monitors}}
-  <div id="modal-edit-{{.ID}}" class="modal-backdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title-{{.ID}}">
-      <header>
-        <h3 id="modal-edit-title-{{.ID}}">Edit monitor</h3>
-        <button class="close" type="button" data-close>&times;</button>
-      </header>
-      <form class="form-edit-monitor" data-monitor-id="{{.ID}}" action="#" method="post">
-        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-        <div class="form-row">
-          <div>
-            <label>Name</label>
-            <input name="name" type="text" value="{{.Name}}" required>
-          </div>
-          <div>
-            <label>Type</label>
-            <select name="type">
-              <option value="http" {{if eq .Type "http"}}selected{{end}}>HTTP(S)</option>
-              <option value="icmp" {{if eq .Type "icmp"}}selected{{end}}>ICMP</option>
-            </select>
-          </div>
-          <div>
-            <label>Target</label>
-            <input name="target" type="text" value="{{.Target}}" required>
-          </div>
-          <div class="cert-validation-div" {{if ne .Type "http"}}style="display: none;"{{end}}>
-            <label>Certificate Validation</label>
-            <select name="cert_validation">
-              <option value="full" {{if or (eq .CertValidation "full") (eq .CertValidation "")}}selected{{end}}>Valid (Full validation)</option>
-              <option value="expiry_only" {{if eq .CertValidation "expiry_only"}}selected{{end}}>Expiry only</option>
-              <option value="ignore" {{if eq .CertValidation "ignore"}}selected{{end}}>Ignore</option>
-            </select>
-          </div>
-          <div>
-            <label>Group</label>
-            {{$currentID := .GroupID}}
-            <select name="group_id">
-              <option value="0" {{if eq $currentID 0}}selected{{end}}>Ungrouped</option>
-              {{range $.Groups}}
-                {{if .Name}}
-                  <option value="{{.ID}}" {{if eq .ID $currentID}}selected{{end}}>{{.Name}}</option>
+<!-- Universal Edit Monitor Modal -->
+<div id="modal-edit-monitor" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-monitor-title">
+    <header>
+      <h3 id="modal-edit-monitor-title">Edit monitor</h3>
+      <button class="close" type="button" data-close>&times;</button>
+    </header>
+    <form id="form-edit-monitor" action="#" method="post">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <div class="form-row">
+        <div>
+          <label>Name</label>
+          <input name="name" type="text" required>
+        </div>
+        <div>
+          <label>Type</label>
+          <select name="type">
+            <option value="http">HTTP(S)</option>
+            <option value="icmp">ICMP</option>
+          </select>
+        </div>
+        <div>
+          <label>Target</label>
+          <input name="target" type="text" required>
+        </div>
+        <div class="cert-validation-div" style="display: none;">
+          <label>Certificate Validation</label>
+          <select name="cert_validation">
+            <option value="full">Valid (Full validation)</option>
+            <option value="expiry_only">Expiry only</option>
+            <option value="ignore">Ignore</option>
+          </select>
+        </div>
+        <div>
+          <label>Group</label>
+          <select name="group_id">
+            <option value="0">Ungrouped</option>
+            {{range .Groups}}
+              {{if .Name}}
+                <option value="{{.ID}}">{{.Name}}</option>
+              {{end}}
+            {{end}}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Interval (seconds)</label>
+          <input name="interval_seconds" type="number" min="5">
+        </div>
+        <div>
+          <label>Timeout (seconds)</label>
+          <input name="timeout_seconds" type="number" min="1">
+        </div>
+        <div>
+          <label>Master monitor</label>
+          <select name="master_id">
+            <option value="">(none)</option>
+            {{range .Groups}}
+              <optgroup label="---- {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}} ----">
+                {{range .Monitors}}
+                  <option value="{{.ID}}">{{.Name}} ({{.ID}})</option>
                 {{end}}
-              {{end}}
-            </select>
-          </div>
+              </optgroup>
+            {{end}}
+          </select>
         </div>
-        <div class="form-row">
-          <div>
-            <label>Interval (seconds)</label>
-            <input name="interval_seconds" type="number" min="5" value="{{.IntervalSeconds}}">
-          </div>
-          <div>
-            <label>Timeout (seconds)</label>
-            <input name="timeout_seconds" type="number" min="1" value="{{.TimeoutSeconds}}">
-          </div>
-          <div>
-            <label>Master monitor</label>
-            {{$self := .ID}}
-            {{$current := .MasterID}}
-            <select name="master_id">
-              <option value="" {{if not $current}}selected{{end}}>(none)</option>
-              {{range $.Groups}}
-                <optgroup label="---- {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}} ----">
-                  {{range .Monitors}}
-                    {{if ne .ID $self}}
-                      <option value="{{.ID}}" {{if eq .ID $current}}selected{{end}}>{{.Name}} ({{.ID}})</option>
-                    {{end}}
-                  {{end}}
-                </optgroup>
-              {{end}}
-            </select>
-          </div>
-          <div>
-            <label>Notification</label>
-            {{$notif := .NotificationID}}
-            <select name="notification_id">
-              <option value="0" {{if not $notif}}selected{{end}}>(none)</option>
-              {{range $.Notifications}}
-                <option value="{{.ID}}" {{if eq .ID $notif}}selected{{end}}>{{.Name}}</option>
-              {{end}}
-            </select>
-          </div>
-          <div>
-            <label>Fail threshold</label>
-            <input name="fail_threshold" type="number" min="1" value="{{.FailThreshold}}">
-          </div>
+        <div>
+          <label>Notification</label>
+          <select name="notification_id">
+            <option value="0">(none)</option>
+            {{range .Notifications}}
+              <option value="{{.ID}}">{{.Name}}</option>
+            {{end}}
+          </select>
         </div>
-        <div class="form-row">
-          <label><input type="checkbox" name="enabled" value="true" {{if .Enabled}}checked{{end}}> Enabled</label>
+        <div>
+          <label>Fail threshold</label>
+          <input name="fail_threshold" type="number" min="1">
         </div>
-        <div class="actions">
-          <button type="submit" class="primary">Save</button>
-        </div>
-      </form>
-    </div>
+      </div>
+      <div class="form-row">
+        <label><input type="checkbox" name="enabled" value="true"> Enabled</label>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
   </div>
-  <!-- Delete monitor modal -->
-  <div id="modal-delete-monitor-{{.ID}}" class="modal-backdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-monitor-title-{{.ID}}">
-      <header>
-        <h3 id="modal-delete-monitor-title-{{.ID}}">Delete monitor</h3>
-        <button class="close" type="button" data-close>&times;</button>
-      </header>
-      <form class="form-delete-monitor" data-monitor-id="{{.ID}}" action="#" method="post">
-        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-        <p>Are you sure you want to delete <strong>{{.Name}}</strong>? This action cannot be undone.</p>
-        <div class="actions">
-          <button type="button" data-close>Cancel</button>
-          <button type="submit" class="danger">Delete</button>
-        </div>
-      </form>
-    </div>
+</div>
+
+<!-- Universal Delete Monitor Modal -->
+<div id="modal-delete-monitor" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-monitor-title">
+    <header>
+      <h3 id="modal-delete-monitor-title">Delete monitor</h3>
+      <button class="close" type="button" data-close>&times;</button>
+    </header>
+    <form id="form-delete-monitor" action="#" method="post">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <p id="delete-monitor-message">Are you sure you want to delete this monitor? This action cannot be undone.</p>
+      <div class="actions">
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="danger">Delete</button>
+      </div>
+    </form>
   </div>
-  {{end}}
-{{end}}
+</div>
 
 <!-- Create Group Modal -->
 <div id="modal-new-group" class="modal-backdrop" aria-hidden="true">
@@ -352,31 +322,47 @@
   </div>
   </div>
 
-<!-- Rename Group Modals -->
-{{range .Groups}}
-  {{if .Name}}
-  <div id="modal-rename-{{idSafe .Name}}" class="modal-backdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-rename-title-{{idSafe .Name}}">
-      <header>
-        <h3 id="modal-rename-title-{{idSafe .Name}}">Rename group</h3>
-        <button class="close" type="button" data-close>&times;</button>
-      </header>
-      <form class="form-rename-group" data-group-id="{{.ID}}" method="post" action="#">
-        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-        <div class="form-row">
-          <div>
-            <label>New name</label>
-            <input name="name" type="text" value="{{.Name}}" required>
-          </div>
+<!-- Universal Rename Group Modal -->
+<div id="modal-rename-group" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-rename-group-title">
+    <header>
+      <h3 id="modal-rename-group-title">Rename group</h3>
+      <button class="close" type="button" data-close>&times;</button>
+    </header>
+    <form id="form-rename-group" method="post" action="#">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <div class="form-row">
+        <div>
+          <label>New name</label>
+          <input name="name" type="text" required>
         </div>
-        <div class="actions">
-          <button type="submit" class="primary">Rename</button>
-        </div>
-      </form>
-    </div>
-    </div>
-  {{end}}
-{{end}}
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary">Rename</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Universal Delete Group Modal -->
+<div id="modal-delete-group" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-group-title">
+    <header>
+      <h3 id="modal-delete-group-title">Delete group</h3>
+      <button class="close" type="button" data-close>&times;</button>
+    </header>
+    <form id="form-delete-group" method="post" action="#">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <p id="delete-group-message">Delete this group?</p>
+      <label><input type="checkbox" name="delete_monitors"> Also delete monitors in this group</label>
+      <p class="muted">If unchecked, monitors will be moved to Ungrouped.</p>
+      <div class="actions">
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="danger">Delete group</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -491,21 +477,42 @@
     toggleCertValidation(newTypeSelect, newCertDiv);
   }
   
-  // For edit monitor forms
-  document.querySelectorAll('form.form-edit-monitor').forEach(function(form) {
-    const typeSelect = form.querySelector('select[name="type"]');
-    const certDiv = form.querySelector('.cert-validation-div');
+  // For universal edit monitor form
+  const editForm = document.getElementById('form-edit-monitor');
+  if (editForm) {
+    const typeSelect = editForm.querySelector('select[name="type"]');
+    const certDiv = editForm.querySelector('.cert-validation-div');
     if (typeSelect && certDiv) {
       typeSelect.addEventListener('change', function() {
         toggleCertValidation(typeSelect, certDiv);
       });
     }
-  });
-  // Explicit listeners for elements with data-open (belt-and-suspenders)
-  document.querySelectorAll('[data-open]').forEach(function(el){
-    el.addEventListener('click', function(e){ if (window.__upt_dragging) { e.preventDefault(); return; } e.preventDefault(); openModal(el.getAttribute('data-open')); });
-  });
-  // Use event delegation for reliability
+  }
+  // Handle dynamic modal actions
+  document.addEventListener('click', function(e){
+    const t = e.target.closest('[data-action]');
+    if(!t) return;
+    if (window.__upt_dragging) { e.preventDefault(); e.stopPropagation(); return; }
+    e.preventDefault(); e.stopPropagation();
+    
+    const action = t.getAttribute('data-action');
+    switch(action) {
+      case 'edit-monitor':
+        openEditMonitorModal(t.getAttribute('data-monitor-id'));
+        break;
+      case 'delete-monitor':
+        openDeleteMonitorModal(t.getAttribute('data-monitor-id'), t.getAttribute('data-monitor-name'));
+        break;
+      case 'rename-group':
+        openRenameGroupModal(t.getAttribute('data-group-id'), t.getAttribute('data-group-name'));
+        break;
+      case 'delete-group':
+        openDeleteGroupModal(t.getAttribute('data-group-id'), t.getAttribute('data-group-name'));
+        break;
+    }
+  }, true);
+  
+  // Legacy support for data-open attributes
   document.addEventListener('click', function(e){
     const t = e.target.closest('[data-open]');
     if(!t) return;
@@ -519,6 +526,93 @@
   });
   // No row-level click-to-open to avoid conflicts with dragging
   // SortableJS will initialize on load
+  
+  // Modal population functions
+  async function openEditMonitorModal(monitorId) {
+    try {
+      const response = await (window.apiFetch || fetch)('/api/monitors/' + encodeURIComponent(monitorId), {
+        credentials: 'same-origin'
+      });
+      if (!response.ok) throw new Error('Failed to load monitor data');
+      
+      const snapshot = await response.json();
+      console.log('API Response:', snapshot); // Debug log
+      const monitor = snapshot.config || snapshot; // Use lowercase 'config' from API
+      console.log('Monitor Config:', monitor); // Debug log
+      const form = document.getElementById('form-edit-monitor');
+      
+      // Populate form fields (API now returns converted values)
+      form.querySelector('input[name="name"]').value = monitor.name || '';
+      form.querySelector('select[name="type"]').value = monitor.type || 'icmp';
+      form.querySelector('input[name="target"]').value = monitor.target || '';
+      form.querySelector('select[name="cert_validation"]').value = monitor.cert_validation || 'full';
+      form.querySelector('select[name="group_id"]').value = monitor.group_id || '0';
+      form.querySelector('input[name="interval_seconds"]').value = monitor.interval_seconds || 60;
+      form.querySelector('input[name="timeout_seconds"]').value = monitor.timeout_seconds || 10;
+      form.querySelector('select[name="master_id"]').value = monitor.master_id || '';
+      form.querySelector('select[name="notification_id"]').value = monitor.notification_id || '0';
+      form.querySelector('input[name="fail_threshold"]').value = monitor.fail_threshold || 3;
+      form.querySelector('input[name="enabled"]').checked = monitor.enabled || false;
+      
+      // Set monitor ID for form submission
+      form.setAttribute('data-monitor-id', monitorId);
+      
+      // Update certificate validation visibility
+      const typeSelect = form.querySelector('select[name="type"]');
+      const certDiv = form.querySelector('.cert-validation-div');
+      toggleCertValidation(typeSelect, certDiv);
+      
+      // Remove self from master monitor options
+      const masterSelect = form.querySelector('select[name="master_id"]');
+      Array.from(masterSelect.options).forEach(option => {
+        if (option.value === monitorId) {
+          option.style.display = 'none';
+        } else {
+          option.style.display = '';
+        }
+      });
+      
+      openModal('modal-edit-monitor');
+    } catch (error) {
+      alert('Failed to load monitor data: ' + error.message);
+    }
+  }
+  
+  function openDeleteMonitorModal(monitorId, monitorName) {
+    const form = document.getElementById('form-delete-monitor');
+    const message = document.getElementById('delete-monitor-message');
+    
+    form.setAttribute('data-monitor-id', monitorId);
+    message.innerHTML = 'Are you sure you want to delete <strong>' + (monitorName || 'this monitor') + '</strong>? This action cannot be undone.';
+    
+    openModal('modal-delete-monitor');
+  }
+  
+  function openRenameGroupModal(groupId, groupName) {
+    const form = document.getElementById('form-rename-group');
+    const nameInput = form.querySelector('input[name="name"]');
+    
+    form.setAttribute('data-group-id', groupId);
+    nameInput.value = groupName || '';
+    
+    openModal('modal-rename-group');
+  }
+  
+  function openDeleteGroupModal(groupId, groupName) {
+    const form = document.getElementById('form-delete-group');
+    const message = document.getElementById('delete-group-message');
+    
+    form.setAttribute('data-group-id', groupId);
+    message.innerHTML = 'Delete group <strong>' + (groupName || 'this group') + '</strong>?';
+    
+    openModal('modal-delete-group');
+  }
+  
+  // Make functions globally available
+  window.openEditMonitorModal = openEditMonitorModal;
+  window.openDeleteMonitorModal = openDeleteMonitorModal;
+  window.openRenameGroupModal = openRenameGroupModal;
+  window.openDeleteGroupModal = openDeleteGroupModal;
 })();
 
 // REST API integration for Admin UI
@@ -566,39 +660,37 @@
     if(!res.ok) throw new Error('create monitor failed');
     window.location.reload();
   }catch(err){ alert('Failed to create monitor'); }}); }
-  // Edit monitor
-  document.querySelectorAll('form.form-edit-monitor').forEach(function(f){
-    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
-      const fd = new FormData(f);
-      const id = f.getAttribute('data-monitor-id');
-      const payload = {
-        name: fd.get('name')||'',
-        type: fd.get('type')||'http',
-        target: fd.get('target')||'',
-        interval_seconds: parseInt(fd.get('interval_seconds')||'60',10),
-        timeout_seconds: parseInt(fd.get('timeout_seconds')||'10',10),
-        notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
-        enabled: fd.get('enabled') ? true : false,
-        group_id: parseInt(fd.get('group_id')||'0',10) || 0,
-        master_id: fd.get('master_id')||'',
-        fail_threshold: parseInt(fd.get('fail_threshold')||'3',10),
-        cert_validation: fd.get('cert_validation')||'full'
-      };
-      const res = await api('/api/monitors/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify(payload) });
-      if(!res.ok) throw new Error('update failed');
-      window.location.reload();
-    }catch(err){ alert('Failed to update monitor'); }});
-  });
+  // Edit monitor (universal form)
+  const editMonitorForm = document.getElementById('form-edit-monitor');
+  if(editMonitorForm){ editMonitorForm.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    const fd = new FormData(editMonitorForm);
+    const id = editMonitorForm.getAttribute('data-monitor-id');
+    const payload = {
+      name: fd.get('name')||'',
+      type: fd.get('type')||'http',
+      target: fd.get('target')||'',
+      interval_seconds: parseInt(fd.get('interval_seconds')||'60',10),
+      timeout_seconds: parseInt(fd.get('timeout_seconds')||'10',10),
+      notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
+      enabled: fd.get('enabled') ? true : false,
+      group_id: parseInt(fd.get('group_id')||'0',10) || 0,
+      master_id: fd.get('master_id')||'',
+      fail_threshold: parseInt(fd.get('fail_threshold')||'3',10),
+      cert_validation: fd.get('cert_validation')||'full'
+    };
+    const res = await api('/api/monitors/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify(payload) });
+    if(!res.ok) throw new Error('update failed');
+    window.location.reload();
+  }catch(err){ alert('Failed to update monitor'); }}); }
 
-  // Delete monitor
-  document.querySelectorAll('form.form-delete-monitor').forEach(function(f){
-    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
-      const id = f.getAttribute('data-monitor-id');
-      const res = await api('/api/monitors/'+encodeURIComponent(id), { method:'DELETE' });
-      if(!res.ok) throw new Error('delete failed');
-      window.location.reload();
-    }catch(err){ alert('Failed to delete monitor'); }});
-  });
+  // Delete monitor (universal form)
+  const deleteMonitorForm = document.getElementById('form-delete-monitor');
+  if(deleteMonitorForm){ deleteMonitorForm.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    const id = deleteMonitorForm.getAttribute('data-monitor-id');
+    const res = await api('/api/monitors/'+encodeURIComponent(id), { method:'DELETE' });
+    if(!res.ok) throw new Error('delete failed');
+    window.location.reload();
+  }catch(err){ alert('Failed to delete monitor'); }}); }
 
   // Groups: create
   const fg = document.getElementById('form-create-group');
@@ -621,28 +713,26 @@
     }catch(err){ alert('Failed to reorder group'); }});
   });
 
-  // Groups: rename
-  document.querySelectorAll('form.form-rename-group').forEach(function(f){
-    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
-      const id = parseInt(f.getAttribute('data-group-id')||'0',10) || 0;
-      const newName = (new FormData(f).get('name')||'').trim();
-      if(!newName){ alert('New name required'); return; }
-      const res = await api('/api/groups/'+id, { method:'PUT', body: JSON.stringify({name:newName}) });
-      if(!res.ok) throw new Error('rename failed');
-      window.location.reload();
-    }catch(err){ alert('Failed to rename group'); }});
-  });
+  // Groups: rename (universal form)
+  const renameGroupForm = document.getElementById('form-rename-group');
+  if(renameGroupForm){ renameGroupForm.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    const id = parseInt(renameGroupForm.getAttribute('data-group-id')||'0',10) || 0;
+    const newName = (new FormData(renameGroupForm).get('name')||'').trim();
+    if(!newName){ alert('New name required'); return; }
+    const res = await api('/api/groups/'+id, { method:'PUT', body: JSON.stringify({name:newName}) });
+    if(!res.ok) throw new Error('rename failed');
+    window.location.reload();
+  }catch(err){ alert('Failed to rename group'); }}); }
 
-  // Groups: delete
-  document.querySelectorAll('form.form-delete-group').forEach(function(f){
-    f.addEventListener('submit', async function(e){ e.preventDefault(); try{
-      const id = parseInt(f.getAttribute('data-group-id')||'0',10) || 0;
-      const del = new FormData(f).get('delete_monitors') ? '1' : '0';
-      const res = await api('/api/groups/'+id+'?delete_monitors='+del, { method:'DELETE' });
-      if(!res.ok) throw new Error('delete group failed');
-      window.location.reload();
-    }catch(err){ alert('Failed to delete group'); }});
-  });
+  // Groups: delete (universal form)
+  const deleteGroupForm = document.getElementById('form-delete-group');
+  if(deleteGroupForm){ deleteGroupForm.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    const id = parseInt(deleteGroupForm.getAttribute('data-group-id')||'0',10) || 0;
+    const del = new FormData(deleteGroupForm).get('delete_monitors') ? '1' : '0';
+    const res = await api('/api/groups/'+id+'?delete_monitors='+del, { method:'DELETE' });
+    if(!res.ok) throw new Error('delete group failed');
+    window.location.reload();
+  }catch(err){ alert('Failed to delete group'); }}); }
 })();
 </script>
 {{end}}

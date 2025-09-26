@@ -90,6 +90,77 @@ func newStaticHandler() http.Handler {
 
 // ==== Types & Constructor =====================================================
 
+// APISnapshot represents a monitor snapshot for API responses with converted time units
+type APISnapshot struct {
+	Config      APIMonitorConfig `json:"config"`
+	Status      string          `json:"status"`
+	LastChecked time.Time       `json:"last_checked"`
+	LastLatency int64           `json:"last_latency"` // in milliseconds
+	LastMessage string          `json:"last_message"`
+	LastChange  time.Time       `json:"last_change"`
+}
+
+// APIMonitorConfig represents monitor configuration for API responses with converted time units
+type APIMonitorConfig struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Type             string `json:"type"`
+	Target           string `json:"target"`
+	IntervalSeconds  int    `json:"interval_seconds"`  // converted from nanoseconds
+	TimeoutSeconds   int    `json:"timeout_seconds"`   // converted from nanoseconds
+	Enabled          bool   `json:"enabled"`
+	Group            string `json:"group"`
+	GroupID          int    `json:"group_id"`
+	MasterID         string `json:"master_id"`
+	NotificationID   int    `json:"notification_id"`
+	FailThreshold    int    `json:"fail_threshold"`
+	CertValidation   string `json:"cert_validation"`
+}
+
+// APICheckResult represents a check result for API responses with converted time units
+type APICheckResult struct {
+	Timestamp time.Time `json:"timestamp"`
+	Success   bool      `json:"success"`
+	Latency   int64     `json:"latency"` // in milliseconds
+	Message   string    `json:"message"`
+}
+
+// convertCheckResultToAPI converts internal check result to API format
+func convertCheckResultToAPI(result monitor.CheckResult) APICheckResult {
+	return APICheckResult{
+		Timestamp: result.Timestamp,
+		Success:   result.Success,
+		Latency:   result.Latency.Nanoseconds() / 1000000, // convert to milliseconds
+		Message:   result.Message,
+	}
+}
+
+// convertSnapshotToAPI converts internal snapshot to API format
+func convertSnapshotToAPI(snap monitor.Snapshot) APISnapshot {
+	return APISnapshot{
+		Config: APIMonitorConfig{
+			ID:               snap.Config.ID,
+			Name:             snap.Config.Name,
+			Type:             string(snap.Config.Type),
+			Target:           snap.Config.Target,
+			IntervalSeconds:  int(snap.Config.Interval.Seconds()),
+			TimeoutSeconds:   int(snap.Config.Timeout.Seconds()),
+			Enabled:          snap.Config.Enabled,
+			Group:            snap.Config.Group,
+			GroupID:          snap.Config.GroupID,
+			MasterID:         snap.Config.MasterID,
+			NotificationID:   snap.Config.NotificationID,
+			FailThreshold:    snap.Config.FailThreshold,
+			CertValidation:   string(snap.Config.CertValidation),
+		},
+		Status:      string(snap.Status),
+		LastChecked: snap.LastChecked,
+		LastLatency: snap.LastLatency.Nanoseconds() / 1000000, // convert to milliseconds
+		LastMessage: snap.LastMessage,
+		LastChange:  snap.LastChange,
+	}
+}
+
 // Server exposes HTTP endpoints for the uptime monitor.
 type Server struct {
 	manager         *monitor.Manager
@@ -581,8 +652,9 @@ func (s *Server) handleAPIMonitorItem(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
+		apiSnapshot := convertSnapshotToAPI(snapshot)
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(snapshot)
+		_ = json.NewEncoder(w).Encode(apiSnapshot)
 	case http.MethodPut:
 		if !s.ensureAuthAndCSRF(w, r) {
 			return
@@ -664,20 +736,22 @@ func (s *Server) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		response = append(response, map[string]any{
-			"id":              snap.Config.ID,
-			"name":            snap.Config.Name,
-			"type":            snap.Config.Type,
-			"target":          snap.Config.Target,
-			"master_id":       snap.Config.MasterID,
-			"enabled":         snap.Config.Enabled,
-			"group_id":        snap.Config.GroupID,
-			"group":           s.getGroupName(snap.Config.GroupID),
-			"status":          snap.Status,
-			"last_checked":    snap.LastChecked,
-			"last_latency_ms": snap.LastLatency.Seconds() * 1000,
-			"last_message":    snap.LastMessage,
-			"last_change":     snap.LastChange,
-			"history":         history,
+			"id":               snap.Config.ID,
+			"name":             snap.Config.Name,
+			"type":             snap.Config.Type,
+			"target":           snap.Config.Target,
+			"master_id":        snap.Config.MasterID,
+			"enabled":          snap.Config.Enabled,
+			"group_id":         snap.Config.GroupID,
+			"group":            s.getGroupName(snap.Config.GroupID),
+			"interval_seconds": int(snap.Config.Interval.Seconds()),
+			"timeout_seconds":  int(snap.Config.Timeout.Seconds()),
+			"status":           snap.Status,
+			"last_checked":     snap.LastChecked,
+			"last_latency_ms":  snap.LastLatency.Seconds() * 1000,
+			"last_message":     snap.LastMessage,
+			"last_change":      snap.LastChange,
+			"history":          history,
 		})
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -1167,6 +1241,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/groups", s.ensureInstalled(s.handleAPIGroupsUnified))
 	s.mux.HandleFunc("/api/groups/", s.ensureInstalled(s.handleAPIGroupsUnified))
 	s.mux.HandleFunc("/api/settings", s.ensureInstalled(s.handleAPISettings))
+	s.mux.HandleFunc("/api/history/", s.ensureInstalled(s.handleAPIHistory))
 }
 
 // ensureInstalled is a simple middleware wrapper that can enforce installation
@@ -1742,18 +1817,55 @@ func (s *Server) cleanupExpiredSessions() {
 	}
 }
 
-// ==== Public Pages ============================================================
+// ==== Status Page =============================================================
 
+// handleStatus serves the main status page
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	data := s.buildStatusData()
 	if err := s.templates.ExecuteTemplate(w, "status.gohtml", data); err != nil {
 		s.logger.Printf("status template error: %v", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
+}
+
+// ==== API: History ============================================================
+
+// handleAPIHistory serves monitor history data
+func (s *Server) handleAPIHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if !s.ensureAuth(w, r) {
+		return
+	}
+	
+	if s.apiDebug {
+		s.logger.Printf("[API DEBUG] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+	}
+	
+	// Parse monitor ID from path: /api/history/{id}
+	id := strings.TrimPrefix(r.URL.Path, "/api/history/")
+	if id == "" {
+		http.Error(w, "monitor ID required", http.StatusBadRequest)
+		return
+	}
+	
+	snapshot, err := s.manager.GetSnapshot(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	
+	// Convert history to API format
+	apiHistory := make([]APICheckResult, len(snapshot.History))
+	for i, result := range snapshot.History {
+		apiHistory[i] = convertCheckResultToAPI(result)
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(apiHistory)
 }
 
 func (s *Server) buildStatusData() StatusPageData {
