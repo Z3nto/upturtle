@@ -51,11 +51,11 @@ func (s *SQLiteDB) Initialize() error {
 		return fmt.Errorf("failed to create config table: %w", err)
 	}
 
-	// Create measurement tables for today
+	// Create history tables for today
 	today := time.Now()
 
-	if err := s.CreateMeasurementTable(today); err != nil {
-		return fmt.Errorf("failed to create today's measurement table: %w", err)
+	if err := s.CreateHistoryTable(today); err != nil {
+		return fmt.Errorf("failed to create today's history table: %w", err)
 	}
 
 	log.Printf("SQLite database initialized at %s", s.path)
@@ -127,9 +127,9 @@ func (s *SQLiteDB) DeleteConfig(key string) error {
 	return err
 }
 
-// CreateMeasurementTable creates a measurement table for a specific date
-func (s *SQLiteDB) CreateMeasurementTable(date time.Time) error {
-	tableName := s.getMeasurementTableName(date)
+// CreateHistoryTable creates a history table for a specific date
+func (s *SQLiteDB) CreateHistoryTable(date time.Time) error {
+	tableName := s.getHistoryTableName(date)
 
 	query := fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS %s (
@@ -165,23 +165,23 @@ func (s *SQLiteDB) CreateMeasurementTable(date time.Time) error {
 	return nil
 }
 
-// DropMeasurementTable drops a measurement table for a specific date
-func (s *SQLiteDB) DropMeasurementTable(date time.Time) error {
-	tableName := s.getMeasurementTableName(date)
+// DropHistoryTable drops a history table for a specific date
+func (s *SQLiteDB) DropHistoryTable(date time.Time) error {
+	tableName := s.getHistoryTableName(date)
 	query := fmt.Sprintf(`DROP TABLE IF EXISTS %s`, tableName)
 
 	_, err := s.db.Exec(query)
 	if err == nil {
-		log.Printf("Dropped measurement table: %s", tableName)
+		log.Printf("Dropped history table: %s", tableName)
 	}
 	return err
 }
 
-// ListMeasurementTables returns all measurement table dates
-func (s *SQLiteDB) ListMeasurementTables() ([]time.Time, error) {
+// ListHistoryTables returns all history table dates
+func (s *SQLiteDB) ListHistoryTables() ([]time.Time, error) {
 	query := `
 	SELECT name FROM sqlite_master 
-	WHERE type='table' AND name LIKE 'measurements_%'
+	WHERE type='table' AND name LIKE 'history_%'
 	ORDER BY name`
 
 	rows, err := s.db.Query(query)
@@ -197,9 +197,9 @@ func (s *SQLiteDB) ListMeasurementTables() ([]time.Time, error) {
 			continue
 		}
 
-		// Extract date from table name (measurements_YYYYMMDD)
-		if len(tableName) >= 20 { // "measurements_" + "YYYYMMDD"
-			dateStr := tableName[13:] // Skip "measurements_"
+		// Extract date from table name (history_YYYYMMDD)
+		if len(tableName) >= 20 { // "history_" + "YYYYMMDD"
+			dateStr := tableName[13:] // Skip "history_"
 			if date, err := time.Parse("20060102", dateStr); err == nil {
 				dates = append(dates, date)
 			}
@@ -209,13 +209,13 @@ func (s *SQLiteDB) ListMeasurementTables() ([]time.Time, error) {
 	return dates, rows.Err()
 }
 
-// SaveMeasurement saves a measurement record
-func (s *SQLiteDB) SaveMeasurement(data MeasurementData) error {
-	tableName := s.getMeasurementTableName(data.Timestamp)
+// SaveHistory saves a history record
+func (s *SQLiteDB) SaveHistory(data HistoryData) error {
+	tableName := s.getHistoryTableName(data.Timestamp)
 
 	// Ensure table exists for this date
-	if err := s.CreateMeasurementTable(data.Timestamp); err != nil {
-		return fmt.Errorf("failed to ensure measurement table exists: %w", err)
+	if err := s.CreateHistoryTable(data.Timestamp); err != nil {
+		return fmt.Errorf("failed to ensure history table exists: %w", err)
 	}
 
 	query := fmt.Sprintf(`
@@ -233,15 +233,15 @@ func (s *SQLiteDB) SaveMeasurement(data MeasurementData) error {
 	return err
 }
 
-// GetMeasurements retrieves measurements for a monitor since a specific time
-func (s *SQLiteDB) GetMeasurements(monitorID string, since time.Time) ([]MeasurementData, error) {
+// GetHistory retrieves history for a monitor since a specific time
+func (s *SQLiteDB) GetHistory(monitorID string, since time.Time) ([]HistoryData, error) {
 	// Get all relevant tables (from since date to today)
 	tables, err := s.getRelevantTables(since, time.Now())
 	if err != nil {
 		return nil, err
 	}
 
-	var allMeasurements []MeasurementData
+	var allHistory []HistoryData
 
 	for _, tableName := range tables {
 		query := fmt.Sprintf(`
@@ -256,27 +256,27 @@ func (s *SQLiteDB) GetMeasurements(monitorID string, since time.Time) ([]Measure
 			continue
 		}
 
-		measurements, err := s.scanMeasurements(rows)
+		history, err := s.scanHistory(rows)
 		rows.Close()
 		if err != nil {
 			return nil, err
 		}
 
-		allMeasurements = append(allMeasurements, measurements...)
+		allHistory = append(allHistory, history...)
 	}
 
-	return allMeasurements, nil
+	return allHistory, nil
 }
 
-// GetLatestMeasurement retrieves the latest measurement for a monitor
-func (s *SQLiteDB) GetLatestMeasurement(monitorID string) (*MeasurementData, error) {
+// GetLatestHistory retrieves the latest history for a monitor
+func (s *SQLiteDB) GetLatestHistory(monitorID string) (*HistoryData, error) {
 	// Check today's table first, then yesterday's
 	today := time.Now()
 	yesterday := today.AddDate(0, 0, -1)
 
 	tables := []string{
-		s.getMeasurementTableName(today),
-		s.getMeasurementTableName(yesterday),
+		s.getHistoryTableName(today),
+		s.getHistoryTableName(yesterday),
 	}
 
 	for _, tableName := range tables {
@@ -287,7 +287,7 @@ func (s *SQLiteDB) GetLatestMeasurement(monitorID string) (*MeasurementData, err
 		ORDER BY timestamp DESC
 		LIMIT 1`, tableName)
 
-		var data MeasurementData
+		var data HistoryData
 		var latencyNs int64
 		var status string
 
@@ -315,11 +315,11 @@ func (s *SQLiteDB) GetLatestMeasurement(monitorID string) (*MeasurementData, err
 	return nil, sql.ErrNoRows
 }
 
-// CleanupOldMeasurements removes measurement data older than retentionDays
-func (s *SQLiteDB) CleanupOldMeasurements(retentionDays int) error {
+// CleanupOldHistory removes history data older than retentionDays
+func (s *SQLiteDB) CleanupOldHistory(retentionDays int) error {
 	cutoffDate := time.Now().AddDate(0, 0, -retentionDays)
 
-	tables, err := s.ListMeasurementTables()
+	tables, err := s.ListHistoryTables()
 	if err != nil {
 		return err
 	}
@@ -327,8 +327,8 @@ func (s *SQLiteDB) CleanupOldMeasurements(retentionDays int) error {
 	droppedCount := 0
 	for _, tableDate := range tables {
 		if tableDate.Before(cutoffDate) {
-			if err := s.DropMeasurementTable(tableDate); err != nil {
-				log.Printf("Failed to drop old measurement table for %s: %v",
+			if err := s.DropHistoryTable(tableDate); err != nil {
+				log.Printf("Failed to drop old history table for %s: %v",
 					tableDate.Format("2006-01-02"), err)
 			} else {
 				droppedCount++
@@ -337,7 +337,7 @@ func (s *SQLiteDB) CleanupOldMeasurements(retentionDays int) error {
 	}
 
 	if droppedCount > 0 {
-		log.Printf("Cleaned up %d old measurement tables", droppedCount)
+		log.Printf("Cleaned up %d old history tables", droppedCount)
 	}
 
 	return nil
@@ -345,8 +345,8 @@ func (s *SQLiteDB) CleanupOldMeasurements(retentionDays int) error {
 
 // Helper methods
 
-func (s *SQLiteDB) getMeasurementTableName(date time.Time) string {
-	return fmt.Sprintf("measurements_%s", date.Format("20060102"))
+func (s *SQLiteDB) getHistoryTableName(date time.Time) string {
+	return fmt.Sprintf("history_%s", date.Format("20060102"))
 }
 
 func (s *SQLiteDB) getRelevantTables(since, until time.Time) ([]string, error) {
@@ -357,18 +357,18 @@ func (s *SQLiteDB) getRelevantTables(since, until time.Time) ([]string, error) {
 	end := until.Truncate(24*time.Hour).AddDate(0, 0, 1) // Include until date
 
 	for current.Before(end) {
-		tables = append(tables, s.getMeasurementTableName(current))
+		tables = append(tables, s.getHistoryTableName(current))
 		current = current.AddDate(0, 0, 1)
 	}
 
 	return tables, nil
 }
 
-func (s *SQLiteDB) scanMeasurements(rows *sql.Rows) ([]MeasurementData, error) {
-	var measurements []MeasurementData
+func (s *SQLiteDB) scanHistory(rows *sql.Rows) ([]HistoryData, error) {
+	var history []HistoryData
 
 	for rows.Next() {
-		var data MeasurementData
+		var data HistoryData
 		var latencyNs int64
 		var status string
 
@@ -387,10 +387,10 @@ func (s *SQLiteDB) scanMeasurements(rows *sql.Rows) ([]MeasurementData, error) {
 
 		data.Latency = time.Duration(latencyNs)
 		data.Status = status
-		measurements = append(measurements, data)
+		history = append(history, data)
 	}
 
-	return measurements, rows.Err()
+	return history, rows.Err()
 }
 
 // ensureDir creates directory if it doesn't exist

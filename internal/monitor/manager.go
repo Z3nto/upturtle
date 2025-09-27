@@ -60,7 +60,7 @@ func (m *Manager) LoadMonitors(configs []MonitorConfig) {
 			// With database integration, don't pre-allocate memory for history
 			historyCapacity = 0
 		}
-		
+
 		entry := &monitorEntry{
 			config:              cfg,
 			history:             make([]CheckResult, 0, historyCapacity),
@@ -153,7 +153,7 @@ type Manager struct {
 	// Debug flags
 	MonitorDebug      bool
 	NotificationDebug bool
-	
+
 	// Database integration (optional)
 	dbIntegration *DatabaseIntegration
 }
@@ -180,7 +180,7 @@ func (m *Manager) SetMonitorDebug(v bool) { m.MonitorDebug = v }
 // SetNotificationDebug enables/disables verbose notification debug logging.
 func (m *Manager) SetNotificationDebug(v bool) { m.NotificationDebug = v }
 
-// SetDatabaseIntegration enables database storage for measurement data
+// SetDatabaseIntegration enables database storage for history data
 func (m *Manager) SetDatabaseIntegration(di *DatabaseIntegration) {
 	m.dbIntegration = di
 }
@@ -194,10 +194,10 @@ func (m *Manager) GetDatabaseIntegration() *DatabaseIntegration {
 func (m *Manager) GetMemoryUsage() map[string]interface{} {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	totalHistoryEntries := 0
 	maxHistoryPerMonitor := 0
-	
+
 	for _, entry := range m.monitors {
 		entry.mu.RLock()
 		historyLen := len(entry.history)
@@ -207,12 +207,12 @@ func (m *Manager) GetMemoryUsage() map[string]interface{} {
 		}
 		entry.mu.RUnlock()
 	}
-	
+
 	return map[string]interface{}{
-		"total_monitors":           len(m.monitors),
-		"total_history_entries":    totalHistoryEntries,
-		"max_history_per_monitor":  maxHistoryPerMonitor,
-		"database_integration":     m.dbIntegration != nil,
+		"total_monitors":          len(m.monitors),
+		"total_history_entries":   totalHistoryEntries,
+		"max_history_per_monitor": maxHistoryPerMonitor,
+		"database_integration":    m.dbIntegration != nil,
 		"history_limit":           m.historyLimit,
 	}
 }
@@ -238,15 +238,15 @@ func (m *Manager) GetDatabaseError() string {
 	return m.dbIntegration.GetDatabaseError()
 }
 
-// GetHistoryFromDatabase retrieves measurement history from database for a monitor
+// GetHistoryFromDatabase retrieves history history from database for a monitor
 func (m *Manager) GetHistoryFromDatabase(monitorID string, limit int) ([]CheckResult, error) {
 	if m.dbIntegration == nil {
 		return nil, nil // No database configured
 	}
-	
-	// Get measurements from the last 24 hours
+
+	// Get history from the last 24 hours
 	since := time.Now().AddDate(0, 0, -1)
-	return m.dbIntegration.GetMeasurements(monitorID, since, limit)
+	return m.dbIntegration.GetHistory(monitorID, since, limit)
 }
 
 // ==== Lifecycle ===============================================================
@@ -263,7 +263,7 @@ func (m *Manager) Close() {
 	}
 	m.mu.Unlock()
 	m.wg.Wait()
-	
+
 	// Close database integration if present
 	if m.dbIntegration != nil {
 		m.dbIntegration.Close()
@@ -285,7 +285,7 @@ func (m *Manager) AddMonitor(cfg MonitorConfig) (MonitorConfig, error) {
 		// With database integration, don't pre-allocate memory for history
 		historyCapacity = 0
 	}
-	
+
 	entry := &monitorEntry{
 		config:              cfg,
 		history:             make([]CheckResult, 0, historyCapacity),
@@ -397,13 +397,13 @@ func (m *Manager) List() []Snapshot {
 	for _, entry := range m.monitors {
 		entry.mu.RLock()
 		cfg := entry.config
-		
+
 		// Load history from database if available, otherwise use memory
 		var historyCopy []CheckResult
 		if m.dbIntegration != nil {
-			// Load recent history from database (last 100 measurements)
+			// Load recent history from database (last 100 history)
 			since := time.Now().Add(-24 * time.Hour)
-			if dbHistory, err := m.dbIntegration.GetMeasurements(cfg.ID, since, 100); err == nil {
+			if dbHistory, err := m.dbIntegration.GetHistory(cfg.ID, since, 100); err == nil {
 				// Use database history directly (already converted to CheckResult)
 				historyCopy = dbHistory
 			} else {
@@ -416,7 +416,7 @@ func (m *Manager) List() []Snapshot {
 			historyCopy = make([]CheckResult, len(entry.history))
 			copy(historyCopy, entry.history)
 		}
-		
+
 		snapshot := Snapshot{
 			Config:      cfg,
 			Status:      entry.status,
@@ -447,9 +447,9 @@ func (m *Manager) GetSnapshot(id string) (Snapshot, error) {
 	// Load history from database if available, otherwise use memory
 	var historyCopy []CheckResult
 	if m.dbIntegration != nil {
-		// Load recent history from database (last 100 measurements)
+		// Load recent history from database (last 100 history)
 		since := time.Now().Add(-24 * time.Hour)
-		if dbHistory, err := m.dbIntegration.GetMeasurements(id, since, 100); err == nil {
+		if dbHistory, err := m.dbIntegration.GetHistory(id, since, 100); err == nil {
 			// Use database history directly (already converted to CheckResult)
 			historyCopy = dbHistory
 		} else {
@@ -596,8 +596,8 @@ func (m *Manager) execute(entry *monitorEntry) {
 	// Save to database if available, otherwise save to memory
 	if m.dbIntegration != nil {
 		// Database mode: only save to database, not to memory
-		if err := m.dbIntegration.SaveMeasurement(cfg.ID, result, entry.status); err != nil {
-			log.Printf("Failed to save measurement to database for %s: %v", cfg.ID, err)
+		if err := m.dbIntegration.SaveHistory(cfg.ID, result, entry.status); err != nil {
+			log.Printf("Failed to save history to database for %s: %v", cfg.ID, err)
 			// Fallback to memory if database fails
 			entry.history = append(entry.history, result)
 			if len(entry.history) > m.historyLimit {
