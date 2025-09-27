@@ -93,29 +93,29 @@ func newStaticHandler() http.Handler {
 // APISnapshot represents a monitor snapshot for API responses with converted time units
 type APISnapshot struct {
 	Config      APIMonitorConfig `json:"config"`
-	Status      string          `json:"status"`
-	LastChecked time.Time       `json:"last_checked"`
-	LastLatency int64           `json:"last_latency"` // in milliseconds
-	LastMessage string          `json:"last_message"`
-	LastChange  time.Time       `json:"last_change"`
+	Status      string           `json:"status"`
+	LastChecked time.Time        `json:"last_checked"`
+	LastLatency int64            `json:"last_latency"` // in milliseconds
+	LastMessage string           `json:"last_message"`
+	LastChange  time.Time        `json:"last_change"`
 }
 
 // APIMonitorConfig represents monitor configuration for API responses with converted time units
 type APIMonitorConfig struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	Type             string `json:"type"`
-	Target           string `json:"target"`
-	IntervalSeconds  int    `json:"interval_seconds"`  // converted from nanoseconds
-	TimeoutSeconds   int    `json:"timeout_seconds"`   // converted from nanoseconds
-	Enabled          bool   `json:"enabled"`
-	Group            string `json:"group"`
-	GroupID          int    `json:"group_id"`
-	Order            int    `json:"order"`
-	MasterID         string `json:"master_id"`
-	NotificationID   int    `json:"notification_id"`
-	FailThreshold    int    `json:"fail_threshold"`
-	CertValidation   string `json:"cert_validation"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Type            string `json:"type"`
+	Target          string `json:"target"`
+	IntervalSeconds int    `json:"interval_seconds"` // converted from nanoseconds
+	TimeoutSeconds  int    `json:"timeout_seconds"`  // converted from nanoseconds
+	Enabled         bool   `json:"enabled"`
+	Group           string `json:"group"`
+	GroupID         int    `json:"group_id"`
+	Order           int    `json:"order"`
+	MasterID        string `json:"master_id"`
+	NotificationID  int    `json:"notification_id"`
+	FailThreshold   int    `json:"fail_threshold"`
+	CertValidation  string `json:"cert_validation"`
 }
 
 // APICheckResult represents a check result for API responses with converted time units
@@ -140,20 +140,20 @@ func convertCheckResultToAPI(result monitor.CheckResult) APICheckResult {
 func convertSnapshotToAPI(snap monitor.Snapshot) APISnapshot {
 	return APISnapshot{
 		Config: APIMonitorConfig{
-			ID:               snap.Config.ID,
-			Name:             snap.Config.Name,
-			Type:             string(snap.Config.Type),
-			Target:           snap.Config.Target,
-			IntervalSeconds:  int(snap.Config.Interval.Seconds()),
-			TimeoutSeconds:   int(snap.Config.Timeout.Seconds()),
-			Enabled:          snap.Config.Enabled,
-			Group:            snap.Config.Group,
-			GroupID:          snap.Config.GroupID,
-			Order:            snap.Config.Order,
-			MasterID:         snap.Config.MasterID,
-			NotificationID:   snap.Config.NotificationID,
-			FailThreshold:    snap.Config.FailThreshold,
-			CertValidation:   string(snap.Config.CertValidation),
+			ID:              snap.Config.ID,
+			Name:            snap.Config.Name,
+			Type:            string(snap.Config.Type),
+			Target:          snap.Config.Target,
+			IntervalSeconds: int(snap.Config.Interval.Seconds()),
+			TimeoutSeconds:  int(snap.Config.Timeout.Seconds()),
+			Enabled:         snap.Config.Enabled,
+			Group:           snap.Config.Group,
+			GroupID:         snap.Config.GroupID,
+			Order:           snap.Config.Order,
+			MasterID:        snap.Config.MasterID,
+			NotificationID:  snap.Config.NotificationID,
+			FailThreshold:   snap.Config.FailThreshold,
+			CertValidation:  string(snap.Config.CertValidation),
 		},
 		Status:      string(snap.Status),
 		LastChecked: snap.LastChecked,
@@ -832,7 +832,27 @@ func (s *Server) handleAPINotificationsCollection(w http.ResponseWriter, r *http
 			http.Error(w, "name and url are required", http.StatusBadRequest)
 			return
 		}
-		id := s.newNotificationID()
+
+		var id int
+
+		// If database is configured, create notification in database first to get proper ID
+		if s.databaseConfig != nil && s.configDB != nil {
+			notificationData := database.NotificationData{
+				Name: name,
+				URL:  urlStr,
+			}
+			savedNotification, dbErr := s.configDB.SaveNotification(notificationData)
+			if dbErr != nil {
+				s.logger.Printf("Failed to save notification to database: %v", dbErr)
+				http.Error(w, "database error", http.StatusInternalServerError)
+				return
+			}
+			id = savedNotification.ID
+		} else {
+			// Fallback to server-generated ID for file-only mode
+			id = s.newNotificationID()
+		}
+
 		n := config.NotificationConfig{ID: id, Name: name, URL: urlStr}
 		s.notifications = append(s.notifications, n)
 		if err := s.saveConfig(); err != nil {
@@ -1041,12 +1061,6 @@ func (s *Server) handleAPIGroupsCollection(w http.ResponseWriter, r *http.Reques
 				return
 			}
 		}
-		// assign incremental ID
-		if s.nextGroupID <= 0 {
-			s.nextGroupID = 1
-		}
-		gid := s.nextGroupID
-		s.nextGroupID++
 		// compute next order as max(Order)+1
 		nextOrder := 1
 		for _, g := range s.groups {
@@ -1054,11 +1068,39 @@ func (s *Server) handleAPIGroupsCollection(w http.ResponseWriter, r *http.Reques
 				nextOrder = g.Order + 1
 			}
 		}
+
+		var gid int
+
+		// If database is configured, create group in database first to get proper ID
+		if s.databaseConfig != nil && s.configDB != nil {
+			groupData := database.GroupData{
+				Name:  name,
+				Order: nextOrder,
+			}
+			savedGroup, dbErr := s.configDB.SaveGroup(groupData)
+			if dbErr != nil {
+				s.logger.Printf("Failed to save group to database: %v", dbErr)
+				http.Error(w, "database error", http.StatusInternalServerError)
+				return
+			}
+			gid = savedGroup.ID
+		} else {
+			// Fallback to server-generated ID for file-only mode
+			if s.nextGroupID <= 0 {
+				s.nextGroupID = 1
+			}
+			gid = s.nextGroupID
+			s.nextGroupID++
+		}
+
 		s.groups = append(s.groups, config.GroupConfig{ID: gid, Name: name, Order: nextOrder})
 		s.normalizeAndSortGroups()
+
+		// Save config (will update database again in DB mode, but with correct ID)
 		if err := s.saveConfig(); err != nil {
 			s.logger.Printf("persist api group create: %v", err)
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(map[string]any{"id": gid, "name": name, "order": nextOrder})
@@ -1200,17 +1242,6 @@ func (s *Server) handleAPIGroupItem(w http.ResponseWriter, r *http.Request) {
 }
 
 // ==== Routing & Middleware ====================================================
-
-// securityHeaders adds security headers to all responses
-func securityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'")
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		next.ServeHTTP(w, r)
-	})
-}
 
 func (s *Server) routes() {
 	// Always allow status endpoints
@@ -1842,34 +1873,34 @@ func (s *Server) handleAPIHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	if !s.ensureAuth(w, r) {
 		return
 	}
-	
+
 	if s.apiDebug {
 		s.logger.Printf("[API DEBUG] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
 	}
-	
+
 	// Parse monitor ID from path: /api/history/{id}
 	id := strings.TrimPrefix(r.URL.Path, "/api/history/")
 	if id == "" {
 		http.Error(w, "monitor ID required", http.StatusBadRequest)
 		return
 	}
-	
+
 	snapshot, err := s.manager.GetSnapshot(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	
+
 	// Convert history to API format
 	apiHistory := make([]APICheckResult, len(snapshot.History))
 	for i, result := range snapshot.History {
 		apiHistory[i] = convertCheckResultToAPI(result)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(apiHistory)
 }
@@ -2010,18 +2041,6 @@ type BasePageData struct {
 	DatabaseError   string
 	// UI settings
 	ShowMemoryDisplay bool
-}
-
-// newBasePageData creates a BasePageData with common server settings
-func (s *Server) newBasePageData(title, contentTemplate string) BasePageData {
-	return BasePageData{
-		Title:             title,
-		ContentTemplate:   contentTemplate,
-		CSRFToken:         s.getCSRFToken(nil), // Will be overridden with actual request
-		DatabaseEnabled:   s.databaseConfig != nil,
-		DatabaseHealthy:   s.manager != nil && s.manager.IsDatabaseHealthy(),
-		ShowMemoryDisplay: s.showMemoryDisplay,
-	}
 }
 
 // StatusGroupView is used by the public status page
@@ -2238,53 +2257,96 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			s.configDB = db
 
 			// Store admin credentials in database for future use
-			adminConfig := map[string]interface{}{
-				"username":      user,
-				"password_hash": string(hash),
+			if err := db.SaveSetting("admin_username", user); err != nil {
+				s.logger.Printf("Warning: Failed to save admin username to database: %v", err)
 			}
-			if err := db.SaveConfig("admin_credentials", adminConfig); err != nil {
-				s.logger.Printf("Warning: Failed to save admin credentials to database: %v", err)
+			if err := db.SaveSetting("admin_password_hash", string(hash)); err != nil {
+				s.logger.Printf("Warning: Failed to save admin password hash to database: %v", err)
 			} else {
 				s.logger.Printf("Admin credentials saved to database")
 			}
 
 			// Store all other configurations in database as well
 			if len(s.groups) > 0 {
-				if err := db.SaveConfig("groups", s.groups); err != nil {
-					s.logger.Printf("Warning: Failed to save groups to database: %v", err)
+				for _, group := range s.groups {
+					groupData := database.GroupData{
+						ID:    group.ID,
+						Name:  group.Name,
+						Order: group.Order,
+					}
+					if _, err := db.SaveGroup(groupData); err != nil {
+						s.logger.Printf("Warning: Failed to save group %s to database: %v", group.Name, err)
+					}
 				}
 			}
 			if len(s.notifications) > 0 {
-				if err := db.SaveConfig("notifications", s.notifications); err != nil {
-					s.logger.Printf("Warning: Failed to save notifications to database: %v", err)
+				for _, notification := range s.notifications {
+					notificationData := database.NotificationData{
+						ID:   notification.ID,
+						Name: notification.Name,
+						URL:  notification.URL,
+					}
+					if _, err := db.SaveNotification(notificationData); err != nil {
+						s.logger.Printf("Warning: Failed to save notification %s to database: %v", notification.Name, err)
+					}
 				}
 			}
 
 			// Save UI setting (ShowMemoryDisplay) to database under 'settings'
-			uiConfig := map[string]interface{}{
-				"show_memory_display": s.showMemoryDisplay,
-			}
-			if err := db.SaveConfig("settings", uiConfig); err != nil {
-				s.logger.Printf("Warning: Failed to save UI settings to database during install: %v", err)
+			if s.showMemoryDisplay {
+				if err := db.SaveSetting("show_memory_display", "true"); err != nil {
+					s.logger.Printf("Warning: Failed to save UI settings to database during install: %v", err)
+				}
 			}
 
 			// Store monitors to database as well
 			configs := s.manager.GetAllConfigs()
-			monitorConfigs := make([]config.PersistedMonitorConfig, 0, len(configs))
 			for _, mc := range configs {
-				monitorConfigs = append(monitorConfigs, config.FromMonitorConfig(mc))
+				monitorData := database.MonitorData{
+					ID:             mc.ID,
+					Name:           mc.Name,
+					Type:           string(mc.Type),
+					Target:         mc.Target,
+					IntervalSec:    int(mc.Interval / time.Second),
+					TimeoutSec:     int(mc.Timeout / time.Second),
+					NotificationID: mc.NotificationID,
+					Enabled:        mc.Enabled,
+					GroupID:        mc.GroupID,
+					Order:          mc.Order,
+					MasterID:       mc.MasterID,
+					FailThreshold:  mc.FailThreshold,
+					CertValidation: string(mc.CertValidation),
+				}
+				if err := s.configDB.SaveMonitor(monitorData); err != nil {
+					s.logger.Printf("Warning: Failed to save monitor %s to database: %v", mc.Name, err)
+				}
 			}
-			s.configDB.SaveConfig("monitors", monitorConfigs)
 		}
 		// If no monitors are configured yet, add sensible defaults as requested.
 		if len(s.manager.List()) == 0 {
 			// Ensure default group exists first with ID=1
+			var gid int = 1
 			if len(s.groups) == 0 {
-				s.groups = []config.GroupConfig{{ID: 1, Name: "Google", Order: 1}}
-				s.nextGroupID = 2
+				// If database is configured, create group in database first to get proper ID
+				if s.databaseConfig != nil && s.configDB != nil {
+					groupData := database.GroupData{
+						Name:  "Google",
+						Order: 1,
+					}
+					savedGroup, dbErr := s.configDB.SaveGroup(groupData)
+					if dbErr != nil {
+						s.logger.Printf("Failed to save default group to database: %v", dbErr)
+						// Fallback to in-memory only with ID=1
+						gid = 1
+					} else {
+						gid = savedGroup.ID
+					}
+				}
+				s.groups = []config.GroupConfig{{ID: gid, Name: "Google", Order: 1}}
+				s.nextGroupID = gid + 1
+			} else {
+				gid = s.groups[0].ID
 			}
-			gid := 1
-			// Create default monitors with GroupID set to 1
 			defaultMon1 := monitor.MonitorConfig{
 				Name:      "Google DNS 1",
 				Type:      monitor.TypeICMP,
@@ -2335,33 +2397,62 @@ func (s *Server) saveConfig() error {
 	// If database is configured, save everything to database and minimal config to file
 	if s.databaseConfig != nil && s.configDB != nil {
 		// Save admin credentials to database
-		adminConfig := map[string]interface{}{
-			"username":      s.adminUser,
-			"password_hash": s.adminPassword,
-		}
-		s.configDB.SaveConfig("admin_credentials", adminConfig)
+		s.configDB.SaveSetting("admin_username", s.adminUser)
+		s.configDB.SaveSetting("admin_password_hash", s.adminPassword)
 
 		// Save groups to database
-		s.configDB.SaveConfig("groups", s.groups)
+		for _, group := range s.groups {
+			groupData := database.GroupData{
+				ID:    group.ID,
+				Name:  group.Name,
+				Order: group.Order,
+			}
+			if _, err := s.configDB.SaveGroup(groupData); err != nil {
+				s.logger.Printf("Warning: Failed to save group %s to database: %v", group.Name, err)
+			}
+		}
 
 		// Save notifications to database
-		s.configDB.SaveConfig("notifications", s.notifications)
+		for _, notification := range s.notifications {
+			notificationData := database.NotificationData{
+				ID:   notification.ID,
+				Name: notification.Name,
+				URL:  notification.URL,
+			}
+			if _, err := s.configDB.SaveNotification(notificationData); err != nil {
+				s.logger.Printf("Warning: Failed to save notification %s to database: %v", notification.Name, err)
+			}
+		}
 
 		// Save UI setting (ShowMemoryDisplay) in the database for DB mode; keep debug flags out of DB
-		uiConfig := map[string]interface{}{
-			"show_memory_display": s.showMemoryDisplay,
-		}
-		if err := s.configDB.SaveConfig("settings", uiConfig); err != nil {
-			s.logger.Printf("Warning: Failed to save UI settings to database: %v", err)
+		if s.showMemoryDisplay {
+			if err := s.configDB.SaveSetting("show_memory_display", "true"); err != nil {
+				s.logger.Printf("Warning: Failed to save UI settings to database: %v", err)
+			}
 		}
 
 		// Save monitors to database as well
 		configs := s.manager.GetAllConfigs()
-		monitorConfigs := make([]config.PersistedMonitorConfig, 0, len(configs))
 		for _, mc := range configs {
-			monitorConfigs = append(monitorConfigs, config.FromMonitorConfig(mc))
+			monitorData := database.MonitorData{
+				ID:             mc.ID,
+				Name:           mc.Name,
+				Type:           string(mc.Type),
+				Target:         mc.Target,
+				IntervalSec:    int(mc.Interval / time.Second),
+				TimeoutSec:     int(mc.Timeout / time.Second),
+				NotificationID: mc.NotificationID,
+				Enabled:        mc.Enabled,
+				GroupID:        mc.GroupID,
+				Order:          mc.Order,
+				MasterID:       mc.MasterID,
+				FailThreshold:  mc.FailThreshold,
+				CertValidation: string(mc.CertValidation),
+			}
+			if err := s.configDB.SaveMonitor(monitorData); err != nil {
+				s.logger.Printf("Warning: Failed to save monitor %s to database: %v", mc.Name, err)
+			}
 		}
-		s.configDB.SaveConfig("monitors", monitorConfigs)
 
 		// Save only database config and debug flags to config file in DB mode
 		// Create a minimal config structure to avoid empty fields
@@ -2422,13 +2513,13 @@ func (s *Server) saveConfig() error {
 func (s *Server) getNextOrderForGroup(groupID int) int {
 	snapshots := s.manager.List()
 	maxOrder := 0
-	
+
 	// Find the highest order number in the specified group
 	for _, snap := range snapshots {
 		if snap.Config.GroupID == groupID && snap.Config.Order > maxOrder {
 			maxOrder = snap.Config.Order
 		}
 	}
-	
+
 	return maxOrder + 1
 }

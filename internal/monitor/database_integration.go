@@ -156,23 +156,6 @@ func (di *DatabaseIntegration) GetLatestHistory(monitorID string) (*CheckResult,
 	}, nil
 }
 
-// SaveConfig saves configuration to the database
-func (di *DatabaseIntegration) SaveConfig(key string, value interface{}) error {
-	if !di.IsDatabaseHealthy() {
-		return database.ErrDatabaseUnavailable
-	}
-
-	return di.db.SaveConfig(key, value)
-}
-
-// GetConfig retrieves configuration from the database
-func (di *DatabaseIntegration) GetConfig(key string, dest interface{}) error {
-	if !di.IsDatabaseHealthy() {
-		return database.ErrDatabaseUnavailable
-	}
-
-	return di.db.GetConfig(key, dest)
-}
 
 // monitorDatabaseHealth periodically checks database connectivity
 func (di *DatabaseIntegration) monitorDatabaseHealth() {

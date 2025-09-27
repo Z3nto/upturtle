@@ -83,45 +83,67 @@ func main() {
 				// Load admin credentials if not set
 				installRequired := (persisted.AdminUser == "" || persisted.AdminPasswordHash == "")
 				if installRequired {
-					var adminConfig map[string]interface{}
-					if err := db.GetConfig("admin_credentials", &adminConfig); err == nil {
-						if user, ok := adminConfig["username"].(string); ok && user != "" {
-							if hash, ok := adminConfig["password_hash"].(string); ok && hash != "" {
-								persisted.AdminUser = user
-								persisted.AdminPasswordHash = hash
-								log.Printf("Loaded admin credentials from database")
-							}
+					if user, err := db.GetSetting("admin_username"); err == nil && user != "" {
+						if hash, err := db.GetSetting("admin_password_hash"); err == nil && hash != "" {
+							persisted.AdminUser = user
+							persisted.AdminPasswordHash = hash
+							log.Printf("Loaded admin credentials from database")
 						}
 					}
 				}
 				
 				// Load groups from database (override config file)
-				var dbGroups []config.GroupConfig
-				if err := db.GetConfig("groups", &dbGroups); err == nil && len(dbGroups) > 0 {
-					persisted.Groups = dbGroups
+				if dbGroups, err := db.GetAllGroups(); err == nil && len(dbGroups) > 0 {
+					persisted.Groups = make([]config.GroupConfig, len(dbGroups))
+					for i, group := range dbGroups {
+						persisted.Groups[i] = config.GroupConfig{
+							ID:    group.ID,
+							Name:  group.Name,
+							Order: group.Order,
+						}
+					}
 					log.Printf("Loaded %d groups from database", len(dbGroups))
 				}
 				
 				// Load notifications from database (override config file)
-				var dbNotifications []config.NotificationConfig
-				if err := db.GetConfig("notifications", &dbNotifications); err == nil && len(dbNotifications) > 0 {
-					persisted.Notifications = dbNotifications
+				if dbNotifications, err := db.GetAllNotifications(); err == nil && len(dbNotifications) > 0 {
+					persisted.Notifications = make([]config.NotificationConfig, len(dbNotifications))
+					for i, notification := range dbNotifications {
+						persisted.Notifications[i] = config.NotificationConfig{
+							ID:   notification.ID,
+							Name: notification.Name,
+							URL:  notification.URL,
+						}
+					}
 					log.Printf("Loaded %d notifications from database", len(dbNotifications))
 				}
 				
 				// Load UI settings from database (only ShowMemoryDisplay). Debug flags must come from config file.
-				var settings map[string]interface{}
-				if err := db.GetConfig("settings", &settings); err == nil {
-					if val, ok := settings["show_memory_display"].(bool); ok {
-						persisted.ShowMemoryDisplay = val
-					}
+				if showMemory, err := db.GetSetting("show_memory_display"); err == nil && showMemory == "true" {
+					persisted.ShowMemoryDisplay = true
 					log.Printf("Loaded UI settings from database")
 				}
 				
 				// Load monitors from database (override config file)
-				var dbMonitors []config.PersistedMonitorConfig
-				if err := db.GetConfig("monitors", &dbMonitors); err == nil && len(dbMonitors) > 0 {
-					persisted.Monitors = dbMonitors
+				if dbMonitors, err := db.GetAllMonitors(); err == nil && len(dbMonitors) > 0 {
+					persisted.Monitors = make([]config.PersistedMonitorConfig, len(dbMonitors))
+					for i, dbMonitor := range dbMonitors {
+						persisted.Monitors[i] = config.PersistedMonitorConfig{
+							ID:             dbMonitor.ID,
+							Name:           dbMonitor.Name,
+							Type:           monitor.Type(dbMonitor.Type),
+							Target:         dbMonitor.Target,
+							IntervalSec:    dbMonitor.IntervalSec,
+							TimeoutSec:     dbMonitor.TimeoutSec,
+							NotificationID: dbMonitor.NotificationID,
+							Enabled:        dbMonitor.Enabled,
+							GroupID:        dbMonitor.GroupID,
+							Order:          dbMonitor.Order,
+							MasterID:       dbMonitor.MasterID,
+							FailThreshold:  dbMonitor.FailThreshold,
+							CertValidation: monitor.CertValidationMode(dbMonitor.CertValidation),
+						}
+					}
 					log.Printf("Loaded %d monitors from database", len(dbMonitors))
 				}
 			}

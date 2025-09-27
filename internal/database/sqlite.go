@@ -2,7 +2,6 @@ package database
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -46,9 +45,21 @@ func (s *SQLiteDB) Initialize() error {
 
 	s.db = db
 
-	// Create configuration table
-	if err := s.createConfigTable(); err != nil {
-		return fmt.Errorf("failed to create config table: %w", err)
+	// Create normalized tables
+	if err := s.createMonitorsTable(); err != nil {
+		return fmt.Errorf("failed to create monitors table: %w", err)
+	}
+
+	if err := s.createGroupsTable(); err != nil {
+		return fmt.Errorf("failed to create groups table: %w", err)
+	}
+
+	if err := s.createNotificationsTable(); err != nil {
+		return fmt.Errorf("failed to create notifications table: %w", err)
+	}
+
+	if err := s.createSettingsTable(); err != nil {
+		return fmt.Errorf("failed to create settings table: %w", err)
 	}
 
 	// Create history tables for today
@@ -57,6 +68,7 @@ func (s *SQLiteDB) Initialize() error {
 	if err := s.CreateHistoryTable(today); err != nil {
 		return fmt.Errorf("failed to create today's history table: %w", err)
 	}
+
 
 	log.Printf("SQLite database initialized at %s", s.path)
 	return nil
@@ -79,10 +91,93 @@ func (s *SQLiteDB) Health() error {
 	return s.db.Ping()
 }
 
-// createConfigTable creates the configuration table
-func (s *SQLiteDB) createConfigTable() error {
+
+// createMonitorsTable creates the monitors table
+func (s *SQLiteDB) createMonitorsTable() error {
 	query := `
-	CREATE TABLE IF NOT EXISTS config (
+	CREATE TABLE IF NOT EXISTS monitors (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		type TEXT NOT NULL,
+		target TEXT NOT NULL,
+		interval_sec INTEGER NOT NULL,
+		timeout_sec INTEGER NOT NULL,
+		notification_id INTEGER DEFAULT 0,
+		enabled BOOLEAN NOT NULL DEFAULT 1,
+		group_id INTEGER DEFAULT 0,
+		order_num INTEGER DEFAULT 0,
+		master_id TEXT,
+		fail_threshold INTEGER NOT NULL DEFAULT 3,
+		cert_validation TEXT DEFAULT 'full',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`
+
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	// Create indexes
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_monitors_group_id ON monitors(group_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_monitors_enabled ON monitors(enabled)`,
+		`CREATE INDEX IF NOT EXISTS idx_monitors_order ON monitors(group_id, order_num)`,
+	}
+
+	for _, indexQuery := range indexes {
+		if _, err := s.db.Exec(indexQuery); err != nil {
+			log.Printf("Warning: Failed to create monitor index: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// createGroupsTable creates the groups table
+func (s *SQLiteDB) createGroupsTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS groups (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		order_num INTEGER DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`
+
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	// Create index
+	_, err = s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_groups_order ON groups(order_num)`)
+	if err != nil {
+		log.Printf("Warning: Failed to create groups index: %v", err)
+	}
+
+	return nil
+}
+
+// createNotificationsTable creates the notifications table
+func (s *SQLiteDB) createNotificationsTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS notifications (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		url TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`
+
+	_, err := s.db.Exec(query)
+	return err
+}
+
+// createSettingsTable creates the settings table
+func (s *SQLiteDB) createSettingsTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS settings (
 		key TEXT PRIMARY KEY,
 		value TEXT NOT NULL,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -92,37 +187,52 @@ func (s *SQLiteDB) createConfigTable() error {
 	return err
 }
 
-// SaveConfig saves a configuration value
-func (s *SQLiteDB) SaveConfig(key string, value interface{}) error {
-	jsonValue, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("failed to marshal config value: %w", err)
-	}
 
+// Settings management methods
+
+// SaveSetting saves a setting value
+func (s *SQLiteDB) SaveSetting(key, value string) error {
 	query := `
-	INSERT OR REPLACE INTO config (key, value, updated_at) 
+	INSERT OR REPLACE INTO settings (key, value, updated_at) 
 	VALUES (?, ?, CURRENT_TIMESTAMP)`
 
-	_, err = s.db.Exec(query, key, string(jsonValue))
+	_, err := s.db.Exec(query, key, value)
 	return err
 }
 
-// GetConfig retrieves a configuration value
-func (s *SQLiteDB) GetConfig(key string, dest interface{}) error {
-	var jsonValue string
-	query := `SELECT value FROM config WHERE key = ?`
+// GetSetting retrieves a setting value
+func (s *SQLiteDB) GetSetting(key string) (string, error) {
+	var value string
+	query := `SELECT value FROM settings WHERE key = ?`
 
-	err := s.db.QueryRow(query, key).Scan(&jsonValue)
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal([]byte(jsonValue), dest)
+	err := s.db.QueryRow(query, key).Scan(&value)
+	return value, err
 }
 
-// DeleteConfig deletes a configuration value
-func (s *SQLiteDB) DeleteConfig(key string) error {
-	query := `DELETE FROM config WHERE key = ?`
+// GetAllSettings retrieves all settings
+func (s *SQLiteDB) GetAllSettings() (map[string]string, error) {
+	query := `SELECT key, value FROM settings`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	settings := make(map[string]string)
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, err
+		}
+		settings[key] = value
+	}
+
+	return settings, rows.Err()
+}
+
+// DeleteSetting deletes a setting
+func (s *SQLiteDB) DeleteSetting(key string) error {
+	query := `DELETE FROM settings WHERE key = ?`
 	_, err := s.db.Exec(query, key)
 	return err
 }
@@ -314,6 +424,271 @@ func (s *SQLiteDB) GetLatestHistory(monitorID string) (*HistoryData, error) {
 
 	return nil, sql.ErrNoRows
 }
+
+// Monitor management methods
+
+// SaveMonitor saves a monitor record
+func (s *SQLiteDB) SaveMonitor(monitor MonitorData) error {
+	query := `
+	INSERT OR REPLACE INTO monitors (
+		id, name, type, target, interval_sec, timeout_sec, notification_id,
+		enabled, group_id, order_num, master_id, fail_threshold, cert_validation,
+		created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+		COALESCE((SELECT created_at FROM monitors WHERE id = ?), CURRENT_TIMESTAMP),
+		CURRENT_TIMESTAMP)`
+
+	_, err := s.db.Exec(query,
+		monitor.ID, monitor.Name, monitor.Type, monitor.Target,
+		monitor.IntervalSec, monitor.TimeoutSec, monitor.NotificationID,
+		monitor.Enabled, monitor.GroupID, monitor.Order, monitor.MasterID,
+		monitor.FailThreshold, monitor.CertValidation, monitor.ID)
+
+	return err
+}
+
+// GetMonitor retrieves a monitor by ID
+func (s *SQLiteDB) GetMonitor(id string) (*MonitorData, error) {
+	query := `
+	SELECT id, name, type, target, interval_sec, timeout_sec, notification_id,
+		   enabled, group_id, order_num, master_id, fail_threshold, cert_validation,
+		   created_at, updated_at
+	FROM monitors WHERE id = ?`
+
+	var monitor MonitorData
+	err := s.db.QueryRow(query, id).Scan(
+		&monitor.ID, &monitor.Name, &monitor.Type, &monitor.Target,
+		&monitor.IntervalSec, &monitor.TimeoutSec, &monitor.NotificationID,
+		&monitor.Enabled, &monitor.GroupID, &monitor.Order, &monitor.MasterID,
+		&monitor.FailThreshold, &monitor.CertValidation,
+		&monitor.CreatedAt, &monitor.UpdatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &monitor, nil
+}
+
+// GetAllMonitors retrieves all monitors
+func (s *SQLiteDB) GetAllMonitors() ([]MonitorData, error) {
+	query := `
+	SELECT id, name, type, target, interval_sec, timeout_sec, notification_id,
+		   enabled, group_id, order_num, master_id, fail_threshold, cert_validation,
+		   created_at, updated_at
+	FROM monitors ORDER BY group_id, order_num, name`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var monitors []MonitorData
+	for rows.Next() {
+		var monitor MonitorData
+		err := rows.Scan(
+			&monitor.ID, &monitor.Name, &monitor.Type, &monitor.Target,
+			&monitor.IntervalSec, &monitor.TimeoutSec, &monitor.NotificationID,
+			&monitor.Enabled, &monitor.GroupID, &monitor.Order, &monitor.MasterID,
+			&monitor.FailThreshold, &monitor.CertValidation,
+			&monitor.CreatedAt, &monitor.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		monitors = append(monitors, monitor)
+	}
+
+	return monitors, rows.Err()
+}
+
+// DeleteMonitor deletes a monitor
+func (s *SQLiteDB) DeleteMonitor(id string) error {
+	query := `DELETE FROM monitors WHERE id = ?`
+	_, err := s.db.Exec(query, id)
+	return err
+}
+
+// Group management methods
+
+// SaveGroup saves a group record
+func (s *SQLiteDB) SaveGroup(group GroupData) (*GroupData, error) {
+	if group.ID == 0 {
+		// Insert new group
+		query := `
+		INSERT INTO groups (name, order_num, created_at, updated_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+
+		result, err := s.db.Exec(query, group.Name, group.Order)
+		if err != nil {
+			return nil, err
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+
+		group.ID = int(id)
+	} else {
+		// Update existing group
+		query := `
+		UPDATE groups 
+		SET name = ?, order_num = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?`
+
+		_, err := s.db.Exec(query, group.Name, group.Order, group.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Fetch the complete record
+	return s.GetGroup(group.ID)
+}
+
+// GetGroup retrieves a group by ID
+func (s *SQLiteDB) GetGroup(id int) (*GroupData, error) {
+	query := `
+	SELECT id, name, order_num, created_at, updated_at
+	FROM groups WHERE id = ?`
+
+	var group GroupData
+	err := s.db.QueryRow(query, id).Scan(
+		&group.ID, &group.Name, &group.Order,
+		&group.CreatedAt, &group.UpdatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &group, nil
+}
+
+// GetAllGroups retrieves all groups
+func (s *SQLiteDB) GetAllGroups() ([]GroupData, error) {
+	query := `
+	SELECT id, name, order_num, created_at, updated_at
+	FROM groups ORDER BY order_num, name`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var groups []GroupData
+	for rows.Next() {
+		var group GroupData
+		err := rows.Scan(
+			&group.ID, &group.Name, &group.Order,
+			&group.CreatedAt, &group.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
+
+	return groups, rows.Err()
+}
+
+// DeleteGroup deletes a group
+func (s *SQLiteDB) DeleteGroup(id int) error {
+	query := `DELETE FROM groups WHERE id = ?`
+	_, err := s.db.Exec(query, id)
+	return err
+}
+
+// Notification management methods
+
+// SaveNotification saves a notification record
+func (s *SQLiteDB) SaveNotification(notification NotificationData) (*NotificationData, error) {
+	if notification.ID == 0 {
+		// Insert new notification
+		query := `
+		INSERT INTO notifications (name, url, created_at, updated_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+
+		result, err := s.db.Exec(query, notification.Name, notification.URL)
+		if err != nil {
+			return nil, err
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+
+		notification.ID = int(id)
+	} else {
+		// Update existing notification
+		query := `
+		UPDATE notifications 
+		SET name = ?, url = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?`
+
+		_, err := s.db.Exec(query, notification.Name, notification.URL, notification.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Fetch the complete record
+	return s.GetNotification(notification.ID)
+}
+
+// GetNotification retrieves a notification by ID
+func (s *SQLiteDB) GetNotification(id int) (*NotificationData, error) {
+	query := `
+	SELECT id, name, url, created_at, updated_at
+	FROM notifications WHERE id = ?`
+
+	var notification NotificationData
+	err := s.db.QueryRow(query, id).Scan(
+		&notification.ID, &notification.Name, &notification.URL,
+		&notification.CreatedAt, &notification.UpdatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &notification, nil
+}
+
+// GetAllNotifications retrieves all notifications
+func (s *SQLiteDB) GetAllNotifications() ([]NotificationData, error) {
+	query := `
+	SELECT id, name, url, created_at, updated_at
+	FROM notifications ORDER BY name`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notifications []NotificationData
+	for rows.Next() {
+		var notification NotificationData
+		err := rows.Scan(
+			&notification.ID, &notification.Name, &notification.URL,
+			&notification.CreatedAt, &notification.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		notifications = append(notifications, notification)
+	}
+
+	return notifications, rows.Err()
+}
+
+// DeleteNotification deletes a notification
+func (s *SQLiteDB) DeleteNotification(id int) error {
+	query := `DELETE FROM notifications WHERE id = ?`
+	_, err := s.db.Exec(query, id)
+	return err
+}
+
 
 // CleanupOldHistory removes history data older than retentionDays
 func (s *SQLiteDB) CleanupOldHistory(retentionDays int) error {
