@@ -33,12 +33,39 @@ type AppConfig struct {
 	AuthDebug         bool `json:"auth_debug,omitempty"`
 	// UI settings
 	ShowMemoryDisplay bool `json:"show_memory_display,omitempty"`
+	// Status pages configuration
+	StatusPages []StatusPageConfig `json:"status_pages,omitempty"`
 }
+
+// StatusPageConfig defines a public status page
+type StatusPageConfig struct {
+	ID       int                       `json:"id"`
+	Name     string                    `json:"name"`
+	Slug     string                    `json:"slug"`   // URL path segment
+	Active   bool                      `json:"active"` // Whether the page is accessible
+	Monitors []StatusPageMonitorConfig `json:"monitors,omitempty"`
+}
+
+// StatusPageMonitorConfig defines a monitor on a status page
+type StatusPageMonitorConfig struct {
+	MonitorID string `json:"monitor_id"`
+	GroupID   int    `json:"group_id"`
+	Order     int    `json:"order,omitempty"`
+}
+
+// GroupType represents the type of group
+type GroupType string
+
+const (
+	GroupTypeDefault    GroupType = "default"    // Default groups for main status page
+	GroupTypeStatusPage GroupType = "statuspage" // Groups specific to status pages
+)
 
 // GroupConfig defines a group with a stable integer ID and a name.
 type GroupConfig struct {
-	ID    int    `json:"id"`
-	Name  string `json:"name"`
+	ID    int       `json:"id"`
+	Name  string    `json:"name"`
+	Type  GroupType `json:"type,omitempty"` // Type of group (default or statuspage)
 	// Order controls the display ordering of groups. Lower values appear first.
 	Order int `json:"order,omitempty"`
 }

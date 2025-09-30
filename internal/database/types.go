@@ -59,10 +59,19 @@ type MonitorData struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+// GroupType represents the type of group
+type GroupType string
+
+const (
+	GroupTypeDefault    GroupType = "default"    // Default groups for main status page
+	GroupTypeStatusPage GroupType = "statuspage" // Groups specific to status pages
+)
+
 // GroupData represents a group record in the database
 type GroupData struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
+	Type      GroupType `json:"type"`
 	Order     int       `json:"order"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -82,6 +91,26 @@ type SettingData struct {
 	Key       string    `json:"key"`
 	Value     string    `json:"value"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// StatusPageData represents a status page record in the database
+type StatusPageData struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Slug      string    `json:"slug"`      // URL path segment
+	Active    bool      `json:"active"`    // Whether the page is accessible
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// StatusPageMonitorData represents the many-to-many relationship between status pages and monitors
+type StatusPageMonitorData struct {
+	ID           int       `json:"id"`
+	StatusPageID int       `json:"status_page_id"`
+	MonitorID    string    `json:"monitor_id"`
+	GroupID      int       `json:"group_id"`      // Can reference existing or statuspage-specific groups
+	Order        int       `json:"order"`         // Display order within the group
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // Database interface defines the contract for database operations
@@ -111,6 +140,7 @@ type Database interface {
 	SaveGroup(group GroupData) (*GroupData, error) // Returns group with ID set
 	GetGroup(id int) (*GroupData, error)
 	GetAllGroups() ([]GroupData, error)
+	GetGroupsByType(groupType GroupType) ([]GroupData, error)
 	DeleteGroup(id int) error
 
 	// Notification management
@@ -131,4 +161,17 @@ type Database interface {
 	CreateHistoryTable(date time.Time) error
 	DropHistoryTable(date time.Time) error
 	ListHistoryTables() ([]time.Time, error)
+
+	// Status page management
+	SaveStatusPage(page StatusPageData) (*StatusPageData, error) // Returns page with ID set
+	GetStatusPage(id int) (*StatusPageData, error)
+	GetStatusPageBySlug(slug string) (*StatusPageData, error)
+	GetAllStatusPages() ([]StatusPageData, error)
+	DeleteStatusPage(id int) error
+
+	// Status page monitor management
+	AddMonitorToStatusPage(data StatusPageMonitorData) error
+	RemoveMonitorFromStatusPage(statusPageID int, monitorID string) error
+	GetStatusPageMonitors(statusPageID int) ([]StatusPageMonitorData, error)
+	ClearStatusPageMonitors(statusPageID int) error
 }

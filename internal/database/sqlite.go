@@ -62,6 +62,14 @@ func (s *SQLiteDB) Initialize() error {
 		return fmt.Errorf("failed to create settings table: %w", err)
 	}
 
+	if err := s.createStatusPagesTable(); err != nil {
+		return fmt.Errorf("failed to create status_pages table: %w", err)
+	}
+
+	if err := s.createStatusPageMonitorsTable(); err != nil {
+		return fmt.Errorf("failed to create status_page_monitors table: %w", err)
+	}
+
 	// Create history tables for today
 	today := time.Now()
 
@@ -139,10 +147,12 @@ func (s *SQLiteDB) createGroupsTable() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS groups (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL UNIQUE,
+		name TEXT NOT NULL,
+		type TEXT NOT NULL DEFAULT 'default',
 		order_num INTEGER DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(name, type)
 	)`
 
 	_, err := s.db.Exec(query)
@@ -150,10 +160,16 @@ func (s *SQLiteDB) createGroupsTable() error {
 		return err
 	}
 
-	// Create index
-	_, err = s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_groups_order ON groups(order_num)`)
-	if err != nil {
-		log.Printf("Warning: Failed to create groups index: %v", err)
+	// Create indexes
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_groups_order ON groups(order_num)`,
+		`CREATE INDEX IF NOT EXISTS idx_groups_type ON groups(type)`,
+	}
+
+	for _, indexQuery := range indexes {
+		if _, err := s.db.Exec(indexQuery); err != nil {
+			log.Printf("Warning: Failed to create groups index: %v", err)
+		}
 	}
 
 	return nil
@@ -185,6 +201,67 @@ func (s *SQLiteDB) createSettingsTable() error {
 
 	_, err := s.db.Exec(query)
 	return err
+}
+
+// createStatusPagesTable creates the status_pages table
+func (s *SQLiteDB) createStatusPagesTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS status_pages (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		slug TEXT NOT NULL UNIQUE,
+		active BOOLEAN NOT NULL DEFAULT 1,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`
+
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	// Create index
+	_, err = s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_status_pages_slug ON status_pages(slug)`)
+	if err != nil {
+		log.Printf("Warning: Failed to create status_pages index: %v", err)
+	}
+
+	return nil
+}
+
+// createStatusPageMonitorsTable creates the status_page_monitors table
+func (s *SQLiteDB) createStatusPageMonitorsTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS status_page_monitors (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		status_page_id INTEGER NOT NULL,
+		monitor_id TEXT NOT NULL,
+		group_id INTEGER NOT NULL,
+		order_num INTEGER DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (status_page_id) REFERENCES status_pages(id) ON DELETE CASCADE,
+		UNIQUE(status_page_id, monitor_id)
+	)`
+
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	// Create indexes
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_spm_status_page ON status_page_monitors(status_page_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_spm_monitor ON status_page_monitors(monitor_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_spm_group ON status_page_monitors(group_id)`,
+	}
+
+	for _, indexQuery := range indexes {
+		if _, err := s.db.Exec(indexQuery); err != nil {
+			log.Printf("Warning: Failed to create status_page_monitors index: %v", err)
+		}
+	}
+
+	return nil
 }
 
 
@@ -513,13 +590,18 @@ func (s *SQLiteDB) DeleteMonitor(id string) error {
 
 // SaveGroup saves a group record
 func (s *SQLiteDB) SaveGroup(group GroupData) (*GroupData, error) {
+	// Default to "default" type if not specified
+	if group.Type == "" {
+		group.Type = GroupTypeDefault
+	}
+
 	if group.ID == 0 {
 		// Insert new group
 		query := `
-		INSERT INTO groups (name, order_num, created_at, updated_at)
-		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+		INSERT INTO groups (name, type, order_num, created_at, updated_at)
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
 
-		result, err := s.db.Exec(query, group.Name, group.Order)
+		result, err := s.db.Exec(query, group.Name, group.Type, group.Order)
 		if err != nil {
 			return nil, err
 		}
@@ -534,10 +616,10 @@ func (s *SQLiteDB) SaveGroup(group GroupData) (*GroupData, error) {
 		// Update existing group
 		query := `
 		UPDATE groups 
-		SET name = ?, order_num = ?, updated_at = CURRENT_TIMESTAMP
+		SET name = ?, type = ?, order_num = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`
 
-		_, err := s.db.Exec(query, group.Name, group.Order, group.ID)
+		_, err := s.db.Exec(query, group.Name, group.Type, group.Order, group.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -550,12 +632,12 @@ func (s *SQLiteDB) SaveGroup(group GroupData) (*GroupData, error) {
 // GetGroup retrieves a group by ID
 func (s *SQLiteDB) GetGroup(id int) (*GroupData, error) {
 	query := `
-	SELECT id, name, order_num, created_at, updated_at
+	SELECT id, name, type, order_num, created_at, updated_at
 	FROM groups WHERE id = ?`
 
 	var group GroupData
 	err := s.db.QueryRow(query, id).Scan(
-		&group.ID, &group.Name, &group.Order,
+		&group.ID, &group.Name, &group.Type, &group.Order,
 		&group.CreatedAt, &group.UpdatedAt)
 
 	if err != nil {
@@ -568,8 +650,8 @@ func (s *SQLiteDB) GetGroup(id int) (*GroupData, error) {
 // GetAllGroups retrieves all groups
 func (s *SQLiteDB) GetAllGroups() ([]GroupData, error) {
 	query := `
-	SELECT id, name, order_num, created_at, updated_at
-	FROM groups ORDER BY order_num, name`
+	SELECT id, name, type, order_num, created_at, updated_at
+	FROM groups ORDER BY type, order_num, name`
 
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -581,7 +663,34 @@ func (s *SQLiteDB) GetAllGroups() ([]GroupData, error) {
 	for rows.Next() {
 		var group GroupData
 		err := rows.Scan(
-			&group.ID, &group.Name, &group.Order,
+			&group.ID, &group.Name, &group.Type, &group.Order,
+			&group.CreatedAt, &group.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
+
+	return groups, rows.Err()
+}
+
+// GetGroupsByType retrieves groups filtered by type
+func (s *SQLiteDB) GetGroupsByType(groupType GroupType) ([]GroupData, error) {
+	query := `
+	SELECT id, name, type, order_num, created_at, updated_at
+	FROM groups WHERE type = ? ORDER BY order_num, name`
+
+	rows, err := s.db.Query(query, groupType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var groups []GroupData
+	for rows.Next() {
+		var group GroupData
+		err := rows.Scan(
+			&group.ID, &group.Name, &group.Type, &group.Order,
 			&group.CreatedAt, &group.UpdatedAt)
 		if err != nil {
 			return nil, err
@@ -766,6 +875,170 @@ func (s *SQLiteDB) scanHistory(rows *sql.Rows) ([]HistoryData, error) {
 	}
 
 	return history, rows.Err()
+}
+
+// Status page management methods
+
+// SaveStatusPage saves a status page record
+func (s *SQLiteDB) SaveStatusPage(page StatusPageData) (*StatusPageData, error) {
+	if page.ID == 0 {
+		// Insert new status page
+		query := `
+		INSERT INTO status_pages (name, slug, active, created_at, updated_at)
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+
+		result, err := s.db.Exec(query, page.Name, page.Slug, page.Active)
+		if err != nil {
+			return nil, err
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+
+		page.ID = int(id)
+	} else {
+		// Update existing status page
+		query := `
+		UPDATE status_pages 
+		SET name = ?, slug = ?, active = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?`
+
+		_, err := s.db.Exec(query, page.Name, page.Slug, page.Active, page.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Fetch the complete record
+	return s.GetStatusPage(page.ID)
+}
+
+// GetStatusPage retrieves a status page by ID
+func (s *SQLiteDB) GetStatusPage(id int) (*StatusPageData, error) {
+	query := `
+	SELECT id, name, slug, active, created_at, updated_at
+	FROM status_pages WHERE id = ?`
+
+	var page StatusPageData
+	err := s.db.QueryRow(query, id).Scan(
+		&page.ID, &page.Name, &page.Slug, &page.Active,
+		&page.CreatedAt, &page.UpdatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &page, nil
+}
+
+// GetStatusPageBySlug retrieves a status page by slug
+func (s *SQLiteDB) GetStatusPageBySlug(slug string) (*StatusPageData, error) {
+	query := `
+	SELECT id, name, slug, active, created_at, updated_at
+	FROM status_pages WHERE slug = ?`
+
+	var page StatusPageData
+	err := s.db.QueryRow(query, slug).Scan(
+		&page.ID, &page.Name, &page.Slug, &page.Active,
+		&page.CreatedAt, &page.UpdatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &page, nil
+}
+
+// GetAllStatusPages retrieves all status pages
+func (s *SQLiteDB) GetAllStatusPages() ([]StatusPageData, error) {
+	query := `
+	SELECT id, name, slug, active, created_at, updated_at
+	FROM status_pages ORDER BY name`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pages []StatusPageData
+	for rows.Next() {
+		var page StatusPageData
+		err := rows.Scan(
+			&page.ID, &page.Name, &page.Slug, &page.Active,
+			&page.CreatedAt, &page.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		pages = append(pages, page)
+	}
+
+	return pages, rows.Err()
+}
+
+// DeleteStatusPage deletes a status page
+func (s *SQLiteDB) DeleteStatusPage(id int) error {
+	// Foreign key cascade will automatically delete related status_page_monitors
+	query := `DELETE FROM status_pages WHERE id = ?`
+	_, err := s.db.Exec(query, id)
+	return err
+}
+
+// Status page monitor management methods
+
+// AddMonitorToStatusPage adds a monitor to a status page
+func (s *SQLiteDB) AddMonitorToStatusPage(data StatusPageMonitorData) error {
+	query := `
+	INSERT OR REPLACE INTO status_page_monitors (status_page_id, monitor_id, group_id, order_num, created_at)
+	VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
+
+	_, err := s.db.Exec(query, data.StatusPageID, data.MonitorID, data.GroupID, data.Order)
+	return err
+}
+
+// RemoveMonitorFromStatusPage removes a monitor from a status page
+func (s *SQLiteDB) RemoveMonitorFromStatusPage(statusPageID int, monitorID string) error {
+	query := `DELETE FROM status_page_monitors WHERE status_page_id = ? AND monitor_id = ?`
+	_, err := s.db.Exec(query, statusPageID, monitorID)
+	return err
+}
+
+// GetStatusPageMonitors retrieves all monitors for a status page
+func (s *SQLiteDB) GetStatusPageMonitors(statusPageID int) ([]StatusPageMonitorData, error) {
+	query := `
+	SELECT id, status_page_id, monitor_id, group_id, order_num, created_at
+	FROM status_page_monitors 
+	WHERE status_page_id = ?
+	ORDER BY group_id, order_num`
+
+	rows, err := s.db.Query(query, statusPageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var monitors []StatusPageMonitorData
+	for rows.Next() {
+		var monitor StatusPageMonitorData
+		err := rows.Scan(
+			&monitor.ID, &monitor.StatusPageID, &monitor.MonitorID,
+			&monitor.GroupID, &monitor.Order, &monitor.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		monitors = append(monitors, monitor)
+	}
+
+	return monitors, rows.Err()
+}
+
+// ClearStatusPageMonitors removes all monitors from a status page
+func (s *SQLiteDB) ClearStatusPageMonitors(statusPageID int) error {
+	query := `DELETE FROM status_page_monitors WHERE status_page_id = ?`
+	_, err := s.db.Exec(query, statusPageID)
+	return err
 }
 
 // ensureDir creates directory if it doesn't exist

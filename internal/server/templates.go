@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"time"
@@ -22,6 +23,7 @@ func loadTemplates() (*template.Template, error) {
 		"formatDuration": formatDuration,
 		"currentYear":    currentYear,
 		"idSafe":         idSafe,
+		"jsonEscape":     jsonEscape,
 		// safeURL marks a string as a trusted URL for attribute contexts. Use sparingly.
 		"safeURL":        func(s string) template.URL { return template.URL(s) },
 	}
@@ -131,4 +133,15 @@ func idSafe(s string) string {
 		return "unnamed"
 	}
 	return string(out)
+}
+
+// jsonEscape converts a value to JSON for safe embedding in JavaScript
+// Returns raw JSON that can be used directly in JavaScript code
+func jsonEscape(v interface{}) (template.JS, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	// Return as template.JS to prevent HTML escaping
+	return template.JS(b), nil
 }
