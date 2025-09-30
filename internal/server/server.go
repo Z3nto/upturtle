@@ -1057,8 +1057,15 @@ func (s *Server) handleAPIGroupsCollection(w http.ResponseWriter, r *http.Reques
 	}
 	switch r.Method {
 	case http.MethodGet:
+		// Filter to only return default groups (exclude statuspage groups)
+		defaultGroups := make([]config.GroupConfig, 0)
+		for _, g := range s.groups {
+			if g.Type == "" || g.Type == config.GroupTypeDefault {
+				defaultGroups = append(defaultGroups, g)
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(s.groups)
+		_ = json.NewEncoder(w).Encode(defaultGroups)
 	case http.MethodPost:
 		// Check authentication first
 		if !s.ensureAuth(w, r) {
@@ -1993,11 +2000,15 @@ func (s *Server) buildStatusData() StatusPageData {
 		grouped[gid] = append(grouped[gid], v)
 	}
 	// determine group order by configured order, include any missing IDs
+	// Only include default groups (not statuspage-specific groups)
 	orderedIDs := make([]int, 0, len(s.groups))
 	seen := map[int]bool{}
 	for _, gg := range s.groups {
-		orderedIDs = append(orderedIDs, gg.ID)
-		seen[gg.ID] = true
+		// Only include default groups
+		if gg.Type == "" || gg.Type == config.GroupTypeDefault {
+			orderedIDs = append(orderedIDs, gg.ID)
+			seen[gg.ID] = true
+		}
 	}
 	for gid := range grouped {
 		if !seen[gid] {
