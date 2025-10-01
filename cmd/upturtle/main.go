@@ -96,9 +96,15 @@ func main() {
 				if dbGroups, err := db.GetAllGroups(); err == nil && len(dbGroups) > 0 {
 					persisted.Groups = make([]config.GroupConfig, len(dbGroups))
 					for i, group := range dbGroups {
+						groupType := config.GroupType(group.Type)
+						// Default to "default" type if not specified
+						if groupType == "" {
+							groupType = config.GroupTypeDefault
+						}
 						persisted.Groups[i] = config.GroupConfig{
 							ID:    group.ID,
 							Name:  group.Name,
+							Type:  groupType,
 							Order: group.Order,
 						}
 					}
@@ -146,6 +152,33 @@ func main() {
 					}
 					log.Printf("Loaded %d monitors from database", len(dbMonitors))
 				}
+				
+				// Load status pages from database (override config file)
+				if dbStatusPages, err := db.GetAllStatusPages(); err == nil && len(dbStatusPages) > 0 {
+					persisted.StatusPages = make([]config.StatusPageConfig, len(dbStatusPages))
+					for i, page := range dbStatusPages {
+						persisted.StatusPages[i] = config.StatusPageConfig{
+							ID:       page.ID,
+							Name:     page.Name,
+							Slug:     page.Slug,
+							Active:   page.Active,
+							Monitors: []config.StatusPageMonitorConfig{}, // Initialize empty array
+						}
+						
+						// Load monitors for this status page
+						if spMonitors, err := db.GetStatusPageMonitors(page.ID); err == nil && len(spMonitors) > 0 {
+							persisted.StatusPages[i].Monitors = make([]config.StatusPageMonitorConfig, len(spMonitors))
+							for j, spMon := range spMonitors {
+								persisted.StatusPages[i].Monitors[j] = config.StatusPageMonitorConfig{
+									MonitorID: spMon.MonitorID,
+									GroupID:   spMon.GroupID,
+									Order:     spMon.Order,
+								}
+							}
+						}
+					}
+					log.Printf("Loaded %d status pages from database", len(dbStatusPages))
+				}
 			}
 		}
 
@@ -177,8 +210,8 @@ func main() {
 		persisted.AuthDebug = true         // Default: enabled for debugging login issues
 	}
 
-	log.Printf("Creating server with %d groups, %d notifications, %d monitors", 
-		len(persisted.Groups), len(persisted.Notifications), len(persisted.Monitors))
+	log.Printf("Creating server with %d groups, %d notifications, %d monitors, %d status pages", 
+		len(persisted.Groups), len(persisted.Notifications), len(persisted.Monitors), len(persisted.StatusPages))
 	
 	srv, err := server.New(server.Config{
 		Manager:           manager,
@@ -191,6 +224,7 @@ func main() {
 		ConfigPath:        configPath,
 		Groups:            append([]config.GroupConfig(nil), persisted.Groups...),
 		Notifications:     append([]config.NotificationConfig(nil), persisted.Notifications...),
+		StatusPages:       append([]config.StatusPageConfig(nil), persisted.StatusPages...),
 		MonitorDebug:      persisted.MonitorDebug,
 		NotificationDebug: persisted.NotificationDebug,
 		ApiDebug:          persisted.ApiDebug,

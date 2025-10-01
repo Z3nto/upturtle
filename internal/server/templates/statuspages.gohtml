@@ -1,0 +1,236 @@
+{{define "statuspages.gohtml"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "statuspages.content"}}
+<div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
+        <h2 style="margin:0;">Status Pages</h2>
+        <button id="btn-new-statuspage" class="primary" type="button" title="Create new status page">+ New Status Page</button>
+    </div>
+    
+    {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
+    {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
+
+    {{if .StatusPages}}
+        {{range .StatusPages}}
+        <div class="card">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem;">
+                <div>
+                    <h3 style="margin:0 0 0.5rem 0;">{{.Name}}</h3>
+                    <div class="muted" style="font-size:0.9rem;">
+                        <strong>URL:</strong> <code>/status/{{.Slug}}</code> · 
+                        <strong>Monitors:</strong> {{len .Monitors}} · 
+                        <span class="badge {{if .Active}}status-up{{else}}status-disabled{{end}}">
+                            {{if .Active}}Active{{else}}Inactive{{end}}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <a href="/admin/statuspages/{{.ID}}" style="text-decoration:none;">
+                    <button type="button" class="icon edit" title="Configure">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+                        </svg>
+                    </button>
+                </a>
+                {{if .Active}}
+                <a href="/status/{{.Slug}}" target="_blank" style="text-decoration:none;">
+                    <button type="button" class="icon" title="View public page">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                        </svg>
+                    </button>
+                </a>
+                {{end}}
+                <button type="button" class="icon delete" data-action="delete-statuspage" data-statuspage-id="{{.ID}}" data-statuspage-name="{{.Name}}" title="Delete">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        {{end}}
+    {{else}}
+        <div class="card">
+            <p style="text-align:center; color:#a1a1aa; margin:2rem 0;">
+                No status pages configured yet. Click "+ New Status Page" to create your first one.
+            </p>
+        </div>
+    {{end}}
+</div>
+
+<!-- Create Status Page Modal -->
+<div id="modal-create-statuspage" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-create-statuspage-title">
+        <header>
+            <h3 id="modal-create-statuspage-title">Create Status Page</h3>
+            <button type="button" class="close" data-close="modal-create-statuspage" aria-label="Close">&times;</button>
+        </header>
+        <form id="form-create-statuspage">
+            <div class="form-row">
+                <div>
+                    <label for="create-statuspage-name">Name *</label>
+                    <input type="text" id="create-statuspage-name" name="name" required placeholder="My Service Status">
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="create-statuspage-slug">URL Slug *</label>
+                    <input type="text" id="create-statuspage-slug" name="slug" required placeholder="my-service" pattern="[a-z0-9\-]+">
+                    <small class="muted">Only lowercase letters, numbers, and hyphens</small>
+                </div>
+            </div>
+            <div class="form-row">
+                <label>
+                    <input type="checkbox" name="active" value="true" checked>
+                    Active (page is publicly accessible)
+                </label>
+            </div>
+            <div class="actions" style="justify-content:flex-end; margin-top:1rem;">
+                <button type="button" data-close="modal-create-statuspage">Cancel</button>
+                <button type="submit" class="primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Status Page Modal -->
+<div id="modal-delete-statuspage" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-statuspage-title">
+        <header>
+            <h3 id="modal-delete-statuspage-title">Delete Status Page</h3>
+            <button type="button" class="close" data-close="modal-delete-statuspage" aria-label="Close">&times;</button>
+        </header>
+        <form id="form-delete-statuspage">
+            <p>Are you sure you want to delete the status page <strong id="delete-statuspage-name"></strong>?</p>
+            <p style="color:#fbbf24; background:rgba(251,191,36,0.15); padding:0.75rem; border-radius:8px; margin-top:1rem;">
+                This action cannot be undone.
+            </p>
+            <input type="hidden" id="delete-statuspage-id" name="id">
+            <div class="actions" style="justify-content:flex-end; margin-top:1rem;">
+                <button type="button" data-close="modal-delete-statuspage">Cancel</button>
+                <button type="submit" class="danger">Delete</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function(){
+  // Modal functions
+  function openModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function closeModal(backdrop) {
+    if (typeof backdrop === 'string') {
+      backdrop = document.getElementById(backdrop);
+    }
+    if (backdrop) {
+      backdrop.classList.remove('show');
+      backdrop.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  // Button click handlers
+  document.getElementById('btn-new-statuspage')?.addEventListener('click', function() {
+    openModal('modal-create-statuspage');
+  });
+
+  // Modal backdrop click to close
+  document.querySelectorAll('.modal-backdrop').forEach(function(bg) {
+    bg.addEventListener('click', function(e) {
+      if (e.target === bg) closeModal(bg);
+    });
+    bg.querySelectorAll('[data-close]').forEach(function(btn) {
+      btn.addEventListener('click', function() { closeModal(bg); });
+    });
+  });
+
+  // Delete button handler
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('[data-action="delete-statuspage"]')) {
+      const btn = e.target.closest('[data-action="delete-statuspage"]');
+      const id = btn.dataset.statuspageId;
+      const name = btn.dataset.statuspageName;
+      document.getElementById('delete-statuspage-id').value = id;
+      document.getElementById('delete-statuspage-name').textContent = name;
+      openModal('modal-delete-statuspage');
+    }
+  });
+
+  // Auto-generate slug from name
+  const nameInput = document.getElementById('create-statuspage-name');
+  const slugInput = document.getElementById('create-statuspage-slug');
+  
+  if (nameInput && slugInput) {
+    nameInput.addEventListener('input', function(e) {
+      if (!slugInput.dataset.manuallyEdited) {
+        slugInput.value = e.target.value.toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+      }
+    });
+    
+    slugInput.addEventListener('input', function() {
+      slugInput.dataset.manuallyEdited = 'true';
+    });
+  }
+
+  // Create status page form submission
+  document.getElementById('form-create-statuspage')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    
+    try {
+      const res = await fetch('/api/statuspages', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          name: fd.get('name'),
+          slug: fd.get('slug'),
+          active: fd.get('active') === 'true',
+          csrf_token: '{{.CSRFToken}}'
+        })
+      });
+      
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const text = await res.text();
+        alert('Error: ' + text);
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
+
+  // Delete status page form submission
+  document.getElementById('form-delete-statuspage')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('delete-statuspage-id').value;
+    
+    try {
+      const res = await fetch('/api/statuspages/' + id, {
+        method: 'DELETE'
+      });
+      
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const text = await res.text();
+        alert('Error: ' + text);
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
+})();
+</script>
+{{end}}

@@ -1,0 +1,288 @@
+{{define "public_status.gohtml"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.StatusPageName}} - Status</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+            background-color: #141418;
+            color: #e2e8f0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(circle at top, rgba(170,170,170,0.16), transparent 60%), #1f1f23;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: rgba(24, 24, 24, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(160, 160, 160, 0.2);
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #e2e8f0;
+        }
+
+        .overall-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        .status-operational {
+            background: rgba(52, 211, 153, 0.15);
+            color: #34d399;
+        }
+
+        .status-degraded {
+            background: rgba(251, 191, 36, 0.18);
+            color: #fbbf24;
+        }
+
+        .status-down {
+            background: rgba(248, 113, 113, 0.2);
+            color: #f87171;
+        }
+
+        .group-section {
+            background: rgba(24, 24, 24, 0.78);
+            border: 1px solid rgba(160, 160, 160, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.45);
+        }
+
+        .group-title {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: #d1d5db;
+            font-weight: 600;
+        }
+
+        .monitor-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid rgba(160, 160, 160, 0.12);
+        }
+
+        .monitor-item:last-child {
+            border-bottom: none;
+        }
+
+        .monitor-info {
+            flex: 1;
+        }
+
+        .monitor-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            color: #e2e8f0;
+        }
+
+        .monitor-details {
+            font-size: 0.875rem;
+            color: #a1a1aa;
+        }
+
+        .monitor-last-down {
+            font-size: 0.875rem;
+            color: #a1a1aa;
+            margin-right: 1rem;
+        }
+
+        .monitor-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .status-indicator.up {
+            background: #34d399;
+        }
+
+        .status-indicator.down {
+            background: #f87171;
+        }
+
+        .status-indicator.unknown {
+            background: #a1a1aa;
+        }
+
+        .status-text {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .status-text.up {
+            color: #34d399;
+        }
+
+        .status-text.down {
+            color: #f87171;
+        }
+
+        .status-text.unknown {
+            color: #a1a1aa;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: #a1a1aa;
+            font-size: 0.875rem;
+        }
+
+        .last-updated {
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #a1a1aa;
+        }
+
+        @media (max-width: 768px) {
+            .monitor-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <a href="#" style="display:flex; align-items:center; gap:.6rem; text-decoration:none;">
+                <picture>
+                    <img src="/static/logo.png" alt="Upturtle" height="28" />
+                </picture>
+                <h1>{{.StatusPageName}}</h1>
+            </a>
+            <div class="overall-status status-operational" id="overall-status">
+                All Systems Operational
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        {{if .Groups}}
+            {{range .Groups}}
+            <div class="group-section">
+                <h2 class="group-title">{{.Name}}</h2>
+                {{range .Monitors}}
+                <div class="monitor-item">
+                    <div class="monitor-info">
+                        <div class="monitor-name">{{.Name}}</div>
+                        <div class="monitor-details">
+                            {{if gt .LastLatency 0}}
+                            Response time: {{.LastLatency}}ms
+                            {{end}}
+                        </div>
+                    </div>
+                    <div class="monitor-last-down">
+                        Last down: {{.LastChange.Format "2006-01-02 15:04:05"}}
+                    </div>
+                    <div class="monitor-status">
+                        <span class="status-indicator {{if eq .Status "up"}}up{{else if eq .Status "down"}}down{{else}}unknown{{end}}"></span>
+                        <span class="status-text {{if eq .Status "up"}}up{{else if eq .Status "down"}}down{{else}}unknown{{end}}">
+                            {{if eq .Status "up"}}Operational{{else if eq .Status "down"}}Down{{else}}Unknown{{end}}
+                        </span>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+        {{else}}
+            <div class="group-section">
+                <p style="text-align: center; color: #666;">No monitors configured for this status page.</p>
+            </div>
+        {{end}}
+
+        <div class="last-updated">
+            Last updated: <span id="last-updated-time"></span>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Powered by upturtle</p>
+    </div>
+
+    <script>
+        // Update last updated time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('last-updated-time').textContent = now.toLocaleString();
+        }
+        updateTime();
+
+        // Calculate overall status
+        function updateOverallStatus() {
+            const statusIndicators = document.querySelectorAll('.status-indicator');
+            let hasDown = false;
+            let hasUnknown = false;
+
+            statusIndicators.forEach(indicator => {
+                if (indicator.classList.contains('down')) {
+                    hasDown = true;
+                } else if (indicator.classList.contains('unknown')) {
+                    hasUnknown = true;
+                }
+            });
+
+            const overallStatus = document.getElementById('overall-status');
+            if (hasDown) {
+                overallStatus.textContent = 'Some Systems Down';
+                overallStatus.className = 'overall-status status-down';
+            } else if (hasUnknown) {
+                overallStatus.textContent = 'Some Systems Unknown';
+                overallStatus.className = 'overall-status status-degraded';
+            } else {
+                overallStatus.textContent = 'All Systems Operational';
+                overallStatus.className = 'overall-status status-operational';
+            }
+        }
+        updateOverallStatus();
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            window.location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>
+{{end}}

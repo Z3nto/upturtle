@@ -1,0 +1,472 @@
+{{define "statuspage_config.gohtml"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "statuspage_config.content"}}
+<div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+            <h2 style="margin:0;">Configure: {{.StatusPage.Name}}</h2>
+            <p class="muted" style="margin:0.25rem 0 0 0; font-size:0.9rem;">URL: <code>/status/{{.StatusPage.Slug}}</code></p>
+        </div>
+        <a href="/admin/statuspages" style="text-decoration:none;">
+            <button type="button">← Back</button>
+        </a>
+    </div>
+
+    {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
+    {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
+
+    <form id="form-configure-statuspage">
+        <div class="card">
+            <h3 style="margin-top:0;">Basic Settings</h3>
+            <div class="form-row">
+                <div>
+                    <label for="statuspage-name">Name *</label>
+                    <input type="text" id="statuspage-name" name="name" value="{{.StatusPage.Name}}" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="statuspage-slug">URL Slug *</label>
+                    <input type="text" id="statuspage-slug" name="slug" value="{{.StatusPage.Slug}}" required pattern="[a-z0-9\-]+">
+                    <small class="muted">Only lowercase letters, numbers, and hyphens</small>
+                </div>
+            </div>
+            <div class="form-row">
+                <label>
+                    <input type="checkbox" name="active" value="true" {{if .StatusPage.Active}}checked{{end}}>
+                    Active (page is publicly accessible)
+                </label>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0;">Monitors & Groups</h3>
+            <p class="muted">Select which monitors to display on this status page and organize them into custom groups.</p>
+            
+            <div style="margin-bottom: 1rem;">
+                <button type="button" id="btn-add-statuspage-group" class="primary">+ Add Group</button>
+            </div>
+            
+            <div id="statuspage-groups" style="margin-bottom: 1.5rem;">
+                <!-- Groups will be populated by JavaScript -->
+            </div>
+            
+            <div class="monitors-config">
+                <div class="available-monitors">
+                    <h4 style="margin-top:0; font-size:0.9rem; color:#a1a1aa;">Available Monitors</h4>
+                    <div class="monitor-list" id="available-monitors">
+                        {{range .AllMonitors}}
+                        <div class="monitor-item" data-monitor-id="{{.Config.ID}}" data-monitor-name="{{.Config.Name}}" data-monitor-group="{{.Config.GroupID}}">
+                            <span class="monitor-name">{{.Config.Name}}</span>
+                            <span class="monitor-group-badge">{{.Config.Group}}</span>
+                            <button type="button" class="btn-add" data-action="add-monitor">+</button>
+                        </div>
+                        {{end}}
+                    </div>
+                </div>
+
+                <div class="selected-monitors">
+                    <h4 style="margin-top:0; font-size:0.9rem; color:#a1a1aa;">Selected Monitors</h4>
+                    <div id="selected-monitors">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions" style="justify-content:flex-end; margin-top:1rem;">
+            <button type="button" onclick="window.location.href='/admin/statuspages'">Cancel</button>
+            <button type="submit" class="primary">Save Configuration</button>
+        </div>
+    </form>
+</div>
+
+<style>
+
+.monitors-config {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.available-monitors, .selected-monitors {
+    border: 1px solid rgba(160, 160, 160, 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    min-height: 300px;
+    background: rgba(24, 24, 24, 0.5);
+}
+
+.monitor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.monitor-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(160, 160, 160, 0.08);
+    border-radius: 6px;
+}
+
+.monitor-name {
+    flex: 1;
+    color: #e2e8f0;
+}
+
+.monitor-group-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background: rgba(160, 160, 160, 0.15);
+    border-radius: 4px;
+    color: #a1a1aa;
+}
+
+.btn-add, .btn-remove {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.btn-add {
+    background: #28a745;
+    color: white;
+    font-size: 1.4rem;
+    font-weight: 300;
+}
+
+.btn-add:hover {
+    background: #218838;
+    transform: scale(1.1);
+}
+
+.btn-add:disabled {
+    background: rgba(40, 167, 69, 0.3);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-remove {
+    background: #dc3545;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.btn-remove:hover {
+    background: #c82333;
+    transform: scale(1.1);
+}
+
+.selected-monitor-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(52, 211, 153, 0.15);
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.selected-monitor-item .monitor-name {
+    color: #34d399;
+}
+
+@media (max-width: 768px) {
+    .monitors-config {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+(function(){
+  // Initialize with existing monitors - direct JSON embedding
+  const statusPageMonitors = {{.StatusPage.Monitors | jsonEscape}} || [];
+  const allMonitors = {{.AllMonitors | jsonEscape}} || [];
+  const defaultGroups = {{.Groups | jsonEscape}} || [];
+  const loadedStatusPageGroups = {{.StatusPageGroups | jsonEscape}} || [];
+  
+  // Track statuspage-specific groups and selected monitors
+  let statuspageGroups = [...loadedStatusPageGroups];
+  let selectedMonitors = new Map();
+  let nextGroupId = statuspageGroups.length > 0 ? Math.min(...statuspageGroups.map(g => g.id)) - 1 : -1;
+
+  // Initialize selected monitors from status page config
+  statusPageMonitors.forEach(spm => {
+    const monitor = allMonitors.find(m => m.config && m.config.id === spm.monitor_id);
+    if (monitor) {
+      selectedMonitors.set(spm.monitor_id, {
+        id: spm.monitor_id,
+        name: monitor.config.name,
+        groupId: spm.group_id,
+        order: spm.order || 0
+      });
+    }
+  });
+
+  // Event delegation for add buttons
+  document.getElementById('available-monitors').addEventListener('click', function(e) {
+    if (e.target.classList.contains('btn-add') || e.target.closest('.btn-add')) {
+      const btn = e.target.classList.contains('btn-add') ? e.target : e.target.closest('.btn-add');
+      const item = btn.closest('.monitor-item');
+      const id = item.dataset.monitorId;
+      const name = item.dataset.monitorName;
+      
+      // Check if statuspage groups exist
+      if (statuspageGroups.length === 0) {
+        alert('Please create at least one group first before adding monitors.');
+        return;
+      }
+      
+      if (!selectedMonitors.has(id)) {
+        // Use first statuspage group as default
+        const defaultGroupId = statuspageGroups[0].id;
+        selectedMonitors.set(id, {
+          id: id,
+          name: name,
+          groupId: defaultGroupId,
+          order: selectedMonitors.size
+        });
+        renderSelectedMonitors();
+        updateAvailableMonitors();
+      }
+    }
+  });
+
+  // Global functions for inline handlers in dynamically generated content
+  window.removeMonitorFromStatusPage = function(id) {
+    selectedMonitors.delete(id);
+    renderSelectedMonitors();
+    updateAvailableMonitors();
+  };
+
+  window.updateMonitorGroup = function(id, groupId) {
+    const monitor = selectedMonitors.get(id);
+    if (monitor) {
+      monitor.groupId = parseInt(groupId);
+      selectedMonitors.set(id, monitor);
+    }
+  };
+
+  function renderStatuspageGroups() {
+    const container = document.getElementById('statuspage-groups');
+    if (statuspageGroups.length === 0) {
+      container.innerHTML = '<p style="color: #a1a1aa; font-size: 0.9rem;">No custom groups yet. Add groups to organize monitors on this status page.</p>';
+      return;
+    }
+    
+    container.innerHTML = statuspageGroups.map(g => `
+      <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(160,160,160,0.08); border-radius: 6px; margin-bottom: 0.5rem;">
+        <span style="flex: 1; color: #e2e8f0;">${escapeHtml(g.name)}</span>
+        <button type="button" class="icon delete" onclick="deleteStatuspageGroup(${g.id})" title="Delete group">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
+          </svg>
+        </button>
+      </div>
+    `).join('');
+  }
+  
+  function renderSelectedMonitors() {
+    const container = document.getElementById('selected-monitors');
+    if (selectedMonitors.size === 0) {
+      container.innerHTML = '<p style="color: #a1a1aa;">No monitors selected yet.</p>';
+      return;
+    }
+
+    const monitorsArray = Array.from(selectedMonitors.values());
+    monitorsArray.sort((a, b) => a.order - b.order);
+
+    container.innerHTML = monitorsArray.map(m => {
+      // Get original default group name for badge (from allMonitors)
+      const monitor = allMonitors.find(mon => mon.config && mon.config.id === m.id);
+      const originalGroupName = monitor && monitor.config.group ? monitor.config.group : 'No Group';
+      
+      return `
+        <div class="selected-monitor-item">
+          <span class="monitor-name">${escapeHtml(m.name)}</span>
+          <span class="monitor-group-badge">${escapeHtml(originalGroupName)}</span>
+          <select onchange="updateMonitorGroup('${m.id}', this.value)" style="padding: 0.25rem; background: rgba(24,24,24,0.85); color: inherit; border: 1px solid rgba(160,160,160,0.2); border-radius: 4px;">
+            ${statuspageGroups.map(g => `<option value="${g.id}" ${g.id === m.groupId ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
+          </select>
+          <button type="button" class="btn-remove" onclick="removeMonitorFromStatusPage('${m.id}')">×</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function updateAvailableMonitors() {
+    const items = document.querySelectorAll('#available-monitors .monitor-item');
+    items.forEach(item => {
+      const id = item.dataset.monitorId;
+      const btn = item.querySelector('.btn-add');
+      if (selectedMonitors.has(id)) {
+        item.style.opacity = '0.5';
+        if (btn) btn.disabled = true;
+      } else {
+        item.style.opacity = '1';
+        if (btn) btn.disabled = false;
+      }
+    });
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Add statuspage group button handler
+  document.getElementById('btn-add-statuspage-group').addEventListener('click', function() {
+    const name = prompt('Enter group name:');
+    if (name && name.trim()) {
+      statuspageGroups.push({
+        id: nextGroupId--,
+        name: name.trim(),
+        type: 'statuspage',
+        order: statuspageGroups.length + 1
+      });
+      renderStatuspageGroups();
+      renderSelectedMonitors(); // Update dropdowns
+    }
+  });
+  
+  // Delete statuspage group
+  window.deleteStatuspageGroup = function(groupId) {
+    if (confirm('Delete this group? Monitors in this group will need to be reassigned.')) {
+      statuspageGroups = statuspageGroups.filter(g => g.id !== groupId);
+      // Reassign monitors in deleted group to first available statuspage group
+      if (statuspageGroups.length > 0) {
+        const firstGroupId = statuspageGroups[0].id;
+        selectedMonitors.forEach((monitor, id) => {
+          if (monitor.groupId === groupId) {
+            monitor.groupId = firstGroupId;
+            selectedMonitors.set(id, monitor);
+          }
+        });
+      } else {
+        // If no groups left, remove all monitors
+        selectedMonitors.clear();
+      }
+      renderStatuspageGroups();
+      renderSelectedMonitors();
+      updateAvailableMonitors();
+    }
+  };
+
+  // Initial render
+  renderStatuspageGroups();
+  renderSelectedMonitors();
+  updateAvailableMonitors();
+
+  // Form submission
+  document.getElementById('form-configure-statuspage').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    
+    // Map to track old (negative) IDs to new (positive) IDs
+    const groupIdMap = new Map();
+    
+    // Find deleted groups (groups that were loaded but are no longer in statuspageGroups)
+    const currentGroupIds = new Set(statuspageGroups.map(g => g.id));
+    const deletedGroups = loadedStatusPageGroups.filter(g => !currentGroupIds.has(g.id));
+    
+    // Delete removed groups from database
+    for (const group of deletedGroups) {
+      try {
+        const res = await fetch('/api/groups/' + group.id, {
+          method: 'DELETE',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            csrf_token: '{{.CSRFToken}}'
+          })
+        });
+        
+        if (!res.ok) {
+          console.error('Failed to delete group:', group.name);
+        }
+      } catch (err) {
+        console.error('Failed to delete group:', err);
+      }
+    }
+    
+    // Save statuspage groups to database first and get their real IDs
+    for (const group of statuspageGroups) {
+      // Only save groups with negative IDs (new groups)
+      if (group.id < 0) {
+        try {
+          const res = await fetch('/api/groups', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              name: group.name,
+              type: 'statuspage',
+              order: group.order,
+              csrf_token: '{{.CSRFToken}}'
+            })
+          });
+          
+          if (res.ok) {
+            const result = await res.json();
+            // Map old negative ID to new positive ID
+            groupIdMap.set(group.id, result.id);
+            group.id = result.id; // Update in-memory
+          }
+        } catch (err) {
+          console.error('Failed to save group:', err);
+          alert('Failed to save group: ' + group.name);
+          return;
+        }
+      }
+    }
+    
+    // Update monitor groupIds with new IDs
+    const monitors = Array.from(selectedMonitors.values()).map(m => {
+      const newGroupId = groupIdMap.has(m.groupId) ? groupIdMap.get(m.groupId) : m.groupId;
+      return {
+        monitor_id: m.id,
+        group_id: newGroupId,
+        order: m.order
+      };
+    });
+    
+    try {
+      const res = await fetch('/api/statuspages/{{.StatusPage.ID}}', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          name: fd.get('name'),
+          slug: fd.get('slug'),
+          active: fd.get('active') === 'true',
+          monitors: monitors,
+          csrf_token: '{{.CSRFToken}}'
+        })
+      });
+      
+      if (res.ok) {
+        window.location.href = '/admin/statuspages?success=Status page updated successfully';
+      } else {
+        const text = await res.text();
+        alert('Error: ' + text);
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
+})();
+</script>
+{{end}}

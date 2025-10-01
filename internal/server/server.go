@@ -182,9 +182,12 @@ type Server struct {
 	groups []config.GroupConfig
 	// list of predefined notifications for selection
 	notifications []config.NotificationConfig
+	// list of status pages
+	statusPages []config.StatusPageConfig
 	// next ID counters
 	nextGroupID        int
 	nextNotificationID int
+	nextStatusPageID   int
 	// debug flags (also persisted)
 	monitorDebug      bool
 	notificationDebug bool
@@ -214,6 +217,8 @@ type Config struct {
 	Groups []config.GroupConfig
 	// Notifications are predefined Shoutrrr targets available for selection
 	Notifications []config.NotificationConfig
+	// StatusPages are public status pages
+	StatusPages []config.StatusPageConfig
 	// Debug flags (persisted in config file)
 	MonitorDebug      bool
 	NotificationDebug bool
@@ -251,6 +256,7 @@ func New(cfg Config) (*Server, error) {
 		installRequired:   cfg.InstallRequired,
 		groups:            append([]config.GroupConfig(nil), cfg.Groups...),
 		notifications:     append([]config.NotificationConfig(nil), cfg.Notifications...),
+		statusPages:       append([]config.StatusPageConfig(nil), cfg.StatusPages...),
 		configPath:        cfg.ConfigPath,
 		monitorDebug:      cfg.MonitorDebug,
 		notificationDebug: cfg.NotificationDebug,
@@ -297,6 +303,11 @@ func New(cfg Config) (*Server, error) {
 	for _, n := range s.notifications {
 		if n.ID >= s.nextNotificationID {
 			s.nextNotificationID = n.ID + 1
+		}
+	}
+	for _, sp := range s.statusPages {
+		if sp.ID >= s.nextStatusPageID {
+			s.nextStatusPageID = sp.ID + 1
 		}
 	}
 	if s.logger == nil {
@@ -367,11 +378,15 @@ func (s *Server) buildAdminData(r *http.Request, success, failure string) AdminP
 		grouped[g] = append(grouped[g], v)
 	}
 	// Ensure groups in preferred order, include any new groups at the end
+	// Only include default groups (not statuspage-specific groups)
 	orderedIDs := make([]int, 0, len(s.groups))
 	seen := map[int]bool{}
 	for _, gg := range s.groups {
-		orderedIDs = append(orderedIDs, gg.ID)
-		seen[gg.ID] = true
+		// Only include default groups
+		if gg.Type == "" || gg.Type == config.GroupTypeDefault {
+			orderedIDs = append(orderedIDs, gg.ID)
+			seen[gg.ID] = true
+		}
 	}
 	for g := range grouped {
 		if !seen[g] {
@@ -1025,6 +1040,9 @@ func (s *Server) handleAPINotificationTest(w http.ResponseWriter, r *http.Reques
 
 func (s *Server) handleAPIGroupsUnified(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(r.URL.Path, "/api/groups/")
+	rest = strings.TrimPrefix(rest, "/api/groups")
+	rest = strings.Trim(rest, "/")
+
 	if rest == "" { // collection
 		s.handleAPIGroupsCollection(w, r)
 		return
@@ -1039,16 +1057,45 @@ func (s *Server) handleAPIGroupsCollection(w http.ResponseWriter, r *http.Reques
 	}
 	switch r.Method {
 	case http.MethodGet:
+		// Filter to only return default groups (exclude statuspage groups)
+		defaultGroups := make([]config.GroupConfig, 0)
+		for _, g := range s.groups {
+			if g.Type == "" || g.Type == config.GroupTypeDefault {
+				defaultGroups = append(defaultGroups, g)
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(s.groups)
+		_ = json.NewEncoder(w).Encode(defaultGroups)
 	case http.MethodPost:
-		if !s.ensureAuthAndCSRF(w, r) {
+		// Check authentication first
+		if !s.ensureAuth(w, r) {
 			return
 		}
-		var body struct{ Name string }
+
+		var body struct {
+			Name      string `json:"name"`
+			Type      string `json:"type"`
+			Order     int    `json:"order"`
+			CSRFToken string `json:"csrf_token"`
+		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
+		}
+
+		// Validate CSRF token - either from JSON body or from request (form/header)
+		if body.CSRFToken != "" {
+			// JSON request with csrf_token in body (from statuspage config)
+			if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
+				http.Error(w, "CSRF token validation failed", http.StatusForbidden)
+				return
+			}
+		} else {
+			// Form request with csrf_token in form/header (from admin page)
+			if !s.validateCSRFToken(r) {
+				http.Error(w, "CSRF token validation failed", http.StatusForbidden)
+				return
+			}
 		}
 		name := strings.TrimSpace(body.Name)
 		if name == "" {
@@ -1061,12 +1108,22 @@ func (s *Server) handleAPIGroupsCollection(w http.ResponseWriter, r *http.Reques
 				return
 			}
 		}
-		// compute next order as max(Order)+1
-		nextOrder := 1
-		for _, g := range s.groups {
-			if g.Order >= nextOrder {
-				nextOrder = g.Order + 1
+
+		// Use provided order or compute next order as max(Order)+1
+		nextOrder := body.Order
+		if nextOrder <= 0 {
+			nextOrder = 1
+			for _, g := range s.groups {
+				if g.Order >= nextOrder {
+					nextOrder = g.Order + 1
+				}
 			}
+		}
+
+		// Use provided type or default to "default"
+		groupType := config.GroupType(body.Type)
+		if groupType == "" {
+			groupType = config.GroupTypeDefault
 		}
 
 		var gid int
@@ -1075,6 +1132,7 @@ func (s *Server) handleAPIGroupsCollection(w http.ResponseWriter, r *http.Reques
 		if s.databaseConfig != nil && s.configDB != nil {
 			groupData := database.GroupData{
 				Name:  name,
+				Type:  database.GroupType(groupType),
 				Order: nextOrder,
 			}
 			savedGroup, dbErr := s.configDB.SaveGroup(groupData)
@@ -1093,8 +1151,13 @@ func (s *Server) handleAPIGroupsCollection(w http.ResponseWriter, r *http.Reques
 			s.nextGroupID++
 		}
 
-		s.groups = append(s.groups, config.GroupConfig{ID: gid, Name: name, Order: nextOrder})
-		s.normalizeAndSortGroups()
+		newGroup := config.GroupConfig{
+			ID:    gid,
+			Name:  name,
+			Type:  groupType,
+			Order: nextOrder,
+		}
+		s.groups = append(s.groups, newGroup)
 
 		// Save config (will update database again in DB mode, but with correct ID)
 		if err := s.saveConfig(); err != nil {
@@ -1103,7 +1166,7 @@ func (s *Server) handleAPIGroupsCollection(w http.ResponseWriter, r *http.Reques
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(map[string]any{"id": gid, "name": name, "order": nextOrder})
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": gid, "name": name, "type": string(groupType), "order": nextOrder})
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -1200,7 +1263,20 @@ func (s *Server) handleAPIGroupItem(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Error(w, "nothing to update", http.StatusBadRequest)
 	case http.MethodDelete:
-		if !s.ensureAuthAndCSRF(w, r) {
+		// First check authentication only
+		if !s.ensureAuth(w, r) {
+			return
+		}
+		// Read and validate CSRF token from JSON body
+		var body struct {
+			CSRFToken string `json:"csrf_token"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
+			http.Error(w, "CSRF token validation failed", http.StatusForbidden)
 			return
 		}
 		q := r.URL.Query().Get("delete_monitors")
@@ -1267,6 +1343,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/admin/notifications/", s.ensureInstalled(s.handleAdminNotifications))
 	// Settings
 	s.mux.HandleFunc("/admin/settings", s.ensureInstalled(s.handleAdminSettings))
+	// Status pages management
+	s.mux.HandleFunc("/admin/statuspages", s.ensureInstalled(s.handleAdminStatusPages))
+	s.mux.HandleFunc("/admin/statuspages/", s.ensureInstalled(s.handleAdminStatusPages))
+	// Note: More specific routes like /admin/statuspages/{id}/config are handled by handleAdminStatusPagesConfig
+	// which checks the URL path pattern
 	// Group actions go via REST API now; monitor reorder moved to /api/monitors/reorder
 
 	// API endpoints (one handler per resource), support with and without trailing slash
@@ -1279,6 +1360,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/groups/", s.ensureInstalled(s.handleAPIGroupsUnified))
 	s.mux.HandleFunc("/api/settings", s.ensureInstalled(s.handleAPISettings))
 	s.mux.HandleFunc("/api/history/", s.ensureInstalled(s.handleAPIHistory))
+	s.mux.HandleFunc("/api/statuspages", s.ensureInstalled(s.handleAPIStatusPagesUnified))
+	s.mux.HandleFunc("/api/statuspages/", s.ensureInstalled(s.handleAPIStatusPagesUnified))
+
+	// Public status page endpoint
+	s.mux.HandleFunc("/status/", s.handlePublicStatusPage)
 }
 
 // ensureInstalled is a simple middleware wrapper that can enforce installation
@@ -1385,7 +1471,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // isPublicPath returns true for endpoints that do not require login.
 func (s *Server) isPublicPath(p string) bool {
 	// Allow login, install (only while install is required), and all assets under /static/
-	if p == "/login" || (p == "/install" && s.installRequired) || strings.HasPrefix(p, "/static/") {
+	if p == "/login" || (p == "/install" && s.installRequired) || strings.HasPrefix(p, "/static/") || strings.HasPrefix(p, "/status/") {
 		return true
 	}
 	return false
@@ -1927,11 +2013,15 @@ func (s *Server) buildStatusData() StatusPageData {
 		grouped[gid] = append(grouped[gid], v)
 	}
 	// determine group order by configured order, include any missing IDs
+	// Only include default groups (not statuspage-specific groups)
 	orderedIDs := make([]int, 0, len(s.groups))
 	seen := map[int]bool{}
 	for _, gg := range s.groups {
-		orderedIDs = append(orderedIDs, gg.ID)
-		seen[gg.ID] = true
+		// Only include default groups
+		if gg.Type == "" || gg.Type == config.GroupTypeDefault {
+			orderedIDs = append(orderedIDs, gg.ID)
+			seen[gg.ID] = true
+		}
 	}
 	for gid := range grouped {
 		if !seen[gid] {
@@ -2402,9 +2492,15 @@ func (s *Server) saveConfig() error {
 
 		// Save groups to database
 		for _, group := range s.groups {
+			groupType := database.GroupType(group.Type)
+			// Default to "default" type if not specified
+			if groupType == "" {
+				groupType = database.GroupTypeDefault
+			}
 			groupData := database.GroupData{
 				ID:    group.ID,
 				Name:  group.Name,
+				Type:  groupType,
 				Order: group.Order,
 			}
 			if _, err := s.configDB.SaveGroup(groupData); err != nil {
@@ -2454,6 +2550,33 @@ func (s *Server) saveConfig() error {
 			}
 		}
 
+		// Save status pages to database
+		for _, sp := range s.statusPages {
+			pageData := database.StatusPageData{
+				ID:     sp.ID,
+				Name:   sp.Name,
+				Slug:   sp.Slug,
+				Active: sp.Active,
+			}
+			if _, err := s.configDB.SaveStatusPage(pageData); err != nil {
+				s.logger.Printf("Warning: Failed to save status page %s to database: %v", sp.Name, err)
+			} else {
+				// Clear and re-add monitors for this status page
+				s.configDB.ClearStatusPageMonitors(sp.ID)
+				for _, mon := range sp.Monitors {
+					monData := database.StatusPageMonitorData{
+						StatusPageID: sp.ID,
+						MonitorID:    mon.MonitorID,
+						GroupID:      mon.GroupID,
+						Order:        mon.Order,
+					}
+					if err := s.configDB.AddMonitorToStatusPage(monData); err != nil {
+						s.logger.Printf("Warning: Failed to add monitor to status page in database: %v", err)
+					}
+				}
+			}
+		}
+
 		// Save only database config and debug flags to config file in DB mode
 		// Create a minimal config structure to avoid empty fields
 		minimalCfg := struct {
@@ -2496,6 +2619,7 @@ func (s *Server) saveConfig() error {
 	}
 	cfg.Groups = append([]config.GroupConfig(nil), s.groups...)
 	cfg.Notifications = append([]config.NotificationConfig(nil), s.notifications...)
+	cfg.StatusPages = append([]config.StatusPageConfig(nil), s.statusPages...)
 	cfg.MonitorDebug = s.monitorDebug
 	cfg.NotificationDebug = s.notificationDebug
 	cfg.ApiDebug = s.apiDebug
@@ -2522,4 +2646,533 @@ func (s *Server) getNextOrderForGroup(groupID int) int {
 	}
 
 	return maxOrder + 1
+}
+
+// ==== Status Pages Management =================================================
+
+// handleAdminStatusPages renders the status pages list page or config page
+func (s *Server) handleAdminStatusPages(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Check if this is a config page request (e.g., /admin/statuspages/123)
+	path := strings.TrimPrefix(r.URL.Path, "/admin/statuspages/")
+	path = strings.TrimPrefix(path, "/admin/statuspages")
+	path = strings.Trim(path, "/")
+
+	if path != "" {
+		// This is a config page request (has an ID)
+		s.handleAdminStatusPagesConfig(w, r)
+		return
+	}
+
+	// Otherwise, show the list page
+	data := struct {
+		BasePageData
+		StatusPages []config.StatusPageConfig
+		Error       string
+		Success     string
+	}{
+		BasePageData: BasePageData{
+			Title:             "Status Pages",
+			ContentTemplate:   "statuspages.content",
+			CSRFToken:         s.getCSRFToken(r),
+			ShowMemoryDisplay: s.showMemoryDisplay,
+		},
+		StatusPages: append([]config.StatusPageConfig(nil), s.statusPages...),
+		Error:       r.URL.Query().Get("error"),
+		Success:     r.URL.Query().Get("success"),
+	}
+
+	if err := s.templates.ExecuteTemplate(w, "statuspages.gohtml", data); err != nil {
+		s.logger.Printf("statuspages template error: %v", err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+// handleAdminStatusPagesConfig renders the configuration page for a specific status page
+func (s *Server) handleAdminStatusPagesConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract status page ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/admin/statuspages/")
+	path = strings.Trim(path, "/")
+	id, err := strconv.Atoi(path)
+	if err != nil {
+		http.Error(w, "invalid status page ID", http.StatusBadRequest)
+		return
+	}
+
+	// Find the status page
+	var statusPage *config.StatusPageConfig
+	for i := range s.statusPages {
+		if s.statusPages[i].ID == id {
+			statusPage = &s.statusPages[i]
+			break
+		}
+	}
+
+	if statusPage == nil {
+		http.Error(w, "status page not found", http.StatusNotFound)
+		return
+	}
+
+	// Get all monitors for selection
+	snapshots := s.manager.List()
+
+	// Filter groups by type
+	defaultGroups := make([]config.GroupConfig, 0)
+	statuspageGroups := make([]config.GroupConfig, 0)
+	for _, g := range s.groups {
+		if g.Type == "" || g.Type == config.GroupTypeDefault {
+			defaultGroups = append(defaultGroups, g)
+		} else if g.Type == config.GroupTypeStatusPage {
+			statuspageGroups = append(statuspageGroups, g)
+		}
+	}
+
+	data := struct {
+		BasePageData
+		StatusPage       config.StatusPageConfig
+		AllMonitors      []APISnapshot
+		Groups           []config.GroupConfig
+		StatusPageGroups []config.GroupConfig
+		Error            string
+		Success          string
+	}{
+		BasePageData: BasePageData{
+			Title:             "Configure Status Page: " + statusPage.Name,
+			ContentTemplate:   "statuspage_config.content",
+			CSRFToken:         s.getCSRFToken(r),
+			ShowMemoryDisplay: s.showMemoryDisplay,
+		},
+		StatusPage:       *statusPage,
+		AllMonitors:      make([]APISnapshot, 0, len(snapshots)),
+		Groups:           defaultGroups,
+		StatusPageGroups: statuspageGroups,
+		Error:            r.URL.Query().Get("error"),
+		Success:          r.URL.Query().Get("success"),
+	}
+
+	// Convert snapshots and ensure Group name is set
+	for _, snap := range snapshots {
+		apiSnap := convertSnapshotToAPI(snap)
+		// If Group name is empty, populate it from GroupID
+		if apiSnap.Config.Group == "" && apiSnap.Config.GroupID > 0 {
+			apiSnap.Config.Group = s.getGroupName(apiSnap.Config.GroupID)
+		}
+		data.AllMonitors = append(data.AllMonitors, apiSnap)
+	}
+
+	// Sort monitors by GroupID, then Order, then Name for consistent display
+	sort.Slice(data.AllMonitors, func(i, j int) bool {
+		if data.AllMonitors[i].Config.GroupID != data.AllMonitors[j].Config.GroupID {
+			return data.AllMonitors[i].Config.GroupID < data.AllMonitors[j].Config.GroupID
+		}
+		if data.AllMonitors[i].Config.Order != data.AllMonitors[j].Config.Order {
+			return data.AllMonitors[i].Config.Order < data.AllMonitors[j].Config.Order
+		}
+		return data.AllMonitors[i].Config.Name < data.AllMonitors[j].Config.Name
+	})
+
+	if err := s.templates.ExecuteTemplate(w, "statuspage_config.gohtml", data); err != nil {
+		s.logger.Printf("statuspage_config template error: %v", err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+// handlePublicStatusPage renders a public status page
+func (s *Server) handlePublicStatusPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract slug from URL
+	slug := strings.TrimPrefix(r.URL.Path, "/status/")
+	slug = strings.TrimSuffix(slug, "/")
+
+	if slug == "" {
+		http.Error(w, "status page not found", http.StatusNotFound)
+		return
+	}
+
+	// Find the status page by slug
+	var statusPage *config.StatusPageConfig
+	for i := range s.statusPages {
+		if s.statusPages[i].Slug == slug {
+			statusPage = &s.statusPages[i]
+			break
+		}
+	}
+
+	if statusPage == nil {
+		http.Error(w, "status page not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if status page is active
+	if !statusPage.Active {
+		http.Error(w, "status page is not active", http.StatusForbidden)
+		return
+	}
+
+	// Get all monitor snapshots
+	allSnapshots := s.manager.List()
+	snapshotMap := make(map[string]monitor.Snapshot)
+	for _, snap := range allSnapshots {
+		snapshotMap[snap.Config.ID] = snap
+	}
+
+	// Build grouped monitors for this status page
+	type PublicMonitorView struct {
+		ID          string
+		Name        string
+		Status      string
+		LastChecked time.Time
+		LastLatency int64
+		LastChange  time.Time
+	}
+
+	type PublicGroupView struct {
+		ID       int
+		Name     string
+		Monitors []PublicMonitorView
+	}
+
+	groupMap := make(map[int]*PublicGroupView)
+
+	for _, spMon := range statusPage.Monitors {
+		snap, exists := snapshotMap[spMon.MonitorID]
+		if !exists {
+			continue
+		}
+
+		group, exists := groupMap[spMon.GroupID]
+		if !exists {
+			group = &PublicGroupView{
+				ID:       spMon.GroupID,
+				Name:     s.getGroupName(spMon.GroupID),
+				Monitors: []PublicMonitorView{},
+			}
+			groupMap[spMon.GroupID] = group
+		}
+
+		group.Monitors = append(group.Monitors, PublicMonitorView{
+			ID:          snap.Config.ID,
+			Name:        snap.Config.Name,
+			Status:      string(snap.Status),
+			LastChecked: snap.LastChecked,
+			LastLatency: snap.LastLatency.Nanoseconds() / 1000000,
+			LastChange:  snap.LastChange,
+		})
+	}
+
+	// Sort groups by their order in the groups list, then by name
+	groups := make([]PublicGroupView, 0, len(groupMap))
+	for _, group := range groupMap {
+		groups = append(groups, *group)
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		// Find group order
+		var orderI, orderJ int
+		for _, g := range s.groups {
+			if g.ID == groups[i].ID {
+				orderI = g.Order
+			}
+			if g.ID == groups[j].ID {
+				orderJ = g.Order
+			}
+		}
+		if orderI != orderJ {
+			return orderI < orderJ
+		}
+		return groups[i].Name < groups[j].Name
+	})
+
+	data := struct {
+		BasePageData
+		StatusPageName string
+		Groups         []PublicGroupView
+	}{
+		BasePageData: BasePageData{
+			Title:           statusPage.Name,
+			ContentTemplate: "public_status.content",
+		},
+		StatusPageName: statusPage.Name,
+		Groups:         groups,
+	}
+
+	if err := s.templates.ExecuteTemplate(w, "public_status.gohtml", data); err != nil {
+		s.logger.Printf("public_status template error: %v", err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+// ==== API: Status Pages =======================================================
+
+// handleAPIStatusPagesUnified handles all status page API operations
+func (s *Server) handleAPIStatusPagesUnified(w http.ResponseWriter, r *http.Request) {
+	if s.apiDebug {
+		s.logger.Printf("[API DEBUG] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+	}
+
+	// Authentication required for all status page operations
+	if !s.ensureAuth(w, r) {
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		s.handleAPIStatusPagesGet(w, r)
+	case http.MethodPost:
+		s.handleAPIStatusPagesCreate(w, r)
+	case http.MethodPut:
+		s.handleAPIStatusPagesUpdate(w, r)
+	case http.MethodDelete:
+		s.handleAPIStatusPagesDelete(w, r)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// handleAPIStatusPagesGet retrieves status page(s)
+func (s *Server) handleAPIStatusPagesGet(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/statuspages/")
+	path = strings.TrimPrefix(path, "/api/statuspages")
+	path = strings.Trim(path, "/")
+
+	if path == "" {
+		// Return all status pages
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(s.statusPages)
+		return
+	}
+
+	// Return specific status page
+	id, err := strconv.Atoi(path)
+	if err != nil {
+		http.Error(w, "invalid status page ID", http.StatusBadRequest)
+		return
+	}
+
+	for _, sp := range s.statusPages {
+		if sp.ID == id {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(sp)
+			return
+		}
+	}
+
+	http.Error(w, "status page not found", http.StatusNotFound)
+}
+
+// handleAPIStatusPagesCreate creates a new status page
+func (s *Server) handleAPIStatusPagesCreate(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name      string `json:"name"`
+		Slug      string `json:"slug"`
+		Active    bool   `json:"active"`
+		CSRFToken string `json:"csrf_token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
+		http.Error(w, "CSRF token validation failed", http.StatusForbidden)
+		return
+	}
+
+	if body.Name == "" || body.Slug == "" {
+		http.Error(w, "name and slug are required", http.StatusBadRequest)
+		return
+	}
+
+	// Check for duplicate slug
+	for _, sp := range s.statusPages {
+		if sp.Slug == body.Slug {
+			http.Error(w, "slug already exists", http.StatusConflict)
+			return
+		}
+	}
+
+	// Create status page in database if configured
+	var newID int
+	if s.databaseConfig != nil && s.configDB != nil {
+		pageData := database.StatusPageData{
+			Name:   body.Name,
+			Slug:   body.Slug,
+			Active: body.Active,
+		}
+		savedPage, err := s.configDB.SaveStatusPage(pageData)
+		if err != nil {
+			s.logger.Printf("Failed to save status page to database: %v", err)
+			http.Error(w, "failed to create status page", http.StatusInternalServerError)
+			return
+		}
+		newID = savedPage.ID
+	} else {
+		// Generate ID for file-based config
+		newID = s.nextStatusPageID
+		s.nextStatusPageID++
+	}
+
+	newPage := config.StatusPageConfig{
+		ID:       newID,
+		Name:     body.Name,
+		Slug:     body.Slug,
+		Active:   body.Active,
+		Monitors: []config.StatusPageMonitorConfig{},
+	}
+
+	s.statusPages = append(s.statusPages, newPage)
+
+	if err := s.saveConfig(); err != nil {
+		s.logger.Printf("Failed to save config after creating status page: %v", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(newPage)
+}
+
+// handleAPIStatusPagesUpdate updates an existing status page
+func (s *Server) handleAPIStatusPagesUpdate(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/statuspages/")
+	path = strings.TrimSuffix(path, "/")
+	id, err := strconv.Atoi(path)
+	if err != nil {
+		http.Error(w, "invalid status page ID", http.StatusBadRequest)
+		return
+	}
+
+	var body struct {
+		Name      string                           `json:"name"`
+		Slug      string                           `json:"slug"`
+		Active    bool                             `json:"active"`
+		Monitors  []config.StatusPageMonitorConfig `json:"monitors"`
+		CSRFToken string                           `json:"csrf_token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
+		http.Error(w, "CSRF token validation failed", http.StatusForbidden)
+		return
+	}
+
+	// Find and update status page
+	found := false
+	for i := range s.statusPages {
+		if s.statusPages[i].ID == id {
+			// Check for slug conflict with other pages
+			if body.Slug != s.statusPages[i].Slug {
+				for j := range s.statusPages {
+					if i != j && s.statusPages[j].Slug == body.Slug {
+						http.Error(w, "slug already exists", http.StatusConflict)
+						return
+					}
+				}
+			}
+
+			s.statusPages[i].Name = body.Name
+			s.statusPages[i].Slug = body.Slug
+			s.statusPages[i].Active = body.Active
+			s.statusPages[i].Monitors = body.Monitors
+			found = true
+
+			// Update in database if configured
+			if s.databaseConfig != nil && s.configDB != nil {
+				pageData := database.StatusPageData{
+					ID:     id,
+					Name:   body.Name,
+					Slug:   body.Slug,
+					Active: body.Active,
+				}
+				if _, err := s.configDB.SaveStatusPage(pageData); err != nil {
+					s.logger.Printf("Failed to update status page in database: %v", err)
+				}
+
+				// Update monitors association
+				s.configDB.ClearStatusPageMonitors(id)
+				for _, mon := range body.Monitors {
+					monData := database.StatusPageMonitorData{
+						StatusPageID: id,
+						MonitorID:    mon.MonitorID,
+						GroupID:      mon.GroupID,
+						Order:        mon.Order,
+					}
+					if err := s.configDB.AddMonitorToStatusPage(monData); err != nil {
+						s.logger.Printf("Failed to add monitor to status page in database: %v", err)
+					}
+				}
+			}
+
+			break
+		}
+	}
+
+	if !found {
+		http.Error(w, "status page not found", http.StatusNotFound)
+		return
+	}
+
+	if err := s.saveConfig(); err != nil {
+		s.logger.Printf("Failed to save config after updating status page: %v", err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"success":true}`))
+}
+
+// handleAPIStatusPagesDelete deletes a status page
+func (s *Server) handleAPIStatusPagesDelete(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/statuspages/")
+	path = strings.TrimSuffix(path, "/")
+	id, err := strconv.Atoi(path)
+	if err != nil {
+		http.Error(w, "invalid status page ID", http.StatusBadRequest)
+		return
+	}
+
+	// Find and remove status page
+	found := false
+	for i := range s.statusPages {
+		if s.statusPages[i].ID == id {
+			s.statusPages = append(s.statusPages[:i], s.statusPages[i+1:]...)
+			found = true
+
+			// Delete from database if configured
+			if s.databaseConfig != nil && s.configDB != nil {
+				if err := s.configDB.DeleteStatusPage(id); err != nil {
+					s.logger.Printf("Failed to delete status page from database: %v", err)
+				}
+			}
+
+			break
+		}
+	}
+
+	if !found {
+		http.Error(w, "status page not found", http.StatusNotFound)
+		return
+	}
+
+	if err := s.saveConfig(); err != nil {
+		s.logger.Printf("Failed to save config after deleting status page: %v", err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"success":true}`))
 }
