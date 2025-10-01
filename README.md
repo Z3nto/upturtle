@@ -9,18 +9,39 @@ A lightweight, easy-to-use self-hosted monitoring solution written in Go that ke
 
 ## ✨ Features
 
+### Core Monitoring
 - **Multi-Protocol Monitoring**: HTTP/HTTPS and ICMP (ping) monitoring
 - **Real-time Dashboard**: Clean web interface with automatic status updates
-- **Flexible Notifications**: Integration with 70+ notification services via [Shoutrrr](https://github.com/containrrr/shoutrrr)
-- **Grouping & Organization**: Organize monitors into logical groups with custom ordering
+- **Flexible Certificate Validation**: Choose between full validation or expiry-only checks for HTTPS monitors
 - **Master-Slave Dependencies**: Configure monitor dependencies to avoid alert storms
 - **Configurable Thresholds**: Set custom failure thresholds before notifications are sent
-- **Docker Ready**: Containerized deployment with Docker Compose
-- **Secure by Design**: Session-based authentication with bcrypt password hashing
-- **Persistent Configuration**: JSON-based configuration with atomic updates
-- **Database Storage**: Optional SQLite/MySQL support for persistent measurement data
+- **Drag & Drop Reordering**: Easily reorder monitors within groups via drag-and-drop
+
+### Public Status Pages
+- **Custom Status Pages**: Create multiple public status pages for different audiences
+- **Slug-based URLs**: Clean, shareable URLs like `/status/your-service`
+- **Monitor Selection**: Choose which monitors to display on each status page
+- **Custom Grouping**: Organize monitors into custom groups per status page
+- **Active/Inactive Control**: Enable or disable status pages without deleting them
+- **Auto-refresh**: Public pages refresh every 30 seconds automatically
+- **No Authentication Required**: Public pages are accessible without login
+
+### Notifications
+- **70+ Notification Services**: Integration via [Shoutrrr](https://github.com/containrrr/shoutrrr)
+- **Visual URL Builder**: Easy-to-use form-based notification configuration
+- **Service Templates**: Pre-configured templates for popular services (Discord, Slack, Telegram, etc.)
+
+### Data & Storage
+- **Normalized Database Schema**: Efficient SQLite storage with proper relational tables
+- **Flexible Installation**: Choose between In-Memory Storage and Database Storage
 - **Automatic Cleanup**: Intelligent data retention with configurable cleanup schedules
-- **Health Monitoring**: Built-in database connectivity monitoring and error reporting
+
+
+### Administration
+- **Grouping & Organization**: Organize monitors into logical groups with custom ordering
+- **Configurable Debug Logging**: Toggle authentication debug logs via settings page
+- **Secure by Design**: Session-based authentication with bcrypt password hashing
+- **Docker Ready**: Containerized deployment with Docker Compose
 - **Graceful Shutdown**: Proper signal handling for clean shutdowns
 
 ## 🚀 Quick Start
@@ -92,9 +113,22 @@ When database storage is enabled:
 - **Persistent Data**: Measurement data survives application restarts
 - **Per-Day Tables**: Data is organized in daily tables for efficient cleanup
 - **Automatic Cleanup**: Old measurement data is automatically removed (default: 1 day retention)
-- **Live Queries**: Data is read directly from the database (no in-memory cache for less oberhead)
+- **Live Queries**: Data is read directly from the database (no in-memory cache for less overhead)
 - **Health Monitoring**: Database connectivity is monitored and displayed in the web interface
 - **Configuration Storage**: Admin credentials and settings are stored in the database
+
+#### Database Schema
+
+Upturtle uses a normalized relational database schema for efficient storage:
+
+**Tables:**
+- `monitors` - Monitor configurations with foreign keys to groups and notifications
+- `groups` - Group definitions with support for default and status page groups
+- `notifications` - Notification channel configurations
+- `settings` - Key-value store for application settings
+- `status_pages` - Public status page configurations
+- `status_page_monitors` - Many-to-many relationship between status pages and monitors
+- `history_YYYYMMDD` - Daily tables for time-series data (auto-created and cleaned up)
 
 #### Data Retention
 
@@ -123,6 +157,9 @@ When database storage is enabled:
 - Monitors web services and APIs
 - Supports custom timeouts and intervals
 - Validates response codes and measures latency
+- **Certificate Validation Modes**:
+  - **Full Validation** (default): Validates certificate chain, hostname, expiry, and trust
+  - **Expiry Only**: Skips certificate validation but warns if certificate expires within 30 days
 
 #### ICMP (Ping) Monitoring  
 - Tests network connectivity to hosts
@@ -139,6 +176,15 @@ Upturtle supports 70+ notification services through Shoutrrr, including:
 - **Webhooks**: Generic HTTP webhooks
 - **And many more...**
 
+#### Easy Configuration with Visual Builder
+
+Instead of manually crafting Shoutrrr URLs, Upturtle provides a user-friendly form-based interface:
+
+1. Select your notification service from the dropdown
+2. Fill in the required fields (tokens, channels, recipients, etc.)
+3. The URL is automatically generated in the correct format
+4. Test your notification before saving
+
 Example notification URLs:
 ```
 discord://token@channel
@@ -154,6 +200,7 @@ upturtle/
 ├── cmd/upturtle/          # Application entry point
 ├── internal/
 │   ├── config/           # Configuration management
+│   ├── database/         # Database interface and SQLite implementation
 │   ├── monitor/          # Monitoring logic and types
 │   ├── notifier/         # Notification handling
 │   └── server/           # Web server and API
@@ -164,16 +211,76 @@ upturtle/
 └── go.mod              # Go module definition
 ```
 
+## 🔌 API Endpoints
+
+Upturtle provides a RESTful API for programmatic access:
+
+### Monitors
+- `GET /api/monitors` - List all monitors
+- `GET /api/monitors/{id}` - Get monitor details
+- `POST /api/monitors` - Create new monitor
+- `PUT /api/monitors/{id}` - Update monitor
+- `DELETE /api/monitors/{id}` - Delete monitor
+- `POST /api/monitors/reorder` - Reorder monitors via drag-and-drop
+
+### Groups
+- `GET /api/groups` - List all groups
+- `POST /api/groups` - Create new group
+- `PUT /api/groups/{id}` - Update group
+- `DELETE /api/groups/{id}` - Delete group
+
+### Notifications
+- `GET /api/notifications` - List all notification channels
+- `GET /api/notifications/{id}` - Get notification details
+- `POST /api/notifications` - Create notification channel
+- `PUT /api/notifications/{id}` - Update notification channel
+- `DELETE /api/notifications/{id}` - Delete notification channel
+
+### Status Pages
+- `GET /api/statuspages` - List all status pages
+- `GET /api/statuspages/{id}` - Get status page details
+- `POST /api/statuspages` - Create status page
+- `PUT /api/statuspages/{id}` - Update status page
+- `DELETE /api/statuspages/{id}` - Delete status page
+
+### Settings
+- `GET /api/settings` - Get application settings
+- `POST /api/settings` - Update settings
+
+All API endpoints require authentication via session cookies and include CSRF protection.
+
+
+## ⚙️ Administration Features
+
+### Settings Management
+
+Access settings via **Admin → Settings**:
+
+- **Data Retention**: Configure how long measurement data is kept (default: 1 day)
+- **Authentication Debug**: Toggle detailed authentication logging for troubleshooting login issues
+- **Database Health**: View database connectivity status and error information
+
+### Monitor Management
+
+- **Drag & Drop Reordering**: Click and drag monitors to reorder them within groups
+
+### Group Management
+
+- **Default Groups**: Standard groups for organizing monitors in the admin interface
+- **Status Page Groups**: Separate groups specific to each public status page
+- **Custom Ordering**: Control the display order of groups and monitors
 
 ## 🔒 Security Considerations
 
 Upturtle implements several security measures:
 
 - **Session-based Authentication**: Secure session management with bcrypt password hashing
+- **CSRF Protection**: Cross-site request forgery tokens on all state-changing operations
 - **Input Validation**: Strict validation for ICMP targets to prevent command injection
 - **Non-root Container**: Docker container runs as non-privileged user (UID 10001)
 - **Atomic Configuration Updates**: Configuration changes are written atomically
 - **Timeout Protection**: All network operations have configurable timeouts
+- **Configurable Debug Logging**: Authentication debug logs can be disabled in production
 
 ### Security Notes
 - Ensure you're running the latest version
@@ -181,6 +288,7 @@ Upturtle implements several security measures:
 - Consider running behind a reverse proxy with HTTPS
 - Regularly review your notification configurations
 - Monitor the application logs for suspicious activity
+- Disable authentication debug logging in production environments
 
 ## 🐳 Docker Configuration
 
@@ -214,6 +322,14 @@ volumes:
 4. **Use Master-Slave Dependencies**: Prevent notification storms during network outages
 5. **Test Notifications**: Verify your notification channels are working
 6. **Monitor the Monitor**: Keep an eye on Upturtle's own resource usage
+7. **Use Public Status Pages**: Create dedicated status pages for customers or teams
+8. **Certificate Validation**: Use "expiry_only" mode for self-signed certificates while still tracking expiry dates
+
+## 🌐 Public Status Pages
+
+Upturtle allows you to create multiple public status pages that can be shared with customers, teams, or stakeholders without requiring authentication.
+
+c
 
 
 ## 📝 License

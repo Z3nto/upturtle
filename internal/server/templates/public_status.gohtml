@@ -114,10 +114,17 @@
             color: #a1a1aa;
         }
 
+        .monitor-last-down {
+            font-size: 0.875rem;
+            color: #a1a1aa;
+            margin-right: 1rem;
+        }
+
         .monitor-status {
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            width: 100px;
         }
 
         .status-indicator {
@@ -180,7 +187,12 @@
 <body>
     <div class="header">
         <div class="container">
-            <h1>{{.StatusPageName}}</h1>
+            <a href="#" style="display:flex; align-items:center; gap:.6rem; text-decoration:none;">
+                <picture>
+                    <img src="/static/logo.png" alt="Upturtle" height="28" />
+                </picture>
+                <h1>{{.StatusPageName}}</h1>
+            </a>
             <div class="overall-status status-operational" id="overall-status">
                 All Systems Operational
             </div>
@@ -201,6 +213,9 @@
                             Response time: {{.LastLatency}}ms
                             {{end}}
                         </div>
+                    </div>
+                    <div class="monitor-last-down">
+                        Last down: {{.LastChange.Format "2006-01-02 15:04:05"}}
                     </div>
                     <div class="monitor-status">
                         <span class="status-indicator {{if eq .Status "up"}}up{{else if eq .Status "down"}}down{{else}}unknown{{end}}"></span>

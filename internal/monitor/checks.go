@@ -117,7 +117,7 @@ func checkICMP(cfg MonitorConfig) CheckResult {
 	if err != nil {
 		return CheckResult{Success: false, Message: err.Error(), Timestamp: time.Now()}
 	}
-	return CheckResult{Success: true, Latency: latency, Message: "icmp reply", Timestamp: time.Now()}
+	return CheckResult{Success: true, Latency: latency, Message: "", Timestamp: time.Now()}
 }
 
 // pingHost executes /bin/ping once and parses RTT
@@ -128,18 +128,19 @@ func pingHost(target string, timeout time.Duration) (time.Duration, error) {
 	}
 
 	// Use system ping binary. We prefer iputils-ping at /bin/ping.
-	// Build command: ping -n -c 1 -W <timeoutSec> <target>
+	// Build command: ping -n -c 3 -W <timeoutSec> <target>
+	// Send 3 packets; check succeeds if at least one packet gets through.
 	toSec := int(timeout.Truncate(time.Second) / time.Second)
 	if toSec <= 0 {
 		toSec = 1
 	}
-	args := []string{"-n", "-c", "1", "-W", fmt.Sprintf("%d", toSec), target}
+	args := []string{"-n", "-c", "3", "-W", fmt.Sprintf("%d", toSec), target}
 	pingPath, lerr := exec.LookPath("ping")
 	if lerr != nil {
 		return 0, fmt.Errorf("could not find 'ping' in PATH: %w", lerr)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout+1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout+3*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, pingPath, args...)
@@ -148,7 +149,19 @@ func pingHost(target string, timeout time.Duration) (time.Duration, error) {
 	if ctx.Err() == context.DeadlineExceeded {
 		return 0, fmt.Errorf("ping timed out after %v", timeout)
 	}
-	if err != nil {
+
+	// Check if we received at least one packet by parsing the output.
+	// Format: "3 packets transmitted, X received, ..."
+	receivedRe := regexp.MustCompile(`(\d+)\s+packets transmitted,\s+(\d+)\s+received`)
+	if m := receivedRe.FindStringSubmatch(outStr); len(m) == 3 {
+		received := m[2]
+		if received == "0" {
+			// All packets lost
+			return 0, fmt.Errorf("ping failed: all packets lost; output: %s", strings.TrimSpace(outStr))
+		}
+		// At least one packet received, continue to parse latency
+	} else if err != nil {
+		// Could not parse output and command failed
 		return 0, fmt.Errorf("ping failed: %w; output: %s", err, strings.TrimSpace(outStr))
 	}
 

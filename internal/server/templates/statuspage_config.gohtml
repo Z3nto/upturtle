@@ -364,6 +364,7 @@
       }
       renderStatuspageGroups();
       renderSelectedMonitors();
+      updateAvailableMonitors();
     }
   };
 
@@ -379,6 +380,29 @@
     
     // Map to track old (negative) IDs to new (positive) IDs
     const groupIdMap = new Map();
+    
+    // Find deleted groups (groups that were loaded but are no longer in statuspageGroups)
+    const currentGroupIds = new Set(statuspageGroups.map(g => g.id));
+    const deletedGroups = loadedStatusPageGroups.filter(g => !currentGroupIds.has(g.id));
+    
+    // Delete removed groups from database
+    for (const group of deletedGroups) {
+      try {
+        const res = await fetch('/api/groups/' + group.id, {
+          method: 'DELETE',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            csrf_token: '{{.CSRFToken}}'
+          })
+        });
+        
+        if (!res.ok) {
+          console.error('Failed to delete group:', group.name);
+        }
+      } catch (err) {
+        console.error('Failed to delete group:', err);
+      }
+    }
     
     // Save statuspage groups to database first and get their real IDs
     for (const group of statuspageGroups) {

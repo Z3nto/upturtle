@@ -1263,7 +1263,20 @@ func (s *Server) handleAPIGroupItem(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Error(w, "nothing to update", http.StatusBadRequest)
 	case http.MethodDelete:
-		if !s.ensureAuthAndCSRF(w, r) {
+		// First check authentication only
+		if !s.ensureAuth(w, r) {
+			return
+		}
+		// Read and validate CSRF token from JSON body
+		var body struct {
+			CSRFToken string `json:"csrf_token"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		if !s.validateCSRFTokenFromJSON(r, body.CSRFToken) {
+			http.Error(w, "CSRF token validation failed", http.StatusForbidden)
 			return
 		}
 		q := r.URL.Query().Get("delete_monitors")
@@ -2823,6 +2836,7 @@ func (s *Server) handlePublicStatusPage(w http.ResponseWriter, r *http.Request) 
 		Status      string
 		LastChecked time.Time
 		LastLatency int64
+		LastChange  time.Time
 	}
 
 	type PublicGroupView struct {
@@ -2855,6 +2869,7 @@ func (s *Server) handlePublicStatusPage(w http.ResponseWriter, r *http.Request) 
 			Status:      string(snap.Status),
 			LastChecked: snap.LastChecked,
 			LastLatency: snap.LastLatency.Nanoseconds() / 1000000,
+			LastChange:  snap.LastChange,
 		})
 	}
 
