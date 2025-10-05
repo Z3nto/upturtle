@@ -1363,8 +1363,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/statuspages", s.ensureInstalled(s.handleAPIStatusPagesUnified))
 	s.mux.HandleFunc("/api/statuspages/", s.ensureInstalled(s.handleAPIStatusPagesUnified))
 
-	// Public status page endpoint
+	// Public status page endpoints
 	s.mux.HandleFunc("/status/", s.handlePublicStatusPage)
+	s.mux.HandleFunc("/api/public/status/", s.handlePublicStatusPageAPI)
 }
 
 // ensureInstalled is a simple middleware wrapper that can enforce installation
@@ -1471,7 +1472,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // isPublicPath returns true for endpoints that do not require login.
 func (s *Server) isPublicPath(p string) bool {
 	// Allow login, install (only while install is required), and all assets under /static/
-	if p == "/login" || (p == "/install" && s.installRequired) || strings.HasPrefix(p, "/static/") || strings.HasPrefix(p, "/status/") {
+	if p == "/login" || (p == "/install" && s.installRequired) || strings.HasPrefix(p, "/static/") || strings.HasPrefix(p, "/status/") || strings.HasPrefix(p, "/api/public/") {
 		return true
 	}
 	return false
@@ -2196,7 +2197,43 @@ type AdminMonitorView struct {
 	CertValidation  string
 }
 
+// PublicMonitorView is used by public status pages
+type PublicMonitorView struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Status       string    `json:"status"`
+	LastChecked  time.Time `json:"last_checked"`
+	LastLatency  int64     `json:"last_latency"`
+	LastChange   time.Time `json:"last_change"`
+	LastDownTime time.Time `json:"last_down_time"`
+}
+
+// PublicGroupView is used by public status pages
+type PublicGroupView struct {
+	ID       int                   `json:"id"`
+	Name     string                `json:"name"`
+	Monitors []PublicMonitorView   `json:"monitors"`
+}
+
 const historyPreview = 20
+
+// getLastDownTime finds the timestamp of the last failed check in the monitor's history
+func getLastDownTime(snap monitor.Snapshot) time.Time {
+	// If currently down, return the last change time
+	if snap.Status == monitor.StatusDown {
+		return snap.LastChange
+	}
+	
+	// Look through history for the most recent failed check
+	for i := len(snap.History) - 1; i >= 0; i-- {
+		if !snap.History[i].Success {
+			return snap.History[i].Timestamp
+		}
+	}
+	
+	// If no failed checks found in history, return last change time as fallback
+	return snap.LastChange
+}
 
 func toStatusMonitorView(snap monitor.Snapshot) StatusMonitorView {
 	success := 0
@@ -2830,21 +2867,6 @@ func (s *Server) handlePublicStatusPage(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Build grouped monitors for this status page
-	type PublicMonitorView struct {
-		ID          string
-		Name        string
-		Status      string
-		LastChecked time.Time
-		LastLatency int64
-		LastChange  time.Time
-	}
-
-	type PublicGroupView struct {
-		ID       int
-		Name     string
-		Monitors []PublicMonitorView
-	}
-
 	groupMap := make(map[int]*PublicGroupView)
 
 	for _, spMon := range statusPage.Monitors {
@@ -2864,12 +2886,13 @@ func (s *Server) handlePublicStatusPage(w http.ResponseWriter, r *http.Request) 
 		}
 
 		group.Monitors = append(group.Monitors, PublicMonitorView{
-			ID:          snap.Config.ID,
-			Name:        snap.Config.Name,
-			Status:      string(snap.Status),
-			LastChecked: snap.LastChecked,
-			LastLatency: snap.LastLatency.Nanoseconds() / 1000000,
-			LastChange:  snap.LastChange,
+			ID:           snap.Config.ID,
+			Name:         snap.Config.Name,
+			Status:       string(snap.Status),
+			LastChecked:  snap.LastChecked,
+			LastLatency:  snap.LastLatency.Nanoseconds() / 1000000,
+			LastChange:   snap.LastChange,
+			LastDownTime: getLastDownTime(snap),
 		})
 	}
 
@@ -2911,6 +2934,140 @@ func (s *Server) handlePublicStatusPage(w http.ResponseWriter, r *http.Request) 
 	if err := s.templates.ExecuteTemplate(w, "public_status.gohtml", data); err != nil {
 		s.logger.Printf("public_status template error: %v", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+// handlePublicStatusPageAPI returns JSON data for a public status page
+func (s *Server) handlePublicStatusPageAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract slug from URL
+	slug := strings.TrimPrefix(r.URL.Path, "/api/public/status/")
+	slug = strings.TrimSuffix(slug, "/")
+
+	if slug == "" {
+		http.Error(w, "status page not found", http.StatusNotFound)
+		return
+	}
+
+	// Find the status page by slug
+	var statusPage *config.StatusPageConfig
+	for i := range s.statusPages {
+		if s.statusPages[i].Slug == slug {
+			statusPage = &s.statusPages[i]
+			break
+		}
+	}
+
+	if statusPage == nil {
+		http.Error(w, "status page not found", http.StatusNotFound)
+		return
+	}
+
+	if !statusPage.Active {
+		http.Error(w, "status page not active", http.StatusNotFound)
+		return
+	}
+
+	// Get all monitor snapshots
+	allSnapshots := s.manager.List()
+	snapshotMap := make(map[string]monitor.Snapshot)
+	for _, snap := range allSnapshots {
+		snapshotMap[snap.Config.ID] = snap
+	}
+
+	// Build grouped monitors for this status page using the same logic as the template
+	groupMap := make(map[int]*PublicGroupView)
+
+	for _, spMon := range statusPage.Monitors {
+		snap, exists := snapshotMap[spMon.MonitorID]
+		if !exists {
+			continue
+		}
+
+		group, exists := groupMap[spMon.GroupID]
+		if !exists {
+			group = &PublicGroupView{
+				ID:       spMon.GroupID,
+				Name:     s.getGroupName(spMon.GroupID),
+				Monitors: []PublicMonitorView{},
+			}
+			groupMap[spMon.GroupID] = group
+		}
+
+		group.Monitors = append(group.Monitors, PublicMonitorView{
+			ID:           snap.Config.ID,
+			Name:         snap.Config.Name,
+			Status:       string(snap.Status),
+			LastChecked:  snap.LastChecked,
+			LastLatency:  snap.LastLatency.Nanoseconds() / 1000000,
+			LastChange:   snap.LastChange,
+			LastDownTime: getLastDownTime(snap),
+		})
+	}
+
+	// Sort groups by their order in the groups list, then by name
+	groups := make([]PublicGroupView, 0, len(groupMap))
+	for _, group := range groupMap {
+		groups = append(groups, *group)
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		// Find group order
+		var orderI, orderJ int
+		for _, g := range s.groups {
+			if g.ID == groups[i].ID {
+				orderI = g.Order
+			}
+			if g.ID == groups[j].ID {
+				orderJ = g.Order
+			}
+		}
+		if orderI != orderJ {
+			return orderI < orderJ
+		}
+		return groups[i].Name < groups[j].Name
+	})
+
+	// Calculate overall status
+	overallStatus := "operational"
+	hasDown := false
+	hasUnknown := false
+
+	for _, group := range groups {
+		for _, monitor := range group.Monitors {
+			if monitor.Status == "down" {
+				hasDown = true
+			} else if monitor.Status == "unknown" {
+				hasUnknown = true
+			}
+		}
+	}
+
+	if hasDown {
+		overallStatus = "down"
+	} else if hasUnknown {
+		overallStatus = "degraded"
+	}
+
+	response := struct {
+		StatusPageName string              `json:"status_page_name"`
+		OverallStatus  string              `json:"overall_status"`
+		Groups         []PublicGroupView   `json:"groups"`
+		LastUpdated    time.Time           `json:"last_updated"`
+	}{
+		StatusPageName: statusPage.Name,
+		OverallStatus:  overallStatus,
+		Groups:         groups,
+		LastUpdated:    time.Now(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.logger.Printf("public_status API error: %v", err)
+		http.Error(w, "JSON encoding error", http.StatusInternalServerError)
 	}
 }
 

@@ -199,7 +199,7 @@
         </div>
     </div>
 
-    <div class="container">
+    <div class="container" id="status-container">
         {{if .Groups}}
             {{range .Groups}}
             <div class="group-section">
@@ -215,7 +215,7 @@
                         </div>
                     </div>
                     <div class="monitor-last-down">
-                        Last down: {{.LastChange.Format "2006-01-02 15:04:05"}}
+                        Last down: <span class="format-time" data-time="{{.LastDownTime.Format "2006-01-02T15:04:05Z07:00"}}">{{.LastDownTime.Local.Format "2006/01/02 15:04:05"}}</span>
                     </div>
                     <div class="monitor-status">
                         <span class="status-indicator {{if eq .Status "up"}}up{{else if eq .Status "down"}}down{{else}}unknown{{end}}"></span>
@@ -243,45 +243,164 @@
     </div>
 
     <script>
+        // Get the slug from the current URL
+        const slug = window.location.pathname.split('/status/')[1].replace('/', '');
+        const apiUrl = `/api/public/status/${slug}`;
+        
         // Update last updated time
-        function updateTime() {
-            const now = new Date();
-            document.getElementById('last-updated-time').textContent = now.toLocaleString();
+        function updateTime(timestamp) {
+            const date = timestamp ? new Date(timestamp) : new Date();
+            document.getElementById('last-updated-time').textContent = formatDate(date.toISOString());
         }
         updateTime();
 
-        // Calculate overall status
-        function updateOverallStatus() {
-            const statusIndicators = document.querySelectorAll('.status-indicator');
-            let hasDown = false;
-            let hasUnknown = false;
-
-            statusIndicators.forEach(indicator => {
-                if (indicator.classList.contains('down')) {
-                    hasDown = true;
-                } else if (indicator.classList.contains('unknown')) {
-                    hasUnknown = true;
+        // Format all time elements on initial load
+        function formatInitialTimes() {
+            document.querySelectorAll('.format-time').forEach(element => {
+                const isoTime = element.getAttribute('data-time');
+                if (isoTime) {
+                    element.textContent = formatDate(isoTime);
                 }
             });
+        }
+        formatInitialTimes();
 
+        // Calculate and update overall status
+        function updateOverallStatus(status) {
             const overallStatus = document.getElementById('overall-status');
-            if (hasDown) {
-                overallStatus.textContent = 'Some Systems Down';
-                overallStatus.className = 'overall-status status-down';
-            } else if (hasUnknown) {
-                overallStatus.textContent = 'Some Systems Unknown';
-                overallStatus.className = 'overall-status status-degraded';
-            } else {
-                overallStatus.textContent = 'All Systems Operational';
-                overallStatus.className = 'overall-status status-operational';
+            
+            switch(status) {
+                case 'down':
+                    overallStatus.textContent = 'Some Systems Down';
+                    overallStatus.className = 'overall-status status-down';
+                    break;
+                case 'degraded':
+                    overallStatus.textContent = 'Some Systems Unknown';
+                    overallStatus.className = 'overall-status status-degraded';
+                    break;
+                default:
+                    overallStatus.textContent = 'All Systems Operational';
+                    overallStatus.className = 'overall-status status-operational';
             }
         }
-        updateOverallStatus();
 
-        // Auto-refresh every 30 seconds
-        setInterval(() => {
-            window.location.reload();
-        }, 30000);
+        // Format date for display in YYYY/MM/DD HH:MM:SS format
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        // Get status text for display
+        function getStatusText(status) {
+            switch(status) {
+                case 'up': return 'Operational';
+                case 'down': return 'Down';
+                default: return 'Unknown';
+            }
+        }
+
+        // Update the status page content dynamically
+        function updateStatusPage(data) {
+            // Update overall status
+            updateOverallStatus(data.overall_status);
+            
+            // Update last updated time
+            updateTime(data.last_updated);
+            
+            // Update groups and monitors
+            const container = document.getElementById('status-container');
+            
+            if (data.groups && data.groups.length > 0) {
+                let html = '';
+                
+                data.groups.forEach(group => {
+                    html += `<div class="group-section">`;
+                    html += `<h2 class="group-title">${group.name}</h2>`;
+                    
+                    group.monitors.forEach(monitor => {
+                        const statusClass = monitor.status === 'up' ? 'up' : monitor.status === 'down' ? 'down' : 'unknown';
+                        const statusText = getStatusText(monitor.status);
+                        const lastDownTime = formatDate(monitor.last_down_time);
+                        
+                        html += `<div class="monitor-item">`;
+                        html += `  <div class="monitor-info">`;
+                        html += `    <div class="monitor-name">${monitor.name}</div>`;
+                        html += `    <div class="monitor-details">`;
+                        if (monitor.last_latency > 0) {
+                            html += `      Response time: ${monitor.last_latency}ms`;
+                        }
+                        html += `    </div>`;
+                        html += `  </div>`;
+                        html += `  <div class="monitor-last-down">`;
+                        html += `    Last down: ${lastDownTime}`;
+                        html += `  </div>`;
+                        html += `  <div class="monitor-status">`;
+                        html += `    <span class="status-indicator ${statusClass}"></span>`;
+                        html += `    <span class="status-text ${statusClass}">${statusText}</span>`;
+                        html += `  </div>`;
+                        html += `</div>`;
+                    });
+                    
+                    html += `</div>`;
+                });
+                
+                container.innerHTML = html + `
+                    <div class="last-updated">
+                        Last updated: <span id="last-updated-time">${formatDate(data.last_updated)}</span>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="group-section">
+                        <p style="text-align: center; color: #666;">No monitors configured for this status page.</p>
+                    </div>
+                    <div class="last-updated">
+                        Last updated: <span id="last-updated-time">${formatDate(data.last_updated)}</span>
+                    </div>
+                `;
+            }
+        }
+
+        // Fetch status data from API
+        async function fetchStatusData() {
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                updateStatusPage(data);
+            } catch (error) {
+                console.error('Failed to fetch status data:', error);
+                // Keep the existing content on error
+            }
+        }
+
+        // Initial load - calculate status from existing content
+        const statusIndicators = document.querySelectorAll('.status-indicator');
+        let hasDown = false;
+        let hasUnknown = false;
+        statusIndicators.forEach(indicator => {
+            if (indicator.classList.contains('down')) {
+                hasDown = true;
+            } else if (indicator.classList.contains('unknown')) {
+                hasUnknown = true;
+            }
+        });
+        const initialStatus = hasDown ? 'down' : hasUnknown ? 'degraded' : 'operational';
+        updateOverallStatus(initialStatus);
+
+        // Auto-refresh every 30 seconds using API
+        setInterval(fetchStatusData, 30000);
+        
+        // Also fetch immediately after a short delay to get fresh data
+        setTimeout(fetchStatusData, 2000);
     </script>
 </body>
 </html>
