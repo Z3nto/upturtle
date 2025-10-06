@@ -1592,20 +1592,6 @@ func (s *Server) isUsingDatabaseAuth() bool {
 	return s.configDB != nil
 }
 
-// loadUsersFromDatabase refreshes the users cache from database
-func (s *Server) loadUsersFromDatabase() error {
-	if s.configDB == nil {
-		return nil
-	}
-	
-	users, err := s.configDB.GetAllUsers()
-	if err != nil {
-		return err
-	}
-	
-	s.users = users
-	return nil
-}
 
 // authenticateUser validates username/password and returns user data
 func (s *Server) authenticateUser(username, password string) (*database.UserData, error) {
@@ -1798,39 +1784,6 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
-// isAuthenticated checks for a valid session cookie.
-func (s *Server) isAuthenticated(r *http.Request) bool {
-	if s.adminUser == "" || s.adminPassword == "" {
-		s.authDebugf("No admin credentials configured, allowing access")
-		return true
-	}
-	c, err := r.Cookie("upturtle_session")
-	if err != nil {
-		s.authDebugf("No session cookie found: %v", err)
-		return false
-	}
-	if c.Value == "" {
-		s.authDebugf("Empty session cookie value")
-		return false
-	}
-	id := c.Value
-	s.authDebugf("Checking session: ID='%s'...", id[:8])
-	if exp, ok := s.sessions[id]; ok {
-		now := time.Now()
-		if now.Before(exp) {
-			s.authDebugf("Session valid: expires in %v", exp.Sub(now))
-			return true
-		} else {
-			s.authDebugf("Session expired: was valid until %s", exp.Format(time.RFC3339))
-			// Clean up expired session
-			delete(s.sessions, id)
-			delete(s.csrfTokens, id)
-		}
-	} else {
-		s.authDebugf("Session not found in server memory")
-	}
-	return false
-}
 
 // ensureAuth protects API routes. If admin credentials are configured, accept either
 // a valid logged-in session OR valid HTTP Basic credentials.
@@ -1905,62 +1858,7 @@ func (s *Server) verifyPassword(password string) bool {
 	return true
 }
 
-// createSession creates a new session and sets a cookie.
-func (s *Server) createSession(w http.ResponseWriter, r *http.Request) error {
-	s.authDebugf("Creating session for %s, User-Agent: %s", r.RemoteAddr, r.UserAgent())
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		s.logger.Printf("[ERROR] Failed to generate session ID: %v", err)
-		return err
-	}
-	id := hex.EncodeToString(b)
-	// 24h session
-	expiry := time.Now().Add(24 * time.Hour)
-	s.sessions[id] = expiry
-	s.authDebugf("Session created: ID='%s', expires=%s", id[:8]+"...", expiry.Format(time.RFC3339))
 
-	// Clean up any temporary CSRF token for this client
-	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-	delete(s.csrfTokens, tempKey)
-	s.authDebugf("Cleaned up temporary CSRF token: '%s'", tempKey)
-
-	// Check if request is over HTTPS
-	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
-	s.authDebugf("Request is HTTPS: %t (TLS: %t, X-Forwarded-Proto: %s)", isHTTPS, r.TLS != nil, r.Header.Get("X-Forwarded-Proto"))
-
-	cookie := &http.Cookie{
-		Name:     "upturtle_session",
-		Value:    id,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   isHTTPS,              // Only secure if actually HTTPS
-		SameSite: http.SameSiteLaxMode, // Changed from Strict to Lax for better compatibility
-		Expires:  expiry,
-	}
-	s.authDebugf("Setting cookie: Name=%s, Secure=%t, SameSite=%v, HttpOnly=%t", cookie.Name, cookie.Secure, cookie.SameSite, cookie.HttpOnly)
-	http.SetCookie(w, cookie)
-	s.authDebugf("Session cookie set successfully")
-	return nil
-}
-
-func (s *Server) destroySession(w http.ResponseWriter, r *http.Request) {
-	c, err := r.Cookie("upturtle_session")
-	if err == nil && c.Value != "" {
-		delete(s.sessions, c.Value)
-		// Also remove CSRF token for this session
-		delete(s.csrfTokens, c.Value)
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     "upturtle_session",
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-	})
-}
 
 // ==== CSRF Protection =========================================================
 
@@ -2613,14 +2511,18 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			// Set the persistent config database connection
 			s.configDB = db
 
-			// Store admin credentials in database for future use
-			if err := db.SaveSetting("admin_username", user); err != nil {
-				s.logger.Printf("Warning: Failed to save admin username to database: %v", err)
+			// Create admin user in database
+			adminUser := database.UserData{
+				Username:     user,
+				PasswordHash: string(hash),
+				Role:         database.UserRoleAdmin,
+				Enabled:      true,
 			}
-			if err := db.SaveSetting("admin_password_hash", string(hash)); err != nil {
-				s.logger.Printf("Warning: Failed to save admin password hash to database: %v", err)
+			
+			if savedUser, err := db.SaveUser(adminUser); err != nil {
+				s.logger.Printf("Warning: Failed to save admin user to database: %v", err)
 			} else {
-				s.logger.Printf("Admin credentials saved to database")
+				s.logger.Printf("Admin user '%s' created in database with ID %d", savedUser.Username, savedUser.ID)
 			}
 
 			// Store all other configurations in database as well
@@ -2753,9 +2655,30 @@ func (s *Server) saveConfig() error {
 
 	// If database is configured, save everything to database and minimal config to file
 	if s.databaseConfig != nil && s.configDB != nil {
-		// Save admin credentials to database
-		s.configDB.SaveSetting("admin_username", s.adminUser)
-		s.configDB.SaveSetting("admin_password_hash", s.adminPassword)
+		// Create or update admin user in database
+		if s.adminUser != "" && s.adminPassword != "" {
+			adminUser := database.UserData{
+				Username:     s.adminUser,
+				PasswordHash: s.adminPassword,
+				Role:         database.UserRoleAdmin,
+				Enabled:      true,
+			}
+			
+			// Check if admin user already exists
+			existingUser, err := s.configDB.GetUserByUsername(s.adminUser)
+			if err == nil && existingUser != nil {
+				// Update existing user
+				adminUser.ID = existingUser.ID
+				if _, err := s.configDB.SaveUser(adminUser); err != nil {
+					s.logger.Printf("Warning: Failed to update admin user in database: %v", err)
+				}
+			} else {
+				// Create new user
+				if _, err := s.configDB.SaveUser(adminUser); err != nil {
+					s.logger.Printf("Warning: Failed to save admin user to database: %v", err)
+				}
+			}
+		}
 
 		// Save groups to database
 		for _, group := range s.groups {
@@ -2996,9 +2919,10 @@ func (s *Server) handleAdminStatusPagesConfig(w http.ResponseWriter, r *http.Req
 	defaultGroups := make([]config.GroupConfig, 0)
 	statuspageGroups := make([]config.GroupConfig, 0)
 	for _, g := range s.groups {
-		if g.Type == "" || g.Type == config.GroupTypeDefault {
+		switch g.Type {
+		case "", config.GroupTypeDefault:
 			defaultGroups = append(defaultGroups, g)
-		} else if g.Type == config.GroupTypeStatusPage {
+		case config.GroupTypeStatusPage:
 			statuspageGroups = append(statuspageGroups, g)
 		}
 	}
@@ -3268,9 +3192,10 @@ func (s *Server) handlePublicStatusPageAPI(w http.ResponseWriter, r *http.Reques
 
 	for _, group := range groups {
 		for _, monitor := range group.Monitors {
-			if monitor.Status == "down" {
+			switch monitor.Status {
+			case "down":
 				hasDown = true
-			} else if monitor.Status == "unknown" {
+			case "unknown":
 				hasUnknown = true
 			}
 		}
