@@ -201,8 +201,6 @@ type Server struct {
 	databaseConfig *database.Config
 	// persistent database connection (only for config storage)
 	configDB database.Database
-	// users cache for performance (only when using database)
-	users []database.UserData
 }
 
 // Config holds the parameters for creating a server instance.
@@ -411,19 +409,10 @@ func (s *Server) buildAdminData(r *http.Request, success, failure string) AdminP
 		groups = append(groups, AdminGroupView{ID: g, Name: s.getGroupName(g), Monitors: mons})
 	}
 	return AdminPageData{
-		BasePageData: BasePageData{
-			Title:             "Administration",
-			ContentTemplate:   "admin.content",
-			CSRFToken:         s.getCSRFToken(r),
-			DatabaseEnabled:   s.manager.HasDatabaseIntegration(),
-			DatabaseHealthy:   s.manager.IsDatabaseHealthy(),
-			DatabaseError:     s.manager.GetDatabaseError(),
-			ShowMemoryDisplay: s.showMemoryDisplay,
-		},
-		Groups:        groups,
-		Notifications: s.notifications,
-		Error:         failure,
-		Success:       success,
+		BasePageData: s.createBasePageData(r, "Administration", "admin.content"),
+		Groups:       groups,
+		Error:        failure,
+		Success:      success,
 	}
 }
 
@@ -459,11 +448,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		Error             string
 		Success           string
 	}{
-		BasePageData: BasePageData{
-			Title:           "Settings",
-			ContentTemplate: "settings.content",
-			CSRFToken:       s.getCSRFToken(r),
-		},
+		BasePageData:      s.createBasePageData(r, "Settings", "settings.content"),
 		MonitorDebug:      s.monitorDebug,
 		NotificationDebug: s.notificationDebug,
 		ApiDebug:          s.apiDebug,
@@ -1418,12 +1403,7 @@ func (s *Server) handleAdminNotifications(w http.ResponseWriter, r *http.Request
 			Error         string
 			Success       string
 		}{
-			BasePageData: BasePageData{
-				Title:             "Notifications",
-				ContentTemplate:   "notifications.content",
-				CSRFToken:         s.getCSRFToken(r),
-				ShowMemoryDisplay: s.showMemoryDisplay,
-			},
+			BasePageData:  s.createBasePageData(r, "Notifications", "notifications.content"),
 			Notifications: append([]config.NotificationConfig(nil), s.notifications...),
 			Error:         r.URL.Query().Get("error"),
 			Success:       r.URL.Query().Get("success"),
@@ -1469,9 +1449,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		isPublic := s.isPublicPath(r.URL.Path)
 		currentUser := s.getCurrentUser(r)
 		isAuth := currentUser != nil
-		
+
 		s.authDebugf("Auth middleware: path='%s', isPublic=%t, isAuthenticated=%t", r.URL.Path, isPublic, isAuth)
-		
+
 		if isAuth {
 			s.authDebugf("Authenticated user: %s (role: %s)", currentUser.Username, currentUser.Role)
 		}
@@ -1482,12 +1462,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/login", http.StatusSeeOther)
 				return
 			}
-			
+
 			// Check role-based permissions
 			if !s.hasPermission(currentUser, r.URL.Path) {
 				s.authDebugf("Access denied for user %s (role: %s) to path %s", currentUser.Username, currentUser.Role, r.URL.Path)
 				http.Error(w, "Access denied", http.StatusForbidden)
 				return
+			}
+		} else {
+			// For public paths, we still log if user is authenticated for debugging
+			if isAuth {
+				s.authDebugf("Public path accessed by authenticated user: %s (role: %s)", currentUser.Username, currentUser.Role)
 			}
 		}
 	}
@@ -1512,18 +1497,18 @@ func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
 	if sessionID == "" {
 		return nil
 	}
-	
+
 	// Check if session exists and is valid
 	if expiry, exists := s.sessions[sessionID]; !exists || time.Now().After(expiry) {
 		return nil
 	}
-	
+
 	// Get user ID from session
 	userID, exists := s.userSessions[sessionID]
 	if !exists {
 		return nil
 	}
-	
+
 	// Find user in cache or database
 	if s.configDB != nil {
 		// Use database
@@ -1533,7 +1518,7 @@ func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
 		}
 		return user
 	}
-	
+
 	// Legacy mode: check if this is the admin user
 	if s.adminUser != "" && userID == -1 {
 		return &database.UserData{
@@ -1543,7 +1528,7 @@ func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
 			Enabled:  true,
 		}
 	}
-	
+
 	return nil
 }
 
@@ -1552,18 +1537,18 @@ func (s *Server) hasPermission(user *database.UserData, path string) bool {
 	if user == nil {
 		return false
 	}
-	
+
 	if !user.Enabled {
 		return false
 	}
-	
+
 	switch user.Role {
 	case database.UserRoleAdmin:
 		// Admin can access everything
 		return true
 	case database.UserRoleWrite:
 		// Write users can access admin, notifications, and status pages
-		if path == "/" || strings.HasPrefix(path, "/static/") || strings.HasPrefix(path, "/status/") {
+		if path == "/" || strings.HasPrefix(path, "/static/") || strings.HasPrefix(path, "/status/") || strings.HasPrefix(path, "/logout") {
 			return true
 		}
 		if path == "/admin" || strings.HasPrefix(path, "/admin/notifications") || strings.HasPrefix(path, "/admin/statuspages") {
@@ -1575,10 +1560,10 @@ func (s *Server) hasPermission(user *database.UserData, path string) bool {
 		return false
 	case database.UserRoleReadOnly:
 		// ReadOnly users can only access main status page and public resources
-		if path == "/" || strings.HasPrefix(path, "/static/") || strings.HasPrefix(path, "/status/") {
+		if path == "/" || strings.HasPrefix(path, "/static/") || strings.HasPrefix(path, "/status/") || strings.HasPrefix(path, "/logout") {
 			return true
 		}
-		if strings.HasPrefix(path, "/api/public/") {
+		if strings.HasPrefix(path, "/api/public/") || strings.HasPrefix(path, "/api/status") || strings.HasPrefix(path, "/api/memory") {
 			return true
 		}
 		return false
@@ -1592,7 +1577,6 @@ func (s *Server) isUsingDatabaseAuth() bool {
 	return s.configDB != nil
 }
 
-
 // authenticateUser validates username/password and returns user data
 func (s *Server) authenticateUser(username, password string) (*database.UserData, error) {
 	if s.configDB != nil {
@@ -1601,16 +1585,16 @@ func (s *Server) authenticateUser(username, password string) (*database.UserData
 		if err != nil {
 			return nil, fmt.Errorf("user not found")
 		}
-		
+
 		if !user.Enabled {
 			return nil, fmt.Errorf("user disabled")
 		}
-		
+
 		// Verify password
 		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 			return nil, fmt.Errorf("invalid password")
 		}
-		
+
 		return user, nil
 	} else {
 		// Legacy mode: authenticate against admin credentials
@@ -1618,7 +1602,7 @@ func (s *Server) authenticateUser(username, password string) (*database.UserData
 			if err := bcrypt.CompareHashAndPassword([]byte(s.adminPassword), []byte(password)); err != nil {
 				return nil, fmt.Errorf("invalid password")
 			}
-			
+
 			return &database.UserData{
 				ID:       -1, // Special ID for legacy admin
 				Username: s.adminUser,
@@ -1626,7 +1610,7 @@ func (s *Server) authenticateUser(username, password string) (*database.UserData
 				Enabled:  true,
 			}, nil
 		}
-		
+
 		return nil, fmt.Errorf("user not found")
 	}
 }
@@ -1634,7 +1618,7 @@ func (s *Server) authenticateUser(username, password string) (*database.UserData
 // createUserSession creates a session for the authenticated user
 func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user *database.UserData) error {
 	s.authDebugf("Creating session for user %s with role %s", user.Username, user.Role)
-	
+
 	// Generate session ID
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -1642,19 +1626,19 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 		return err
 	}
 	sessionID := hex.EncodeToString(b)
-	
+
 	// Set session expiry (24 hours)
 	expiry := time.Now().Add(24 * time.Hour)
 	s.sessions[sessionID] = expiry
 	s.userSessions[sessionID] = user.ID
-	
+
 	// Clean up any temporary CSRF token for this client
 	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 	delete(s.csrfTokens, tempKey)
-	
+
 	// Check if request is over HTTPS
 	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
-	
+
 	// Set session cookie
 	cookie := &http.Cookie{
 		Name:     "upturtle_session",
@@ -1666,7 +1650,7 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 		Secure:   isHTTPS,
 	}
 	http.SetCookie(w, cookie)
-	
+
 	s.authDebugf("User session created: user=%s, role=%s, sessionID=%s", user.Username, user.Role, sessionID[:8]+"...")
 	return nil
 }
@@ -1679,10 +1663,10 @@ func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 		delete(s.userSessions, c.Value)
 		delete(s.csrfTokens, c.Value)
 	}
-	
+
 	// Check if request is over HTTPS
 	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
-	
+
 	// Clear session cookie
 	cookie := &http.Cookie{
 		Name:     "upturtle_session",
@@ -1696,7 +1680,6 @@ func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, cookie)
 }
 
-
 // ==== Auth & Sessions =========================================================
 
 // handleLogin renders and processes the login form.
@@ -1707,7 +1690,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	
+
 	// Check if already authenticated
 	if s.getCurrentUser(r) != nil {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -1784,7 +1767,6 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
-
 // ensureAuth protects API routes. If admin credentials are configured, accept either
 // a valid logged-in session OR valid HTTP Basic credentials.
 func (s *Server) ensureAuth(w http.ResponseWriter, r *http.Request) bool {
@@ -1857,8 +1839,6 @@ func (s *Server) verifyPassword(password string) bool {
 	s.authDebugf("Password verification successful")
 	return true
 }
-
-
 
 // ==== CSRF Protection =========================================================
 
@@ -2073,7 +2053,7 @@ func (s *Server) cleanupExpiredSessions() {
 
 // handleStatus serves the main status page
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	data := s.buildStatusData()
+	data := s.buildStatusData(r)
 	if err := s.templates.ExecuteTemplate(w, "status.gohtml", data); err != nil {
 		s.logger.Printf("status template error: %v", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
@@ -2120,7 +2100,7 @@ func (s *Server) handleAPIHistory(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(apiHistory)
 }
 
-func (s *Server) buildStatusData() StatusPageData {
+func (s *Server) buildStatusData(r *http.Request) StatusPageData {
 	snapshots := s.manager.List()
 	// Build a quick lookup of monitor status by ID (for master dependency)
 	statusByID := make(map[string]monitor.Status, len(snapshots))
@@ -2169,17 +2149,15 @@ func (s *Server) buildStatusData() StatusPageData {
 		})
 		views = append(views, StatusGroupView{Name: s.getGroupName(gid), Monitors: mons})
 	}
+	baseData := s.createBasePageData(r, "Service Status", "status.content")
+	baseData.RefreshSeconds = 0
+	baseData.DatabaseEnabled = s.manager.HasDatabaseIntegration()
+	baseData.DatabaseHealthy = s.manager.IsDatabaseHealthy()
+	baseData.DatabaseError = s.manager.GetDatabaseError()
+	
 	return StatusPageData{
-		BasePageData: BasePageData{
-			Title:             "Service Status",
-			RefreshSeconds:    0,
-			ContentTemplate:   "status.content",
-			DatabaseEnabled:   s.manager.HasDatabaseIntegration(),
-			DatabaseHealthy:   s.manager.IsDatabaseHealthy(),
-			DatabaseError:     s.manager.GetDatabaseError(),
-			ShowMemoryDisplay: s.showMemoryDisplay,
-		},
-		Groups: views,
+		BasePageData: baseData,
+		Groups:       views,
 	}
 }
 
@@ -2260,6 +2238,20 @@ type BasePageData struct {
 	DatabaseError   string
 	// UI settings
 	ShowMemoryDisplay bool
+	// Current user information for menu rendering
+	CurrentUser *database.UserData
+}
+
+// createBasePageData creates BasePageData with current user information
+func (s *Server) createBasePageData(r *http.Request, title, contentTemplate string) BasePageData {
+	return BasePageData{
+		Title:             title,
+		ContentTemplate:   contentTemplate,
+		CSRFToken:         s.getCSRFToken(r),
+		DatabaseEnabled:   s.configDB != nil,
+		ShowMemoryDisplay: s.showMemoryDisplay,
+		CurrentUser:       s.getCurrentUser(r),
+	}
 }
 
 // StatusGroupView is used by the public status page
@@ -2338,9 +2330,9 @@ type PublicMonitorView struct {
 
 // PublicGroupView is used by public status pages
 type PublicGroupView struct {
-	ID       int                   `json:"id"`
-	Name     string                `json:"name"`
-	Monitors []PublicMonitorView   `json:"monitors"`
+	ID       int                 `json:"id"`
+	Name     string              `json:"name"`
+	Monitors []PublicMonitorView `json:"monitors"`
 }
 
 const historyPreview = 20
@@ -2351,14 +2343,14 @@ func getLastDownTime(snap monitor.Snapshot) time.Time {
 	if snap.Status == monitor.StatusDown {
 		return snap.LastChange
 	}
-	
+
 	// Look through history for the most recent failed check
 	for i := len(snap.History) - 1; i >= 0; i-- {
 		if !snap.History[i].Success {
 			return snap.History[i].Timestamp
 		}
 	}
-	
+
 	// If no failed checks found in history, return last change time as fallback
 	return snap.LastChange
 }
@@ -2518,7 +2510,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 				Role:         database.UserRoleAdmin,
 				Enabled:      true,
 			}
-			
+
 			if savedUser, err := db.SaveUser(adminUser); err != nil {
 				s.logger.Printf("Warning: Failed to save admin user to database: %v", err)
 			} else {
@@ -2663,7 +2655,7 @@ func (s *Server) saveConfig() error {
 				Role:         database.UserRoleAdmin,
 				Enabled:      true,
 			}
-			
+
 			// Check if admin user already exists
 			existingUser, err := s.configDB.GetUserByUsername(s.adminUser)
 			if err == nil && existingUser != nil {
@@ -2865,15 +2857,10 @@ func (s *Server) handleAdminStatusPages(w http.ResponseWriter, r *http.Request) 
 		Error       string
 		Success     string
 	}{
-		BasePageData: BasePageData{
-			Title:             "Status Pages",
-			ContentTemplate:   "statuspages.content",
-			CSRFToken:         s.getCSRFToken(r),
-			ShowMemoryDisplay: s.showMemoryDisplay,
-		},
-		StatusPages: append([]config.StatusPageConfig(nil), s.statusPages...),
-		Error:       r.URL.Query().Get("error"),
-		Success:     r.URL.Query().Get("success"),
+		BasePageData: s.createBasePageData(r, "Status Pages", "statuspages.content"),
+		StatusPages:  append([]config.StatusPageConfig(nil), s.statusPages...),
+		Error:        r.URL.Query().Get("error"),
+		Success:      r.URL.Query().Get("success"),
 	}
 
 	if err := s.templates.ExecuteTemplate(w, "statuspages.gohtml", data); err != nil {
@@ -3208,10 +3195,10 @@ func (s *Server) handlePublicStatusPageAPI(w http.ResponseWriter, r *http.Reques
 	}
 
 	response := struct {
-		StatusPageName string              `json:"status_page_name"`
-		OverallStatus  string              `json:"overall_status"`
-		Groups         []PublicGroupView   `json:"groups"`
-		LastUpdated    time.Time           `json:"last_updated"`
+		StatusPageName string            `json:"status_page_name"`
+		OverallStatus  string            `json:"overall_status"`
+		Groups         []PublicGroupView `json:"groups"`
+		LastUpdated    time.Time         `json:"last_updated"`
 	}{
 		StatusPageName: statusPage.Name,
 		OverallStatus:  overallStatus,
@@ -3501,29 +3488,25 @@ func (s *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 			UsingDatabaseAuth bool
 			Users             []database.UserData
 		}{
-			BasePageData: BasePageData{
-				Title:           "User Management",
-				ContentTemplate: "users.content",
-				CSRFToken:       s.getCSRFToken(r),
-			},
+			BasePageData:      s.createBasePageData(r, "User Management", "users.content"),
 			UsingDatabaseAuth: false,
 			Users:             []database.UserData{},
 		}
-		
+
 		if err := s.templates.ExecuteTemplate(w, "users.gohtml", data); err != nil {
 			s.logger.Printf("users template error: %v", err)
 			http.Error(w, "template error", http.StatusInternalServerError)
 		}
 		return
 	}
-	
+
 	// Check if current user has admin permissions
 	currentUser := s.getCurrentUser(r)
 	if currentUser == nil || currentUser.Role != database.UserRoleAdmin {
 		http.Error(w, "Access denied", http.StatusForbidden)
 		return
 	}
-	
+
 	// Load users from database
 	users, err := s.configDB.GetAllUsers()
 	if err != nil {
@@ -3531,21 +3514,17 @@ func (s *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to load users", http.StatusInternalServerError)
 		return
 	}
-	
+
 	data := struct {
 		BasePageData
 		UsingDatabaseAuth bool
 		Users             []database.UserData
 	}{
-		BasePageData: BasePageData{
-			Title:           "User Management",
-			ContentTemplate: "users.content",
-			CSRFToken:       s.getCSRFToken(r),
-		},
+		BasePageData:      s.createBasePageData(r, "User Management", "users.content"),
 		UsingDatabaseAuth: true,
 		Users:             users,
 	}
-	
+
 	if err := s.templates.ExecuteTemplate(w, "users.gohtml", data); err != nil {
 		s.logger.Printf("users template error: %v", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
@@ -3559,24 +3538,24 @@ func (s *Server) handleAPIUsersUnified(w http.ResponseWriter, r *http.Request) {
 	if s.apiDebug {
 		s.logger.Printf("[API DEBUG] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
 	}
-	
+
 	// Only allow access if using database authentication
 	if !s.isUsingDatabaseAuth() {
 		http.Error(w, "User management only available with database authentication", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Check if current user has admin permissions
 	currentUser := s.getCurrentUser(r)
 	if currentUser == nil || currentUser.Role != database.UserRoleAdmin {
 		http.Error(w, "Access denied", http.StatusForbidden)
 		return
 	}
-	
+
 	rest := strings.TrimPrefix(r.URL.Path, "/api/users/")
 	rest = strings.TrimPrefix(rest, "/api/users")
 	rest = strings.Trim(rest, "/")
-	
+
 	if rest == "" {
 		// Collection operations
 		s.handleAPIUsersCollection(w, r)
@@ -3620,17 +3599,17 @@ func (s *Server) handleAPIUsersGet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get users", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Remove password hashes from response for security
 	type UserResponse struct {
-		ID        int                `json:"id"`
-		Username  string             `json:"username"`
-		Role      database.UserRole  `json:"role"`
-		Enabled   bool               `json:"enabled"`
-		CreatedAt time.Time          `json:"created_at"`
-		UpdatedAt time.Time          `json:"updated_at"`
+		ID        int               `json:"id"`
+		Username  string            `json:"username"`
+		Role      database.UserRole `json:"role"`
+		Enabled   bool              `json:"enabled"`
+		CreatedAt time.Time         `json:"created_at"`
+		UpdatedAt time.Time         `json:"updated_at"`
 	}
-	
+
 	var response []UserResponse
 	for _, user := range users {
 		response = append(response, UserResponse{
@@ -3642,7 +3621,7 @@ func (s *Server) handleAPIUsersGet(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: user.UpdatedAt,
 		})
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -3654,23 +3633,23 @@ func (s *Server) handleAPIUsersGetOne(w http.ResponseWriter, r *http.Request, us
 		http.Error(w, "invalid user ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	user, err := s.configDB.GetUser(userID)
 	if err != nil {
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// Remove password hash from response for security
 	type UserResponse struct {
-		ID        int                `json:"id"`
-		Username  string             `json:"username"`
-		Role      database.UserRole  `json:"role"`
-		Enabled   bool               `json:"enabled"`
-		CreatedAt time.Time          `json:"created_at"`
-		UpdatedAt time.Time          `json:"updated_at"`
+		ID        int               `json:"id"`
+		Username  string            `json:"username"`
+		Role      database.UserRole `json:"role"`
+		Enabled   bool              `json:"enabled"`
+		CreatedAt time.Time         `json:"created_at"`
+		UpdatedAt time.Time         `json:"updated_at"`
 	}
-	
+
 	response := UserResponse{
 		ID:        user.ID,
 		Username:  user.Username,
@@ -3679,7 +3658,7 @@ func (s *Server) handleAPIUsersGetOne(w http.ResponseWriter, r *http.Request, us
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -3692,12 +3671,12 @@ func (s *Server) handleAPIUsersCreate(w http.ResponseWriter, r *http.Request) {
 		Role     database.UserRole `json:"role"`
 		Enabled  bool              `json:"enabled"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate input
 	if req.Username == "" {
 		http.Error(w, "username is required", http.StatusBadRequest)
@@ -3710,13 +3689,13 @@ func (s *Server) handleAPIUsersCreate(w http.ResponseWriter, r *http.Request) {
 	if req.Role == "" {
 		req.Role = database.UserRoleReadOnly // Default role
 	}
-	
+
 	// Validate role
 	if req.Role != database.UserRoleReadOnly && req.Role != database.UserRoleWrite && req.Role != database.UserRoleAdmin {
 		http.Error(w, "invalid role", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Hash password
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -3724,7 +3703,7 @@ func (s *Server) handleAPIUsersCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to process password", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Create user
 	user := database.UserData{
 		Username:     req.Username,
@@ -3732,24 +3711,24 @@ func (s *Server) handleAPIUsersCreate(w http.ResponseWriter, r *http.Request) {
 		Role:         req.Role,
 		Enabled:      req.Enabled,
 	}
-	
+
 	savedUser, err := s.configDB.SaveUser(user)
 	if err != nil {
 		s.logger.Printf("Failed to create user: %v", err)
 		http.Error(w, "Failed to create user", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Return created user (without password hash)
 	type UserResponse struct {
-		ID        int                `json:"id"`
-		Username  string             `json:"username"`
-		Role      database.UserRole  `json:"role"`
-		Enabled   bool               `json:"enabled"`
-		CreatedAt time.Time          `json:"created_at"`
-		UpdatedAt time.Time          `json:"updated_at"`
+		ID        int               `json:"id"`
+		Username  string            `json:"username"`
+		Role      database.UserRole `json:"role"`
+		Enabled   bool              `json:"enabled"`
+		CreatedAt time.Time         `json:"created_at"`
+		UpdatedAt time.Time         `json:"updated_at"`
 	}
-	
+
 	response := UserResponse{
 		ID:        savedUser.ID,
 		Username:  savedUser.Username,
@@ -3758,7 +3737,7 @@ func (s *Server) handleAPIUsersCreate(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: savedUser.CreatedAt,
 		UpdatedAt: savedUser.UpdatedAt,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
@@ -3771,43 +3750,43 @@ func (s *Server) handleAPIUsersUpdate(w http.ResponseWriter, r *http.Request, us
 		http.Error(w, "invalid user ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Get existing user
 	existingUser, err := s.configDB.GetUser(userID)
 	if err != nil {
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
-	
+
 	var req struct {
 		Username string            `json:"username"`
 		Password string            `json:"password,omitempty"` // Optional for updates
 		Role     database.UserRole `json:"role"`
 		Enabled  bool              `json:"enabled"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate input
 	if req.Username == "" {
 		http.Error(w, "username is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate role
 	if req.Role != database.UserRoleReadOnly && req.Role != database.UserRoleWrite && req.Role != database.UserRoleAdmin {
 		http.Error(w, "invalid role", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Update user data
 	existingUser.Username = req.Username
 	existingUser.Role = req.Role
 	existingUser.Enabled = req.Enabled
-	
+
 	// Update password if provided
 	if req.Password != "" {
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -3818,7 +3797,7 @@ func (s *Server) handleAPIUsersUpdate(w http.ResponseWriter, r *http.Request, us
 		}
 		existingUser.PasswordHash = string(passwordHash)
 	}
-	
+
 	// Save updated user
 	savedUser, err := s.configDB.SaveUser(*existingUser)
 	if err != nil {
@@ -3826,17 +3805,17 @@ func (s *Server) handleAPIUsersUpdate(w http.ResponseWriter, r *http.Request, us
 		http.Error(w, "Failed to update user", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Return updated user (without password hash)
 	type UserResponse struct {
-		ID        int                `json:"id"`
-		Username  string             `json:"username"`
-		Role      database.UserRole  `json:"role"`
-		Enabled   bool               `json:"enabled"`
-		CreatedAt time.Time          `json:"created_at"`
-		UpdatedAt time.Time          `json:"updated_at"`
+		ID        int               `json:"id"`
+		Username  string            `json:"username"`
+		Role      database.UserRole `json:"role"`
+		Enabled   bool              `json:"enabled"`
+		CreatedAt time.Time         `json:"created_at"`
+		UpdatedAt time.Time         `json:"updated_at"`
 	}
-	
+
 	response := UserResponse{
 		ID:        savedUser.ID,
 		Username:  savedUser.Username,
@@ -3845,7 +3824,7 @@ func (s *Server) handleAPIUsersUpdate(w http.ResponseWriter, r *http.Request, us
 		CreatedAt: savedUser.CreatedAt,
 		UpdatedAt: savedUser.UpdatedAt,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -3857,28 +3836,28 @@ func (s *Server) handleAPIUsersDelete(w http.ResponseWriter, r *http.Request, us
 		http.Error(w, "invalid user ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Prevent deleting the current user
 	currentUser := s.getCurrentUser(r)
 	if currentUser != nil && currentUser.ID == userID {
 		http.Error(w, "cannot delete current user", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Check if user exists
 	_, err = s.configDB.GetUser(userID)
 	if err != nil {
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// Delete user
 	if err := s.configDB.DeleteUser(userID); err != nil {
 		s.logger.Printf("Failed to delete user: %v", err)
 		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"success":true}`))
 }

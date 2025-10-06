@@ -395,17 +395,36 @@
             <button class="nav-toggle" aria-label="Toggle navigation" aria-controls="primary-links" aria-expanded="false">☰</button>
             <div id="primary-links" class="nav-links">
                 <a href="/">Status</a>
-                <div class="menu">
-                    <a href="/admin" aria-haspopup="true" aria-expanded="false">Admin ▾</a>
-                    <div class="submenu" role="menu" aria-label="Admin submenu">
-                        <a href="/admin" role="menuitem">Monitors</a>
-                        <a href="/admin/notifications" role="menuitem">Notifications</a>
-                        <a href="/admin/statuspages" role="menuitem">Status Pages</a>
-                        <a href="/admin/users" role="menuitem">Users</a>
-                        <a href="/admin/settings" role="menuitem">Settings</a>
+                {{if .CurrentUser}}
+                    {{if ne .CurrentUser.Role "readonly"}}
+                    <div class="menu">
+                        <a href="/admin" aria-haspopup="true" aria-expanded="false">Admin ▾</a>
+                        <div class="submenu" role="menu" aria-label="Admin submenu">
+                            <a href="/admin" role="menuitem">Monitors</a>
+                            <a href="/admin/notifications" role="menuitem">Notifications</a>
+                            <a href="/admin/statuspages" role="menuitem">Status Pages</a>
+                            {{if eq .CurrentUser.Role "admin"}}
+                            <a href="/admin/users" role="menuitem">Users</a>
+                            <a href="/admin/settings" role="menuitem">Settings</a>
+                            {{end}}
+                        </div>
                     </div>
-                </div>
-                <a href="/logout">Logout</a>
+                    {{end}}
+                    <a href="/logout">Logout</a>
+                {{else}}
+                    {{/* Legacy mode or no authentication */}}
+                    <div class="menu">
+                        <a href="/admin" aria-haspopup="true" aria-expanded="false">Admin ▾</a>
+                        <div class="submenu" role="menu" aria-label="Admin submenu">
+                            <a href="/admin" role="menuitem">Monitors</a>
+                            <a href="/admin/notifications" role="menuitem">Notifications</a>
+                            <a href="/admin/statuspages" role="menuitem">Status Pages</a>
+                            <a href="/admin/users" role="menuitem">Users</a>
+                            <a href="/admin/settings" role="menuitem">Settings</a>
+                        </div>
+                    </div>
+                    <a href="/logout">Logout</a>
+                {{end}}
             </div>
         </nav>
     </div>
