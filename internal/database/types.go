@@ -113,6 +113,26 @@ type StatusPageMonitorData struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+// UserRole represents the role/permission level of a user
+type UserRole string
+
+const (
+	UserRoleReadOnly UserRole = "readonly" // Can only access main status page
+	UserRoleWrite    UserRole = "write"    // Can access admin, notifications, status pages
+	UserRoleAdmin    UserRole = "admin"    // Can access everything including user management
+)
+
+// UserData represents a user record in the database
+type UserData struct {
+	ID           int       `json:"id"`
+	Username     string    `json:"username"`
+	PasswordHash string    `json:"password_hash"`
+	Role         UserRole  `json:"role"`
+	Enabled      bool      `json:"enabled"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 // Database interface defines the contract for database operations
 type Database interface {
 	// Initialize sets up the database connection and creates necessary tables
@@ -174,4 +194,11 @@ type Database interface {
 	RemoveMonitorFromStatusPage(statusPageID int, monitorID string) error
 	GetStatusPageMonitors(statusPageID int) ([]StatusPageMonitorData, error)
 	ClearStatusPageMonitors(statusPageID int) error
+
+	// User management
+	SaveUser(user UserData) (*UserData, error) // Returns user with ID set
+	GetUser(id int) (*UserData, error)
+	GetUserByUsername(username string) (*UserData, error)
+	GetAllUsers() ([]UserData, error)
+	DeleteUser(id int) error
 }
