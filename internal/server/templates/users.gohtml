@@ -102,23 +102,33 @@
     </header>
     <form id="form-create-user">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <div class="form-group">
-        <label for="create-username">Username</label>
-        <input type="text" id="create-username" name="username" required>
+      <div class="form-row">
+        <div>
+          <label for="create-username">Username</label>
+          <input type="text" id="create-username" name="username" required>
+        </div>
+        <div>
+          <label for="create-role">Role</label>
+          <select id="create-role" name="role" required>
+            <option value="readonly">Read Only - Can only view status pages</option>
+            <option value="write">Write - Can manage monitors, notifications, and status pages</option>
+            <option value="admin">Admin - Full access including user management</option>
+          </select>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="create-password">Password</label>
-        <input type="password" id="create-password" name="password" required>
+      <div class="form-row">
+        <div>
+          <label for="create-password">Password</label>
+          <input type="password" id="create-password" name="password" required>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="create-role">Role</label>
-        <select id="create-role" name="role" required>
-          <option value="readonly">Read Only - Can only view status pages</option>
-          <option value="write">Write - Can manage monitors, notifications, and status pages</option>
-          <option value="admin">Admin - Full access including user management</option>
-        </select>
+      <div class="form-row">
+        <div>
+          <label for="create-password-repeat">Repeat Password</label>
+          <input type="password" id="create-password-repeat" name="password_repeat" required>
+        </div>
       </div>
-      <div class="form-group">
+      <div class="form-row">
         <label>
           <input type="checkbox" id="create-enabled" name="enabled" checked>
           User is active
@@ -142,23 +152,33 @@
     <form id="form-edit-user">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <input type="hidden" id="edit-user-id" name="user_id">
-      <div class="form-group">
-        <label for="edit-username">Username</label>
-        <input type="text" id="edit-username" name="username" required>
+      <div class="form-row">
+        <div>
+          <label for="edit-username">Username</label>
+          <input type="text" id="edit-username" name="username" required>
+        </div>
+        <div>
+          <label for="edit-role">Role</label>
+          <select id="edit-role" name="role" required>
+            <option value="readonly">Read Only - Can only view status pages</option>
+            <option value="write">Write - Can manage monitors, notifications, and status pages</option>
+            <option value="admin">Admin - Full access including user management</option>
+          </select>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="edit-password">Password (leave empty to keep current)</label>
-        <input type="password" id="edit-password" name="password">
+      <div class="form-row">
+        <div>
+          <label for="edit-password">Password (leave empty to keep current)</label>
+          <input type="password" id="edit-password" name="password">
+        </div>
       </div>
-      <div class="form-group">
-        <label for="edit-role">Role</label>
-        <select id="edit-role" name="role" required>
-          <option value="readonly">Read Only - Can only view status pages</option>
-          <option value="write">Write - Can manage monitors, notifications, and status pages</option>
-          <option value="admin">Admin - Full access including user management</option>
-        </select>
+      <div class="form-row">
+        <div>
+          <label for="edit-password-repeat">Repeat Password</label>
+          <input type="password" id="edit-password-repeat" name="password_repeat">
+        </div>
       </div>
-      <div class="form-group">
+      <div class="form-row">
         <label>
           <input type="checkbox" id="edit-enabled" name="enabled">
           User is active
@@ -257,6 +277,7 @@
       document.getElementById('edit-user-id').value = user.id;
       document.getElementById('edit-username').value = user.username;
       document.getElementById('edit-password').value = '';
+      document.getElementById('edit-password-repeat').value = '';
       document.getElementById('edit-role').value = user.role;
       document.getElementById('edit-enabled').checked = user.enabled;
       
@@ -274,14 +295,34 @@
     openModal('modal-delete-user');
   }
 
+  // Password validation helper
+  function validatePasswords(password, passwordRepeat, isRequired = true) {
+    if (isRequired && (!password || !passwordRepeat)) {
+      alert('Both password fields are required');
+      return false;
+    }
+    if (password && passwordRepeat && password !== passwordRepeat) {
+      alert('Passwords do not match');
+      return false;
+    }
+    return true;
+  }
+
   // Form submissions
   document.getElementById('form-create-user')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     
     const formData = new FormData(this);
+    const password = formData.get('password');
+    const passwordRepeat = formData.get('password_repeat');
+    
+    if (!validatePasswords(password, passwordRepeat, true)) {
+      return;
+    }
+    
     const data = {
       username: formData.get('username'),
-      password: formData.get('password'),
+      password: password,
       role: formData.get('role'),
       enabled: formData.has('enabled')
     };
@@ -313,6 +354,16 @@
     
     const formData = new FormData(this);
     const userId = formData.get('user_id');
+    const password = formData.get('password');
+    const passwordRepeat = formData.get('password_repeat');
+    
+    // Validate passwords if either is provided
+    if (password || passwordRepeat) {
+      if (!validatePasswords(password, passwordRepeat, false)) {
+        return;
+      }
+    }
+    
     const data = {
       username: formData.get('username'),
       role: formData.get('role'),
@@ -320,7 +371,6 @@
     };
     
     // Only include password if provided
-    const password = formData.get('password');
     if (password) {
       data.password = password;
     }

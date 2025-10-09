@@ -356,7 +356,9 @@
     <form id="form-delete-group" method="post" action="#">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <p id="delete-group-message">Delete this group?</p>
-      <label><input type="checkbox" name="delete_monitors"> Also delete monitors in this group</label>
+      <div class="form-row">
+        <label><input type="checkbox" name="delete_monitors"> Also delete monitors in this group</label>
+      </div>
       <p class="muted">If unchecked, monitors will be moved to Ungrouped.</p>
       <div class="actions">
         <button type="button" data-close>Cancel</button>
