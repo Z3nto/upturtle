@@ -1,0 +1,430 @@
+{{define "users.gohtml"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "users.content"}}
+<div>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
+    <h2 style="margin:0;">User Management</h2>
+    {{if .UsingDatabaseAuth}}
+    <div style="display:flex; align-items:center; gap:.5rem;">
+      <button id="btn-new-user" class="primary" type="button" title="Create new user">+ New User</button>
+    </div>
+    {{end}}
+  </div>
+
+  {{if not .UsingDatabaseAuth}}
+  <div class="card">
+    <div style="text-align: center; padding: 2rem;">
+      <h3 style="color: #a1a1aa; margin-bottom: 1rem;">User Management Not Available</h3>
+      <p style="color: #a1a1aa; margin-bottom: 1.5rem;">
+        User management is only available when using database authentication.<br>
+        Currently running in memory-only mode with single admin user.
+      </p>
+      <p style="color: #6b7280; font-size: 0.9rem;">
+        To enable user management, configure a database in your settings and restart the application.
+      </p>
+    </div>
+  </div>
+  {{else}}
+  
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Users}}
+        <tr>
+          <td>
+            <strong>{{.Username}}</strong>
+          </td>
+          <td>
+            {{if eq .Role "admin"}}
+              <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa;">Admin</span>
+            {{else if eq .Role "write"}}
+              <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">Write</span>
+            {{else}}
+              <span class="badge" style="background: rgba(156, 163, 175, 0.15); color: #9ca3af;">Read Only</span>
+            {{end}}
+          </td>
+          <td>
+            {{if .Enabled}}
+              <span class="badge status-up">Active</span>
+            {{else}}
+              <span class="badge status-disabled">Disabled</span>
+            {{end}}
+          </td>
+          <td>
+            <span class="muted">{{.CreatedAt.Format "Jan 2, 2006"}}</span>
+          </td>
+          <td>
+            <div class="actions">
+              <button type="button" class="icon edit" data-action="edit-user" data-user-id="{{.ID}}" title="Edit user">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+                </svg>
+              </button>
+              <button type="button" class="icon delete" data-action="delete-user" data-user-id="{{.ID}}" data-username="{{.Username}}" title="Delete user">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {{else}}
+        <tr>
+          <td colspan="5" style="text-align: center; color: #a1a1aa; padding: 2rem;">
+            No users found. Create your first user to get started.
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+</div>
+
+{{if .UsingDatabaseAuth}}
+<!-- Create User Modal -->
+<div id="modal-create-user" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-create-user-title">
+    <header>
+      <h3 id="modal-create-user-title">Create New User</h3>
+      <button type="button" class="close" data-close>&times;</button>
+    </header>
+    <form id="form-create-user">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <div class="form-row">
+        <div>
+          <label for="create-username">Username</label>
+          <input type="text" id="create-username" name="username" required>
+        </div>
+        <div>
+          <label for="create-role">Role</label>
+          <select id="create-role" name="role" required>
+            <option value="readonly">Read Only - Can only view status pages</option>
+            <option value="write">Write - Can manage monitors, notifications, and status pages</option>
+            <option value="admin">Admin - Full access including user management</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="create-password">Password</label>
+          <input type="password" id="create-password" name="password" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="create-password-repeat">Repeat Password</label>
+          <input type="password" id="create-password-repeat" name="password_repeat" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>
+          <input type="checkbox" id="create-enabled" name="enabled" checked>
+          User is active
+        </label>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" data-close>Cancel</button>
+        <button type="submit" class="primary">Create User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="modal-edit-user" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-user-title">
+    <header>
+      <h3 id="modal-edit-user-title">Edit User</h3>
+      <button type="button" class="close" data-close>&times;</button>
+    </header>
+    <form id="form-edit-user">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <input type="hidden" id="edit-user-id" name="user_id">
+      <div class="form-row">
+        <div>
+          <label for="edit-username">Username</label>
+          <input type="text" id="edit-username" name="username" required>
+        </div>
+        <div>
+          <label for="edit-role">Role</label>
+          <select id="edit-role" name="role" required>
+            <option value="readonly">Read Only - Can only view status pages</option>
+            <option value="write">Write - Can manage monitors, notifications, and status pages</option>
+            <option value="admin">Admin - Full access including user management</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="edit-password">Password (leave empty to keep current)</label>
+          <input type="password" id="edit-password" name="password">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="edit-password-repeat">Repeat Password</label>
+          <input type="password" id="edit-password-repeat" name="password_repeat">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>
+          <input type="checkbox" id="edit-enabled" name="enabled">
+          User is active
+        </label>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" data-close>Cancel</button>
+        <button type="submit" class="primary">Update User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete User Modal -->
+<div id="modal-delete-user" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-user-title">
+    <header>
+      <h3 id="modal-delete-user-title">Delete User</h3>
+      <button type="button" class="close" data-close>&times;</button>
+    </header>
+    <form id="form-delete-user">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <input type="hidden" id="delete-user-id" name="user_id">
+      <p>Are you sure you want to delete the user <strong id="delete-username"></strong>?</p>
+      <p style="color: #f87171; font-size: 0.9rem;">This action cannot be undone.</p>
+      <div class="actions">
+        <button type="button" class="secondary" data-close>Cancel</button>
+        <button type="submit" class="danger">Delete User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // Modal management
+  function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function closeModal(modal) {
+    if (typeof modal === 'string') {
+      modal = document.getElementById(modal);
+    }
+    if (modal) {
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  // Event delegation for action buttons
+  document.addEventListener('click', function(e) {
+    const action = e.target.closest('[data-action]')?.getAttribute('data-action');
+    
+    if (action === 'edit-user') {
+      const userId = e.target.closest('[data-user-id]').getAttribute('data-user-id');
+      openEditUserModal(userId);
+    } else if (action === 'delete-user') {
+      const userId = e.target.closest('[data-user-id]').getAttribute('data-user-id');
+      const username = e.target.closest('[data-username]').getAttribute('data-username');
+      openDeleteUserModal(userId, username);
+    }
+  });
+
+  // New user button
+  document.getElementById('btn-new-user')?.addEventListener('click', function() {
+    openModal('modal-create-user');
+  });
+
+  // Modal close handlers - match existing pattern
+  document.querySelectorAll('.modal-backdrop').forEach(function(bg) {
+    bg.addEventListener('click', function(e) {
+      if (e.target === bg) closeModal(bg);
+    });
+    bg.querySelectorAll('[data-close]').forEach(function(x) {
+      x.addEventListener('click', function() {
+        closeModal(bg);
+      });
+    });
+  });
+
+  // Open edit user modal
+  async function openEditUserModal(userId) {
+    try {
+      const response = await fetch(`/api/users/${userId}`);
+      if (!response.ok) throw new Error('Failed to load user');
+      
+      const user = await response.json();
+      
+      document.getElementById('edit-user-id').value = user.id;
+      document.getElementById('edit-username').value = user.username;
+      document.getElementById('edit-password').value = '';
+      document.getElementById('edit-password-repeat').value = '';
+      document.getElementById('edit-role').value = user.role;
+      document.getElementById('edit-enabled').checked = user.enabled;
+      
+      openModal('modal-edit-user');
+    } catch (error) {
+      console.error('Failed to load user:', error);
+      alert('Failed to load user data');
+    }
+  }
+
+  // Open delete user modal
+  function openDeleteUserModal(userId, username) {
+    document.getElementById('delete-user-id').value = userId;
+    document.getElementById('delete-username').textContent = username;
+    openModal('modal-delete-user');
+  }
+
+  // Password validation helper
+  function validatePasswords(password, passwordRepeat, isRequired = true) {
+    if (isRequired && (!password || !passwordRepeat)) {
+      alert('Both password fields are required');
+      return false;
+    }
+    if (password && passwordRepeat && password !== passwordRepeat) {
+      alert('Passwords do not match');
+      return false;
+    }
+    return true;
+  }
+
+  // Form submissions
+  document.getElementById('form-create-user')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const password = formData.get('password');
+    const passwordRepeat = formData.get('password_repeat');
+    
+    if (!validatePasswords(password, passwordRepeat, true)) {
+      return;
+    }
+    
+    const data = {
+      username: formData.get('username'),
+      password: password,
+      role: formData.get('role'),
+      enabled: formData.has('enabled')
+    };
+    
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+      
+      closeModal(document.getElementById('modal-create-user'));
+      location.reload();
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      alert('Failed to create user: ' + error.message);
+    }
+  });
+
+  document.getElementById('form-edit-user')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const userId = formData.get('user_id');
+    const password = formData.get('password');
+    const passwordRepeat = formData.get('password_repeat');
+    
+    // Validate passwords if either is provided
+    if (password || passwordRepeat) {
+      if (!validatePasswords(password, passwordRepeat, false)) {
+        return;
+      }
+    }
+    
+    const data = {
+      username: formData.get('username'),
+      role: formData.get('role'),
+      enabled: formData.has('enabled')
+    };
+    
+    // Only include password if provided
+    if (password) {
+      data.password = password;
+    }
+    
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+      
+      closeModal(document.getElementById('modal-edit-user'));
+      location.reload();
+    } catch (error) {
+      console.error('Failed to update user:', error);
+      alert('Failed to update user: ' + error.message);
+    }
+  });
+
+  document.getElementById('form-delete-user')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const userId = formData.get('user_id');
+    
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+      
+      closeModal(document.getElementById('modal-delete-user'));
+      location.reload();
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      alert('Failed to delete user: ' + error.message);
+    }
+  });
+
+  // Make functions available globally for onclick handlers
+  window.openEditUserModal = openEditUserModal;
+  window.openDeleteUserModal = openDeleteUserModal;
+})();
+</script>
+{{end}}
+{{end}}

@@ -204,6 +204,23 @@ func main() {
 	// Installation page is required until admin credentials are set.
 	installRequired := (persisted.AdminUser == "" || persisted.AdminPasswordHash == "")
 	
+	// If database is configured, check if admin user exists in database
+	if installRequired && persisted.Database != nil {
+		if db, err := database.NewSQLiteDB(*persisted.Database); err == nil {
+			if err := db.Initialize(); err == nil {
+				// Check if any admin users exist in database
+				if users, err := db.GetAllUsers(); err == nil {
+					for _, user := range users {
+						if user.Role == database.UserRoleAdmin && user.Enabled {
+							installRequired = false
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+	
 	// Set default values for UI settings if not configured and no database is used
 	if !exists {
 		persisted.ShowMemoryDisplay = true // Default: enabled

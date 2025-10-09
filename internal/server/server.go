@@ -178,6 +178,8 @@ type Server struct {
 	sessions map[string]time.Time
 	// CSRF token store: sessionID -> token
 	csrfTokens map[string]string
+	// user session store: sessionID -> userID
+	userSessions map[string]int
 	// ordered list of groups for display in UI
 	groups []config.GroupConfig
 	// list of predefined notifications for selection
@@ -292,6 +294,8 @@ func New(cfg Config) (*Server, error) {
 	s.sessions = make(map[string]time.Time)
 	// initialize CSRF token store
 	s.csrfTokens = make(map[string]string)
+	// initialize user session store
+	s.userSessions = make(map[string]int)
 	// normalize group orders if missing and sort by Order
 	s.normalizeAndSortGroups()
 	// compute next counters from existing config
@@ -405,19 +409,10 @@ func (s *Server) buildAdminData(r *http.Request, success, failure string) AdminP
 		groups = append(groups, AdminGroupView{ID: g, Name: s.getGroupName(g), Monitors: mons})
 	}
 	return AdminPageData{
-		BasePageData: BasePageData{
-			Title:             "Administration",
-			ContentTemplate:   "admin.content",
-			CSRFToken:         s.getCSRFToken(r),
-			DatabaseEnabled:   s.manager.HasDatabaseIntegration(),
-			DatabaseHealthy:   s.manager.IsDatabaseHealthy(),
-			DatabaseError:     s.manager.GetDatabaseError(),
-			ShowMemoryDisplay: s.showMemoryDisplay,
-		},
-		Groups:        groups,
-		Notifications: s.notifications,
-		Error:         failure,
-		Success:       success,
+		BasePageData: s.createBasePageData(r, "Administration", "admin.content"),
+		Groups:       groups,
+		Error:        failure,
+		Success:      success,
 	}
 }
 
@@ -453,11 +448,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		Error             string
 		Success           string
 	}{
-		BasePageData: BasePageData{
-			Title:           "Settings",
-			ContentTemplate: "settings.content",
-			CSRFToken:       s.getCSRFToken(r),
-		},
+		BasePageData:      s.createBasePageData(r, "Settings", "settings.content"),
 		MonitorDebug:      s.monitorDebug,
 		NotificationDebug: s.notificationDebug,
 		ApiDebug:          s.apiDebug,
@@ -1346,6 +1337,9 @@ func (s *Server) routes() {
 	// Status pages management
 	s.mux.HandleFunc("/admin/statuspages", s.ensureInstalled(s.handleAdminStatusPages))
 	s.mux.HandleFunc("/admin/statuspages/", s.ensureInstalled(s.handleAdminStatusPages))
+	// User management (only available with database auth)
+	s.mux.HandleFunc("/admin/users", s.ensureInstalled(s.handleAdminUsers))
+	s.mux.HandleFunc("/admin/users/", s.ensureInstalled(s.handleAdminUsers))
 	// Note: More specific routes like /admin/statuspages/{id}/config are handled by handleAdminStatusPagesConfig
 	// which checks the URL path pattern
 	// Group actions go via REST API now; monitor reorder moved to /api/monitors/reorder
@@ -1362,6 +1356,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/history/", s.ensureInstalled(s.handleAPIHistory))
 	s.mux.HandleFunc("/api/statuspages", s.ensureInstalled(s.handleAPIStatusPagesUnified))
 	s.mux.HandleFunc("/api/statuspages/", s.ensureInstalled(s.handleAPIStatusPagesUnified))
+	s.mux.HandleFunc("/api/users", s.ensureInstalled(s.handleAPIUsersUnified))
+	s.mux.HandleFunc("/api/users/", s.ensureInstalled(s.handleAPIUsersUnified))
 
 	// Public status page endpoints
 	s.mux.HandleFunc("/status/", s.handlePublicStatusPage)
@@ -1407,12 +1403,7 @@ func (s *Server) handleAdminNotifications(w http.ResponseWriter, r *http.Request
 			Error         string
 			Success       string
 		}{
-			BasePageData: BasePageData{
-				Title:             "Notifications",
-				ContentTemplate:   "notifications.content",
-				CSRFToken:         s.getCSRFToken(r),
-				ShowMemoryDisplay: s.showMemoryDisplay,
-			},
+			BasePageData:  s.createBasePageData(r, "Notifications", "notifications.content"),
 			Notifications: append([]config.NotificationConfig(nil), s.notifications...),
 			Error:         r.URL.Query().Get("error"),
 			Success:       r.URL.Query().Get("success"),
@@ -1453,16 +1444,36 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If admin credentials are configured, enforce login globally
-	if s.adminUser != "" && s.adminPassword != "" {
+	// Enforce authentication and authorization
+	if (s.adminUser != "" && s.adminPassword != "") || s.isUsingDatabaseAuth() {
 		isPublic := s.isPublicPath(r.URL.Path)
-		isAuth := s.isAuthenticated(r)
+		currentUser := s.getCurrentUser(r)
+		isAuth := currentUser != nil
+
 		s.authDebugf("Auth middleware: path='%s', isPublic=%t, isAuthenticated=%t", r.URL.Path, isPublic, isAuth)
 
-		if !isPublic && !isAuth {
-			s.authDebugf("Redirecting unauthenticated request to /login")
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
+		if isAuth {
+			s.authDebugf("Authenticated user: %s (role: %s)", currentUser.Username, currentUser.Role)
+		}
+
+		if !isPublic {
+			if !isAuth {
+				s.authDebugf("Redirecting unauthenticated request to /login")
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
+
+			// Check role-based permissions
+			if !s.hasPermission(currentUser, r.URL.Path) {
+				s.authDebugf("Access denied for user %s (role: %s) to path %s", currentUser.Username, currentUser.Role, r.URL.Path)
+				http.Error(w, "Access denied", http.StatusForbidden)
+				return
+			}
+		} else {
+			// For public paths, we still log if user is authenticated for debugging
+			if isAuth {
+				s.authDebugf("Public path accessed by authenticated user: %s (role: %s)", currentUser.Username, currentUser.Role)
+			}
 		}
 	}
 
@@ -1478,16 +1489,210 @@ func (s *Server) isPublicPath(p string) bool {
 	return false
 }
 
+// ==== User Management & Role-Based Access Control ===========================
+
+// getCurrentUser returns the current user from session, or nil if not authenticated
+func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
+	sessionID := s.getSessionID(r)
+	if sessionID == "" {
+		return nil
+	}
+
+	// Check if session exists and is valid
+	if expiry, exists := s.sessions[sessionID]; !exists || time.Now().After(expiry) {
+		return nil
+	}
+
+	// Get user ID from session
+	userID, exists := s.userSessions[sessionID]
+	if !exists {
+		return nil
+	}
+
+	// Find user in cache or database
+	if s.configDB != nil {
+		// Use database
+		user, err := s.configDB.GetUser(userID)
+		if err != nil || !user.Enabled {
+			return nil
+		}
+		return user
+	}
+
+	// Legacy mode: check if this is the admin user
+	if s.adminUser != "" && userID == -1 {
+		return &database.UserData{
+			ID:       -1,
+			Username: s.adminUser,
+			Role:     database.UserRoleAdmin,
+			Enabled:  true,
+		}
+	}
+
+	return nil
+}
+
+// hasPermission checks if the current user has permission for the given path
+func (s *Server) hasPermission(user *database.UserData, path string) bool {
+	if user == nil {
+		return false
+	}
+
+	if !user.Enabled {
+		return false
+	}
+
+	switch user.Role {
+	case database.UserRoleAdmin:
+		// Admin can access everything
+		return true
+	case database.UserRoleWrite:
+		// Write users can access admin, notifications, and status pages
+		if path == "/" || strings.HasPrefix(path, "/static/") || strings.HasPrefix(path, "/status/") || strings.HasPrefix(path, "/logout") {
+			return true
+		}
+		if path == "/admin" || strings.HasPrefix(path, "/admin/notifications") || strings.HasPrefix(path, "/admin/statuspages") {
+			return true
+		}
+		if strings.HasPrefix(path, "/api/") && !strings.HasPrefix(path, "/api/users") {
+			return true
+		}
+		return false
+	case database.UserRoleReadOnly:
+		// ReadOnly users can only access main status page and public resources
+		if path == "/" || strings.HasPrefix(path, "/static/") || strings.HasPrefix(path, "/status/") || strings.HasPrefix(path, "/logout") {
+			return true
+		}
+		if strings.HasPrefix(path, "/api/public/") || strings.HasPrefix(path, "/api/status") || strings.HasPrefix(path, "/api/memory") {
+			return true
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+// isUsingDatabaseAuth returns true if the system is using database-based authentication
+func (s *Server) isUsingDatabaseAuth() bool {
+	return s.configDB != nil
+}
+
+// authenticateUser validates username/password and returns user data
+func (s *Server) authenticateUser(username, password string) (*database.UserData, error) {
+	if s.configDB != nil {
+		// Database mode: authenticate against users table
+		user, err := s.configDB.GetUserByUsername(username)
+		if err != nil {
+			return nil, fmt.Errorf("user not found")
+		}
+
+		if !user.Enabled {
+			return nil, fmt.Errorf("user disabled")
+		}
+
+		// Verify password
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+			return nil, fmt.Errorf("invalid password")
+		}
+
+		return user, nil
+	} else {
+		// Legacy mode: authenticate against admin credentials
+		if username == s.adminUser && s.adminPassword != "" {
+			if err := bcrypt.CompareHashAndPassword([]byte(s.adminPassword), []byte(password)); err != nil {
+				return nil, fmt.Errorf("invalid password")
+			}
+
+			return &database.UserData{
+				ID:       -1, // Special ID for legacy admin
+				Username: s.adminUser,
+				Role:     database.UserRoleAdmin,
+				Enabled:  true,
+			}, nil
+		}
+
+		return nil, fmt.Errorf("user not found")
+	}
+}
+
+// createUserSession creates a session for the authenticated user
+func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user *database.UserData) error {
+	s.authDebugf("Creating session for user %s with role %s", user.Username, user.Role)
+
+	// Generate session ID
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		s.logger.Printf("[ERROR] Failed to generate session ID: %v", err)
+		return err
+	}
+	sessionID := hex.EncodeToString(b)
+
+	// Set session expiry (24 hours)
+	expiry := time.Now().Add(24 * time.Hour)
+	s.sessions[sessionID] = expiry
+	s.userSessions[sessionID] = user.ID
+
+	// Clean up any temporary CSRF token for this client
+	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
+	delete(s.csrfTokens, tempKey)
+
+	// Check if request is over HTTPS
+	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+
+	// Set session cookie
+	cookie := &http.Cookie{
+		Name:     "upturtle_session",
+		Value:    sessionID,
+		Path:     "/",
+		Expires:  expiry,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isHTTPS,
+	}
+	http.SetCookie(w, cookie)
+
+	s.authDebugf("User session created: user=%s, role=%s, sessionID=%s", user.Username, user.Role, sessionID[:8]+"...")
+	return nil
+}
+
+// destroyUserSession destroys the current user session
+func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
+	c, err := r.Cookie("upturtle_session")
+	if err == nil && c.Value != "" {
+		delete(s.sessions, c.Value)
+		delete(s.userSessions, c.Value)
+		delete(s.csrfTokens, c.Value)
+	}
+
+	// Check if request is over HTTPS
+	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+
+	// Clear session cookie
+	cookie := &http.Cookie{
+		Name:     "upturtle_session",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isHTTPS,
+	}
+	http.SetCookie(w, cookie)
+}
+
 // ==== Auth & Sessions =========================================================
 
 // handleLogin renders and processes the login form.
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	if s.adminUser == "" || s.adminPassword == "" {
+	// Check if any authentication is configured
+	if (s.adminUser == "" || s.adminPassword == "") && !s.isUsingDatabaseAuth() {
 		// No credentials configured; nothing to log in to.
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	if s.isAuthenticated(r) {
+
+	// Check if already authenticated
+	if s.getCurrentUser(r) != nil {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -1531,32 +1736,26 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/login?error="+url.QueryEscape("invalid form"), http.StatusSeeOther)
 			return
 		}
-		user := strings.TrimSpace(r.FormValue("username"))
-		pass := r.FormValue("password")
-		s.authDebugf("Login attempt: username='%s', password_length=%d", user, len(pass))
-		s.authDebugf("Expected username='%s', admin_password_set=%t", s.adminUser, s.adminPassword != "")
+		username := strings.TrimSpace(r.FormValue("username"))
+		password := r.FormValue("password")
+		s.authDebugf("Login attempt: username='%s', password_length=%d", username, len(password))
 
-		// Check username match
-		usernameMatch := user == s.adminUser
-		s.authDebugf("Username match: %t", usernameMatch)
-
-		// Check password
-		passwordValid := s.verifyPassword(pass)
-		s.authDebugf("Password valid: %t", passwordValid)
-
-		if usernameMatch && passwordValid {
-			s.authDebugf("Login successful for user '%s', creating session", user)
-			if err := s.createSession(w, r); err != nil {
-				s.logger.Printf("[ERROR] create session error: %v", err)
-				http.Redirect(w, r, "/login?error="+url.QueryEscape("internal error"), http.StatusSeeOther)
-				return
-			}
-			s.authDebugf("Session created successfully, redirecting to /")
-			http.Redirect(w, r, "/", http.StatusSeeOther)
+		// Authenticate user using new system
+		user, err := s.authenticateUser(username, password)
+		if err != nil {
+			s.authDebugf("Login failed for user '%s': %v", username, err)
+			http.Redirect(w, r, "/login?error="+url.QueryEscape("invalid credentials"), http.StatusSeeOther)
 			return
 		}
-		s.authDebugf("Login failed: invalid credentials for user '%s'", user)
-		http.Redirect(w, r, "/login?error="+url.QueryEscape("invalid credentials"), http.StatusSeeOther)
+
+		s.authDebugf("Login successful for user '%s' with role '%s', creating session", user.Username, user.Role)
+		if err := s.createUserSession(w, r, user); err != nil {
+			s.logger.Printf("[ERROR] create session error: %v", err)
+			http.Redirect(w, r, "/login?error="+url.QueryEscape("internal error"), http.StatusSeeOther)
+			return
+		}
+		s.authDebugf("Session created successfully, redirecting to /")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -1564,42 +1763,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 // handleLogout clears the session and redirects to login.
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	s.destroySession(w, r)
+	s.destroyUserSession(w, r)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
-}
-
-// isAuthenticated checks for a valid session cookie.
-func (s *Server) isAuthenticated(r *http.Request) bool {
-	if s.adminUser == "" || s.adminPassword == "" {
-		s.authDebugf("No admin credentials configured, allowing access")
-		return true
-	}
-	c, err := r.Cookie("upturtle_session")
-	if err != nil {
-		s.authDebugf("No session cookie found: %v", err)
-		return false
-	}
-	if c.Value == "" {
-		s.authDebugf("Empty session cookie value")
-		return false
-	}
-	id := c.Value
-	s.authDebugf("Checking session: ID='%s'...", id[:8])
-	if exp, ok := s.sessions[id]; ok {
-		now := time.Now()
-		if now.Before(exp) {
-			s.authDebugf("Session valid: expires in %v", exp.Sub(now))
-			return true
-		} else {
-			s.authDebugf("Session expired: was valid until %s", exp.Format(time.RFC3339))
-			// Clean up expired session
-			delete(s.sessions, id)
-			delete(s.csrfTokens, id)
-		}
-	} else {
-		s.authDebugf("Session not found in server memory")
-	}
-	return false
 }
 
 // ensureAuth protects API routes. If admin credentials are configured, accept either
@@ -1673,63 +1838,6 @@ func (s *Server) verifyPassword(password string) bool {
 
 	s.authDebugf("Password verification successful")
 	return true
-}
-
-// createSession creates a new session and sets a cookie.
-func (s *Server) createSession(w http.ResponseWriter, r *http.Request) error {
-	s.authDebugf("Creating session for %s, User-Agent: %s", r.RemoteAddr, r.UserAgent())
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		s.logger.Printf("[ERROR] Failed to generate session ID: %v", err)
-		return err
-	}
-	id := hex.EncodeToString(b)
-	// 24h session
-	expiry := time.Now().Add(24 * time.Hour)
-	s.sessions[id] = expiry
-	s.authDebugf("Session created: ID='%s', expires=%s", id[:8]+"...", expiry.Format(time.RFC3339))
-
-	// Clean up any temporary CSRF token for this client
-	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-	delete(s.csrfTokens, tempKey)
-	s.authDebugf("Cleaned up temporary CSRF token: '%s'", tempKey)
-
-	// Check if request is over HTTPS
-	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
-	s.authDebugf("Request is HTTPS: %t (TLS: %t, X-Forwarded-Proto: %s)", isHTTPS, r.TLS != nil, r.Header.Get("X-Forwarded-Proto"))
-
-	cookie := &http.Cookie{
-		Name:     "upturtle_session",
-		Value:    id,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   isHTTPS,              // Only secure if actually HTTPS
-		SameSite: http.SameSiteLaxMode, // Changed from Strict to Lax for better compatibility
-		Expires:  expiry,
-	}
-	s.authDebugf("Setting cookie: Name=%s, Secure=%t, SameSite=%v, HttpOnly=%t", cookie.Name, cookie.Secure, cookie.SameSite, cookie.HttpOnly)
-	http.SetCookie(w, cookie)
-	s.authDebugf("Session cookie set successfully")
-	return nil
-}
-
-func (s *Server) destroySession(w http.ResponseWriter, r *http.Request) {
-	c, err := r.Cookie("upturtle_session")
-	if err == nil && c.Value != "" {
-		delete(s.sessions, c.Value)
-		// Also remove CSRF token for this session
-		delete(s.csrfTokens, c.Value)
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     "upturtle_session",
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-	})
 }
 
 // ==== CSRF Protection =========================================================
@@ -1945,7 +2053,7 @@ func (s *Server) cleanupExpiredSessions() {
 
 // handleStatus serves the main status page
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	data := s.buildStatusData()
+	data := s.buildStatusData(r)
 	if err := s.templates.ExecuteTemplate(w, "status.gohtml", data); err != nil {
 		s.logger.Printf("status template error: %v", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
@@ -1992,7 +2100,7 @@ func (s *Server) handleAPIHistory(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(apiHistory)
 }
 
-func (s *Server) buildStatusData() StatusPageData {
+func (s *Server) buildStatusData(r *http.Request) StatusPageData {
 	snapshots := s.manager.List()
 	// Build a quick lookup of monitor status by ID (for master dependency)
 	statusByID := make(map[string]monitor.Status, len(snapshots))
@@ -2041,17 +2149,15 @@ func (s *Server) buildStatusData() StatusPageData {
 		})
 		views = append(views, StatusGroupView{Name: s.getGroupName(gid), Monitors: mons})
 	}
+	baseData := s.createBasePageData(r, "Service Status", "status.content")
+	baseData.RefreshSeconds = 0
+	baseData.DatabaseEnabled = s.manager.HasDatabaseIntegration()
+	baseData.DatabaseHealthy = s.manager.IsDatabaseHealthy()
+	baseData.DatabaseError = s.manager.GetDatabaseError()
+	
 	return StatusPageData{
-		BasePageData: BasePageData{
-			Title:             "Service Status",
-			RefreshSeconds:    0,
-			ContentTemplate:   "status.content",
-			DatabaseEnabled:   s.manager.HasDatabaseIntegration(),
-			DatabaseHealthy:   s.manager.IsDatabaseHealthy(),
-			DatabaseError:     s.manager.GetDatabaseError(),
-			ShowMemoryDisplay: s.showMemoryDisplay,
-		},
-		Groups: views,
+		BasePageData: baseData,
+		Groups:       views,
 	}
 }
 
@@ -2132,6 +2238,20 @@ type BasePageData struct {
 	DatabaseError   string
 	// UI settings
 	ShowMemoryDisplay bool
+	// Current user information for menu rendering
+	CurrentUser *database.UserData
+}
+
+// createBasePageData creates BasePageData with current user information
+func (s *Server) createBasePageData(r *http.Request, title, contentTemplate string) BasePageData {
+	return BasePageData{
+		Title:             title,
+		ContentTemplate:   contentTemplate,
+		CSRFToken:         s.getCSRFToken(r),
+		DatabaseEnabled:   s.configDB != nil,
+		ShowMemoryDisplay: s.showMemoryDisplay,
+		CurrentUser:       s.getCurrentUser(r),
+	}
 }
 
 // StatusGroupView is used by the public status page
@@ -2210,9 +2330,9 @@ type PublicMonitorView struct {
 
 // PublicGroupView is used by public status pages
 type PublicGroupView struct {
-	ID       int                   `json:"id"`
-	Name     string                `json:"name"`
-	Monitors []PublicMonitorView   `json:"monitors"`
+	ID       int                 `json:"id"`
+	Name     string              `json:"name"`
+	Monitors []PublicMonitorView `json:"monitors"`
 }
 
 const historyPreview = 20
@@ -2223,14 +2343,14 @@ func getLastDownTime(snap monitor.Snapshot) time.Time {
 	if snap.Status == monitor.StatusDown {
 		return snap.LastChange
 	}
-	
+
 	// Look through history for the most recent failed check
 	for i := len(snap.History) - 1; i >= 0; i-- {
 		if !snap.History[i].Success {
 			return snap.History[i].Timestamp
 		}
 	}
-	
+
 	// If no failed checks found in history, return last change time as fallback
 	return snap.LastChange
 }
@@ -2383,14 +2503,18 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			// Set the persistent config database connection
 			s.configDB = db
 
-			// Store admin credentials in database for future use
-			if err := db.SaveSetting("admin_username", user); err != nil {
-				s.logger.Printf("Warning: Failed to save admin username to database: %v", err)
+			// Create admin user in database
+			adminUser := database.UserData{
+				Username:     user,
+				PasswordHash: string(hash),
+				Role:         database.UserRoleAdmin,
+				Enabled:      true,
 			}
-			if err := db.SaveSetting("admin_password_hash", string(hash)); err != nil {
-				s.logger.Printf("Warning: Failed to save admin password hash to database: %v", err)
+
+			if savedUser, err := db.SaveUser(adminUser); err != nil {
+				s.logger.Printf("Warning: Failed to save admin user to database: %v", err)
 			} else {
-				s.logger.Printf("Admin credentials saved to database")
+				s.logger.Printf("Admin user '%s' created in database with ID %d", savedUser.Username, savedUser.ID)
 			}
 
 			// Store all other configurations in database as well
@@ -2523,9 +2647,30 @@ func (s *Server) saveConfig() error {
 
 	// If database is configured, save everything to database and minimal config to file
 	if s.databaseConfig != nil && s.configDB != nil {
-		// Save admin credentials to database
-		s.configDB.SaveSetting("admin_username", s.adminUser)
-		s.configDB.SaveSetting("admin_password_hash", s.adminPassword)
+		// Create or update admin user in database
+		if s.adminUser != "" && s.adminPassword != "" {
+			adminUser := database.UserData{
+				Username:     s.adminUser,
+				PasswordHash: s.adminPassword,
+				Role:         database.UserRoleAdmin,
+				Enabled:      true,
+			}
+
+			// Check if admin user already exists
+			existingUser, err := s.configDB.GetUserByUsername(s.adminUser)
+			if err == nil && existingUser != nil {
+				// Update existing user
+				adminUser.ID = existingUser.ID
+				if _, err := s.configDB.SaveUser(adminUser); err != nil {
+					s.logger.Printf("Warning: Failed to update admin user in database: %v", err)
+				}
+			} else {
+				// Create new user
+				if _, err := s.configDB.SaveUser(adminUser); err != nil {
+					s.logger.Printf("Warning: Failed to save admin user to database: %v", err)
+				}
+			}
+		}
 
 		// Save groups to database
 		for _, group := range s.groups {
@@ -2712,15 +2857,10 @@ func (s *Server) handleAdminStatusPages(w http.ResponseWriter, r *http.Request) 
 		Error       string
 		Success     string
 	}{
-		BasePageData: BasePageData{
-			Title:             "Status Pages",
-			ContentTemplate:   "statuspages.content",
-			CSRFToken:         s.getCSRFToken(r),
-			ShowMemoryDisplay: s.showMemoryDisplay,
-		},
-		StatusPages: append([]config.StatusPageConfig(nil), s.statusPages...),
-		Error:       r.URL.Query().Get("error"),
-		Success:     r.URL.Query().Get("success"),
+		BasePageData: s.createBasePageData(r, "Status Pages", "statuspages.content"),
+		StatusPages:  append([]config.StatusPageConfig(nil), s.statusPages...),
+		Error:        r.URL.Query().Get("error"),
+		Success:      r.URL.Query().Get("success"),
 	}
 
 	if err := s.templates.ExecuteTemplate(w, "statuspages.gohtml", data); err != nil {
@@ -2766,9 +2906,10 @@ func (s *Server) handleAdminStatusPagesConfig(w http.ResponseWriter, r *http.Req
 	defaultGroups := make([]config.GroupConfig, 0)
 	statuspageGroups := make([]config.GroupConfig, 0)
 	for _, g := range s.groups {
-		if g.Type == "" || g.Type == config.GroupTypeDefault {
+		switch g.Type {
+		case "", config.GroupTypeDefault:
 			defaultGroups = append(defaultGroups, g)
-		} else if g.Type == config.GroupTypeStatusPage {
+		case config.GroupTypeStatusPage:
 			statuspageGroups = append(statuspageGroups, g)
 		}
 	}
@@ -3038,9 +3179,10 @@ func (s *Server) handlePublicStatusPageAPI(w http.ResponseWriter, r *http.Reques
 
 	for _, group := range groups {
 		for _, monitor := range group.Monitors {
-			if monitor.Status == "down" {
+			switch monitor.Status {
+			case "down":
 				hasDown = true
-			} else if monitor.Status == "unknown" {
+			case "unknown":
 				hasUnknown = true
 			}
 		}
@@ -3053,10 +3195,10 @@ func (s *Server) handlePublicStatusPageAPI(w http.ResponseWriter, r *http.Reques
 	}
 
 	response := struct {
-		StatusPageName string              `json:"status_page_name"`
-		OverallStatus  string              `json:"overall_status"`
-		Groups         []PublicGroupView   `json:"groups"`
-		LastUpdated    time.Time           `json:"last_updated"`
+		StatusPageName string            `json:"status_page_name"`
+		OverallStatus  string            `json:"overall_status"`
+		Groups         []PublicGroupView `json:"groups"`
+		LastUpdated    time.Time         `json:"last_updated"`
 	}{
 		StatusPageName: statusPage.Name,
 		OverallStatus:  overallStatus,
@@ -3328,6 +3470,392 @@ func (s *Server) handleAPIStatusPagesDelete(w http.ResponseWriter, r *http.Reque
 
 	if err := s.saveConfig(); err != nil {
 		s.logger.Printf("Failed to save config after deleting status page: %v", err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"success":true}`))
+}
+
+// ==== User Management =========================================================
+
+// handleAdminUsers renders the user management page
+func (s *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
+	// Only allow access if using database authentication
+	if !s.isUsingDatabaseAuth() {
+		// Render page with disabled state for memory mode
+		data := struct {
+			BasePageData
+			UsingDatabaseAuth bool
+			Users             []database.UserData
+		}{
+			BasePageData:      s.createBasePageData(r, "User Management", "users.content"),
+			UsingDatabaseAuth: false,
+			Users:             []database.UserData{},
+		}
+
+		if err := s.templates.ExecuteTemplate(w, "users.gohtml", data); err != nil {
+			s.logger.Printf("users template error: %v", err)
+			http.Error(w, "template error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Check if current user has admin permissions
+	currentUser := s.getCurrentUser(r)
+	if currentUser == nil || currentUser.Role != database.UserRoleAdmin {
+		http.Error(w, "Access denied", http.StatusForbidden)
+		return
+	}
+
+	// Load users from database
+	users, err := s.configDB.GetAllUsers()
+	if err != nil {
+		s.logger.Printf("Failed to load users: %v", err)
+		http.Error(w, "Failed to load users", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		BasePageData
+		UsingDatabaseAuth bool
+		Users             []database.UserData
+	}{
+		BasePageData:      s.createBasePageData(r, "User Management", "users.content"),
+		UsingDatabaseAuth: true,
+		Users:             users,
+	}
+
+	if err := s.templates.ExecuteTemplate(w, "users.gohtml", data); err != nil {
+		s.logger.Printf("users template error: %v", err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+// ==== API: Users ==============================================================
+
+// handleAPIUsersUnified handles all user API operations
+func (s *Server) handleAPIUsersUnified(w http.ResponseWriter, r *http.Request) {
+	if s.apiDebug {
+		s.logger.Printf("[API DEBUG] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+	}
+
+	// Only allow access if using database authentication
+	if !s.isUsingDatabaseAuth() {
+		http.Error(w, "User management only available with database authentication", http.StatusBadRequest)
+		return
+	}
+
+	// Check if current user has admin permissions
+	currentUser := s.getCurrentUser(r)
+	if currentUser == nil || currentUser.Role != database.UserRoleAdmin {
+		http.Error(w, "Access denied", http.StatusForbidden)
+		return
+	}
+
+	rest := strings.TrimPrefix(r.URL.Path, "/api/users/")
+	rest = strings.TrimPrefix(rest, "/api/users")
+	rest = strings.Trim(rest, "/")
+
+	if rest == "" {
+		// Collection operations
+		s.handleAPIUsersCollection(w, r)
+	} else {
+		// Item operations
+		s.handleAPIUsersItem(w, r, rest)
+	}
+}
+
+// handleAPIUsersCollection handles operations on the users collection
+func (s *Server) handleAPIUsersCollection(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.handleAPIUsersGet(w, r)
+	case http.MethodPost:
+		s.handleAPIUsersCreate(w, r)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// handleAPIUsersItem handles operations on individual users
+func (s *Server) handleAPIUsersItem(w http.ResponseWriter, r *http.Request, userID string) {
+	switch r.Method {
+	case http.MethodGet:
+		s.handleAPIUsersGetOne(w, r, userID)
+	case http.MethodPut:
+		s.handleAPIUsersUpdate(w, r, userID)
+	case http.MethodDelete:
+		s.handleAPIUsersDelete(w, r, userID)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// handleAPIUsersGet returns all users
+func (s *Server) handleAPIUsersGet(w http.ResponseWriter, r *http.Request) {
+	users, err := s.configDB.GetAllUsers()
+	if err != nil {
+		s.logger.Printf("Failed to get users: %v", err)
+		http.Error(w, "Failed to get users", http.StatusInternalServerError)
+		return
+	}
+
+	// Remove password hashes from response for security
+	type UserResponse struct {
+		ID        int               `json:"id"`
+		Username  string            `json:"username"`
+		Role      database.UserRole `json:"role"`
+		Enabled   bool              `json:"enabled"`
+		CreatedAt time.Time         `json:"created_at"`
+		UpdatedAt time.Time         `json:"updated_at"`
+	}
+
+	var response []UserResponse
+	for _, user := range users {
+		response = append(response, UserResponse{
+			ID:        user.ID,
+			Username:  user.Username,
+			Role:      user.Role,
+			Enabled:   user.Enabled,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleAPIUsersGetOne returns a single user
+func (s *Server) handleAPIUsersGetOne(w http.ResponseWriter, r *http.Request, userIDStr string) {
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	user, err := s.configDB.GetUser(userID)
+	if err != nil {
+		http.Error(w, "user not found", http.StatusNotFound)
+		return
+	}
+
+	// Remove password hash from response for security
+	type UserResponse struct {
+		ID        int               `json:"id"`
+		Username  string            `json:"username"`
+		Role      database.UserRole `json:"role"`
+		Enabled   bool              `json:"enabled"`
+		CreatedAt time.Time         `json:"created_at"`
+		UpdatedAt time.Time         `json:"updated_at"`
+	}
+
+	response := UserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Role:      user.Role,
+		Enabled:   user.Enabled,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleAPIUsersCreate creates a new user
+func (s *Server) handleAPIUsersCreate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Username string            `json:"username"`
+		Password string            `json:"password"`
+		Role     database.UserRole `json:"role"`
+		Enabled  bool              `json:"enabled"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	if req.Username == "" {
+		http.Error(w, "username is required", http.StatusBadRequest)
+		return
+	}
+	if req.Password == "" {
+		http.Error(w, "password is required", http.StatusBadRequest)
+		return
+	}
+	if req.Role == "" {
+		req.Role = database.UserRoleReadOnly // Default role
+	}
+
+	// Validate role
+	if req.Role != database.UserRoleReadOnly && req.Role != database.UserRoleWrite && req.Role != database.UserRoleAdmin {
+		http.Error(w, "invalid role", http.StatusBadRequest)
+		return
+	}
+
+	// Hash password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.Printf("Failed to hash password: %v", err)
+		http.Error(w, "Failed to process password", http.StatusInternalServerError)
+		return
+	}
+
+	// Create user
+	user := database.UserData{
+		Username:     req.Username,
+		PasswordHash: string(passwordHash),
+		Role:         req.Role,
+		Enabled:      req.Enabled,
+	}
+
+	savedUser, err := s.configDB.SaveUser(user)
+	if err != nil {
+		s.logger.Printf("Failed to create user: %v", err)
+		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		return
+	}
+
+	// Return created user (without password hash)
+	type UserResponse struct {
+		ID        int               `json:"id"`
+		Username  string            `json:"username"`
+		Role      database.UserRole `json:"role"`
+		Enabled   bool              `json:"enabled"`
+		CreatedAt time.Time         `json:"created_at"`
+		UpdatedAt time.Time         `json:"updated_at"`
+	}
+
+	response := UserResponse{
+		ID:        savedUser.ID,
+		Username:  savedUser.Username,
+		Role:      savedUser.Role,
+		Enabled:   savedUser.Enabled,
+		CreatedAt: savedUser.CreatedAt,
+		UpdatedAt: savedUser.UpdatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleAPIUsersUpdate updates an existing user
+func (s *Server) handleAPIUsersUpdate(w http.ResponseWriter, r *http.Request, userIDStr string) {
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get existing user
+	existingUser, err := s.configDB.GetUser(userID)
+	if err != nil {
+		http.Error(w, "user not found", http.StatusNotFound)
+		return
+	}
+
+	var req struct {
+		Username string            `json:"username"`
+		Password string            `json:"password,omitempty"` // Optional for updates
+		Role     database.UserRole `json:"role"`
+		Enabled  bool              `json:"enabled"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	if req.Username == "" {
+		http.Error(w, "username is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate role
+	if req.Role != database.UserRoleReadOnly && req.Role != database.UserRoleWrite && req.Role != database.UserRoleAdmin {
+		http.Error(w, "invalid role", http.StatusBadRequest)
+		return
+	}
+
+	// Update user data
+	existingUser.Username = req.Username
+	existingUser.Role = req.Role
+	existingUser.Enabled = req.Enabled
+
+	// Update password if provided
+	if req.Password != "" {
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			s.logger.Printf("Failed to hash password: %v", err)
+			http.Error(w, "Failed to process password", http.StatusInternalServerError)
+			return
+		}
+		existingUser.PasswordHash = string(passwordHash)
+	}
+
+	// Save updated user
+	savedUser, err := s.configDB.SaveUser(*existingUser)
+	if err != nil {
+		s.logger.Printf("Failed to update user: %v", err)
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
+		return
+	}
+
+	// Return updated user (without password hash)
+	type UserResponse struct {
+		ID        int               `json:"id"`
+		Username  string            `json:"username"`
+		Role      database.UserRole `json:"role"`
+		Enabled   bool              `json:"enabled"`
+		CreatedAt time.Time         `json:"created_at"`
+		UpdatedAt time.Time         `json:"updated_at"`
+	}
+
+	response := UserResponse{
+		ID:        savedUser.ID,
+		Username:  savedUser.Username,
+		Role:      savedUser.Role,
+		Enabled:   savedUser.Enabled,
+		CreatedAt: savedUser.CreatedAt,
+		UpdatedAt: savedUser.UpdatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleAPIUsersDelete deletes a user
+func (s *Server) handleAPIUsersDelete(w http.ResponseWriter, r *http.Request, userIDStr string) {
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	// Prevent deleting the current user
+	currentUser := s.getCurrentUser(r)
+	if currentUser != nil && currentUser.ID == userID {
+		http.Error(w, "cannot delete current user", http.StatusBadRequest)
+		return
+	}
+
+	// Check if user exists
+	_, err = s.configDB.GetUser(userID)
+	if err != nil {
+		http.Error(w, "user not found", http.StatusNotFound)
+		return
+	}
+
+	// Delete user
+	if err := s.configDB.DeleteUser(userID); err != nil {
+		s.logger.Printf("Failed to delete user: %v", err)
+		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

@@ -70,6 +70,10 @@ func (s *SQLiteDB) Initialize() error {
 		return fmt.Errorf("failed to create status_page_monitors table: %w", err)
 	}
 
+	if err := s.createUsersTable(); err != nil {
+		return fmt.Errorf("failed to create users table: %w", err)
+	}
+
 	// Create history tables for today
 	today := time.Now()
 
@@ -264,6 +268,38 @@ func (s *SQLiteDB) createStatusPageMonitorsTable() error {
 	return nil
 }
 
+// createUsersTable creates the users table
+func (s *SQLiteDB) createUsersTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT NOT NULL UNIQUE,
+		password_hash TEXT NOT NULL,
+		role TEXT NOT NULL DEFAULT 'readonly',
+		enabled BOOLEAN NOT NULL DEFAULT 1,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`
+
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	// Create indexes
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`,
+		`CREATE INDEX IF NOT EXISTS idx_users_enabled ON users(enabled)`,
+	}
+
+	for _, indexQuery := range indexes {
+		if _, err := s.db.Exec(indexQuery); err != nil {
+			log.Printf("Warning: Failed to create users index: %v", err)
+		}
+	}
+
+	return nil
+}
 
 // Settings management methods
 
@@ -1038,6 +1074,113 @@ func (s *SQLiteDB) GetStatusPageMonitors(statusPageID int) ([]StatusPageMonitorD
 func (s *SQLiteDB) ClearStatusPageMonitors(statusPageID int) error {
 	query := `DELETE FROM status_page_monitors WHERE status_page_id = ?`
 	_, err := s.db.Exec(query, statusPageID)
+	return err
+}
+
+// User management methods
+
+// SaveUser saves a user record
+func (s *SQLiteDB) SaveUser(user UserData) (*UserData, error) {
+	now := time.Now()
+	
+	if user.ID == 0 {
+		// Insert new user
+		query := `
+		INSERT INTO users (username, password_hash, role, enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+		RETURNING id`
+		
+		err := s.db.QueryRow(query, user.Username, user.PasswordHash, user.Role, user.Enabled, now, now).Scan(&user.ID)
+		if err != nil {
+			return nil, err
+		}
+		user.CreatedAt = now
+		user.UpdatedAt = now
+	} else {
+		// Update existing user
+		query := `
+		UPDATE users 
+		SET username = ?, password_hash = ?, role = ?, enabled = ?, updated_at = ?
+		WHERE id = ?`
+		
+		_, err := s.db.Exec(query, user.Username, user.PasswordHash, user.Role, user.Enabled, now, user.ID)
+		if err != nil {
+			return nil, err
+		}
+		user.UpdatedAt = now
+	}
+	
+	return &user, nil
+}
+
+// GetUser retrieves a user by ID
+func (s *SQLiteDB) GetUser(id int) (*UserData, error) {
+	query := `
+	SELECT id, username, password_hash, role, enabled, created_at, updated_at
+	FROM users 
+	WHERE id = ?`
+	
+	var user UserData
+	err := s.db.QueryRow(query, id).Scan(
+		&user.ID, &user.Username, &user.PasswordHash, &user.Role, 
+		&user.Enabled, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &user, nil
+}
+
+// GetUserByUsername retrieves a user by username
+func (s *SQLiteDB) GetUserByUsername(username string) (*UserData, error) {
+	query := `
+	SELECT id, username, password_hash, role, enabled, created_at, updated_at
+	FROM users 
+	WHERE username = ?`
+	
+	var user UserData
+	err := s.db.QueryRow(query, username).Scan(
+		&user.ID, &user.Username, &user.PasswordHash, &user.Role, 
+		&user.Enabled, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &user, nil
+}
+
+// GetAllUsers retrieves all users
+func (s *SQLiteDB) GetAllUsers() ([]UserData, error) {
+	query := `
+	SELECT id, username, password_hash, role, enabled, created_at, updated_at
+	FROM users 
+	ORDER BY username`
+	
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var users []UserData
+	for rows.Next() {
+		var user UserData
+		err := rows.Scan(
+			&user.ID, &user.Username, &user.PasswordHash, &user.Role, 
+			&user.Enabled, &user.CreatedAt, &user.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	
+	return users, rows.Err()
+}
+
+// DeleteUser deletes a user
+func (s *SQLiteDB) DeleteUser(id int) error {
+	query := `DELETE FROM users WHERE id = ?`
+	_, err := s.db.Exec(query, id)
 	return err
 }
 
