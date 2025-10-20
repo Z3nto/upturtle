@@ -3,11 +3,13 @@
 {{end}}
 
 {{define "status.content"}}
-<h2>Current status</h2>
+<div class="page-header">
+  <h2>Current status</h2>
+</div>
 {{if .Groups}}
   {{range .Groups}}
     <div class="card">
-      <h3 style="margin-top:0;">{{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}</h3>
+      <h3>{{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}</h3>
       {{if .Monitors}}
       <table class="status-table" data-group="{{.Name}}">
         <thead>

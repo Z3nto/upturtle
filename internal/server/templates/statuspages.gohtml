@@ -4,8 +4,8 @@
 
 {{define "statuspages.content"}}
 <div>
-    <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
-        <h2 style="margin:0;">Status Pages</h2>
+    <div class="page-header-with-actions">
+        <h2>Status Pages</h2>
         <button id="btn-new-statuspage" class="primary" type="button" title="Create new status page">+ New Status Page</button>
     </div>
     
@@ -15,10 +15,10 @@
     {{if .StatusPages}}
         {{range .StatusPages}}
         <div class="card">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem;">
+            <div class="card-header-flex">
                 <div>
-                    <h3 style="margin:0 0 0.5rem 0;">{{.Name}}</h3>
-                    <div class="muted" style="font-size:0.9rem;">
+                    <h3 class="no-margin margin-bottom-05">{{.Name}}</h3>
+                    <div class="muted card-subtitle">
                         <strong>URL:</strong> <code>/status/{{.Slug}}</code> · 
                         <strong>Monitors:</strong> {{len .Monitors}} · 
                         <span class="badge {{if .Active}}status-up{{else}}status-disabled{{end}}">
@@ -28,7 +28,7 @@
                 </div>
             </div>
             <div class="actions">
-                <a href="/admin/statuspages/{{.ID}}" style="text-decoration:none;">
+                <a href="/admin/statuspages/{{.ID}}" class="no-decoration">
                     <button type="button" class="icon edit" title="Configure">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
@@ -36,7 +36,7 @@
                     </button>
                 </a>
                 {{if .Active}}
-                <a href="/status/{{.Slug}}" target="_blank" style="text-decoration:none;">
+                <a href="/status/{{.Slug}}" target="_blank" class="no-decoration">
                     <button type="button" class="icon" title="View public page">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
@@ -54,7 +54,7 @@
         {{end}}
     {{else}}
         <div class="card">
-            <p style="text-align:center; color:#a1a1aa; margin:2rem 0;">
+            <p class="empty-state">
                 No status pages configured yet. Click "+ New Status Page" to create your first one.
             </p>
         </div>

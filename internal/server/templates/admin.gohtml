@@ -4,9 +4,9 @@
 
 {{define "admin.content"}}
 <div>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;"> <!-- Todo: move to layout -->
-    <h2 style="margin:0;">Monitors</h2>
-    <div style="display:flex; align-items:center; gap:.5rem;"> <!-- TODO: move to layout -->
+  <div class="page-header-with-actions">
+    <h2>Monitors</h2>
+    <div class="page-header-actions">
       <button id="btn-add-group" class="primary" type="button" title="Create new group">Add Group</button>
       <button id="btn-new" class="primary" type="button" title="Create new monitor">+ New</button>
     </div>
@@ -17,9 +17,9 @@
   {{if .Groups}}
     {{range .Groups}}
       <div class="card group-card">
-        <div class="group-header" style="display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin:.5rem 0;"> <!-- Todo: move to layout -->
-          <div style="display:flex; align-items:center; gap:.5rem;">
-            <h3 style="margin:0; display:flex; align-items:center; gap:.5rem;">
+        <div class="group-header group-header-container">
+          <div class="group-header-left">
+            <h3>
               {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}
               {{if .Name}}
                 <button type="button" class="icon edit" data-action="rename-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Rename group">
@@ -36,11 +36,11 @@
             </h3>
           </div>
           {{if .Name}}
-          <div style="display:flex; align-items:center; gap:.35rem;"> <!-- TODO: move to layout -->
-            <form class="btn-group-move" data-group-id="{{.ID}}" data-move="up" action="#" method="post" style="display:inline;">
+          <div class="group-header-right">
+            <form class="btn-group-move inline-form" data-group-id="{{.ID}}" data-move="up" action="#" method="post">
               <button type="submit" title="Move group up" class="icon">▲</button>
             </form>
-            <form class="btn-group-move" data-group-id="{{.ID}}" data-move="down" action="#" method="post" style="display:inline;">
+            <form class="btn-group-move inline-form" data-group-id="{{.ID}}" data-move="down" action="#" method="post">
               <button type="submit" title="Move group down" class="icon">▼</button>
             </form>
           </div>
@@ -54,7 +54,7 @@
                 <th>Type</th>
                 <th>Target</th>
                 <th>Status</th>
-                <th style="width:1%; white-space:nowrap;">Actions</th>
+                <th class="col-actions">Actions</th>
               </tr>
             </thead>
             <tbody>

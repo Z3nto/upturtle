@@ -4,10 +4,10 @@
 
 {{define "users.content"}}
 <div>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
-    <h2 style="margin:0;">User Management</h2>
+  <div class="page-header-with-actions">
+    <h2>User Management</h2>
     {{if .UsingDatabaseAuth}}
-    <div style="display:flex; align-items:center; gap:.5rem;">
+    <div class="page-header-actions">
       <button id="btn-new-user" class="primary" type="button" title="Create new user">+ New User</button>
     </div>
     {{end}}
@@ -15,13 +15,13 @@
 
   {{if not .UsingDatabaseAuth}}
   <div class="card">
-    <div style="text-align: center; padding: 2rem;">
-      <h3 style="color: #a1a1aa; margin-bottom: 1rem;">User Management Not Available</h3>
-      <p style="color: #a1a1aa; margin-bottom: 1.5rem;">
+    <div class="text-center padding-2">
+      <h3 class="margin-bottom-1 text-muted">User Management Not Available</h3>
+      <p class="text-muted margin-bottom-1-5">
         User management is only available when using database authentication.<br>
         Currently running in memory-only mode with single admin user.
       </p>
-      <p style="color: #6b7280; font-size: 0.9rem;">
+      <p class="text-muted-dark font-size-09">
         To enable user management, configure a database in your settings and restart the application.
       </p>
     </div>
@@ -47,11 +47,11 @@
           </td>
           <td>
             {{if eq .Role "admin"}}
-              <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa;">Admin</span>
+              <span class="badge badge-admin">Admin</span>
             {{else if eq .Role "write"}}
-              <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">Write</span>
+              <span class="badge badge-write">Write</span>
             {{else}}
-              <span class="badge" style="background: rgba(156, 163, 175, 0.15); color: #9ca3af;">Read Only</span>
+              <span class="badge badge-readonly">Read Only</span>
             {{end}}
           </td>
           <td>

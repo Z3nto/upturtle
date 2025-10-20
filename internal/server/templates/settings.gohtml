@@ -4,15 +4,15 @@
 
 {{define "settings.content"}}
 <div>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
-    <h2 style="margin:0;">Settings</h2>
+  <div class="page-header">
+    <h2>Settings</h2>
   </div>
-  <div id="settings-message" class="message" style="display:none;"></div>
+  <div id="settings-message" class="message display-none"></div>
 
   <form id="settings-form">
     <div class="card">
-      <h3 style="margin-top:0;">Debug logging</h3>
-      <div class="form-row" style="display:flex; gap:1.5rem; align-items:center;">
+      <h3>Debug logging</h3>
+      <div class="form-row checkbox-row">
         <label><input type="checkbox" id="monitor_debug" {{if .MonitorDebug}}checked{{end}}> Monitor Debug</label>
         <label><input type="checkbox" id="notification_debug" {{if .NotificationDebug}}checked{{end}}> Notification Debug</label>
         <label><input type="checkbox" id="api_debug" {{if .ApiDebug}}checked{{end}}> REST API Debug</label>
@@ -21,8 +21,8 @@
     </div>
 
     <div class="card">
-      <h3 style="margin-top:0;">UI Settings</h3>
-      <div class="form-row" style="display:flex; gap:1.5rem; align-items:center;">
+      <h3>UI Settings</h3>
+      <div class="form-row checkbox-row">
         <label><input type="checkbox" id="show_memory_display" {{if .ShowMemoryDisplay}}checked{{end}}> Show Memory Usage</label>
       </div>
     </div>

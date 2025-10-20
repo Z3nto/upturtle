@@ -4,12 +4,12 @@
 
 {{define "statuspage_config.content"}}
 <div>
-    <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
+    <div class="page-header-with-actions">
         <div>
-            <h2 style="margin:0;">Configure: {{.StatusPage.Name}}</h2>
-            <p class="muted" style="margin:0.25rem 0 0 0; font-size:0.9rem;">URL: <code>/status/{{.StatusPage.Slug}}</code></p>
+            <h2 class="no-margin">Configure: {{.StatusPage.Name}}</h2>
+            <p class="muted no-margin" style="margin-top:0.25rem; font-size:0.9rem;">URL: <code>/status/{{.StatusPage.Slug}}</code></p>
         </div>
-        <a href="/admin/statuspages" style="text-decoration:none;">
+        <a href="/admin/statuspages" class="no-decoration">
             <button type="button">← Back</button>
         </a>
     </div>
@@ -19,7 +19,7 @@
 
     <form id="form-configure-statuspage">
         <div class="card">
-            <h3 style="margin-top:0;">Basic Settings</h3>
+            <h3>Basic Settings</h3>
             <div class="form-row">
                 <div>
                     <label for="statuspage-name">Name *</label>
@@ -42,20 +42,20 @@
         </div>
 
         <div class="card">
-            <h3 style="margin-top:0;">Monitors & Groups</h3>
+            <h3>Monitors & Groups</h3>
             <p class="muted">Select which monitors to display on this status page and organize them into custom groups.</p>
             
-            <div style="margin-bottom: 1rem;">
+            <div class="margin-bottom-1">
                 <button type="button" id="btn-add-statuspage-group" class="primary">+ Add Group</button>
             </div>
             
-            <div id="statuspage-groups" style="margin-bottom: 1.5rem;">
+            <div id="statuspage-groups" class="margin-bottom-1-5">
                 <!-- Groups will be populated by JavaScript -->
             </div>
             
             <div class="monitors-config">
                 <div class="available-monitors">
-                    <h4 style="margin-top:0; font-size:0.9rem; color:#a1a1aa;">Available Monitors</h4>
+                    <h4 class="h4-small">Available Monitors</h4>
                     <div class="monitor-list" id="available-monitors">
                         {{range .AllMonitors}}
                         <div class="monitor-item" data-monitor-id="{{.Config.ID}}" data-monitor-name="{{.Config.Name}}" data-monitor-group="{{.Config.GroupID}}">
@@ -68,7 +68,7 @@
                 </div>
 
                 <div class="selected-monitors">
-                    <h4 style="margin-top:0; font-size:0.9rem; color:#a1a1aa;">Selected Monitors</h4>
+                    <h4 class="h4-small">Selected Monitors</h4>
                     <div id="selected-monitors">
                         <!-- Will be populated by JavaScript -->
                     </div>
@@ -76,7 +76,7 @@
             </div>
         </div>
 
-        <div class="actions" style="justify-content:flex-end; margin-top:1rem;">
+        <div class="actions justify-end margin-top-1">
             <button type="button" onclick="window.location.href='/admin/statuspages'">Cancel</button>
             <button type="submit" class="primary">Save Configuration</button>
         </div>

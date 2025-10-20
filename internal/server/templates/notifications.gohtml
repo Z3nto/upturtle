@@ -4,14 +4,14 @@
 
 {{define "notifications.content"}}
 <div>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
-    <h2 style="margin:0;">Notifications</h2>
+  <div class="page-header">
+    <h2>Notifications</h2>
   </div>
   {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
   {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
 
-  <div class="card" style="margin-bottom:1rem;">
-    <h3 style="margin-top:0;">Create notification</h3>
+  <div class="card margin-bottom-1">
+    <h3>Create notification</h3>
     <form id="form-create-notification" method="post" action="#">
       <div class="form-row">
         <div>
@@ -44,11 +44,11 @@
             <option value="custom">(Custom URL)</option>
           </select>
         </div>
-        <div class="shoutrrr-builder" style="flex:1; min-width: 300px;">
+        <div class="shoutrrr-builder">
           <label>Configuration</label>
-          <div class="builder-fields" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:.5rem;"></div>
+          <div class="builder-fields"></div>
         </div>
-        <div style="flex:1;">
+        <div class="flex-1">
           <label>Notify URL (Shoutrrr)</label>
           <input name="url" type="text" required class="shoutrrr-url" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
         </div>
@@ -60,15 +60,15 @@
   </div>
 
   <div class="card">
-    <h3 style="margin-top:0;">Existing notifications</h3>
+    <h3>Existing notifications</h3>
     {{if .Notifications}}
     <table>
       <thead>
         <tr>
-          <th style="width:1%; white-space:nowrap;">ID</th>
+          <th class="col-actions">ID</th>
           <th>Name</th>
           <th>URL</th>
-          <th style="width:1%; white-space:nowrap;">Actions</th>
+          <th class="col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -76,12 +76,12 @@
         <tr>
           <td class="muted">{{.ID}}</td>
           <td>{{.Name}}</td>
-          <td class="muted" style="max-width:480px; overflow:hidden; text-overflow:ellipsis;">{{.URL}}</td>
+          <td class="muted col-ellipsis">{{.URL}}</td>
           <td>
             <div class="actions">
               <button class="icon edit" type="button" data-action="edit-notification" data-notification-id="{{.ID}}" title="Edit">✎</button>
               <button class="icon test" type="button" data-id="{{.ID}}" title="Test">🧪</button>
-              <form class="form-delete-notification" data-id="{{.ID}}" method="post" action="#" style="display:inline;">
+              <form class="form-delete-notification inline-form" data-id="{{.ID}}" method="post" action="#">
                 <button class="icon delete" type="submit" title="Delete">🗑️</button>
               </form>
             </div>
@@ -135,11 +135,11 @@
             <option value="custom">(Custom URL)</option>
           </select>
         </div>
-        <div class="shoutrrr-builder" style="flex:1; min-width: 300px;">
+        <div class="shoutrrr-builder">
           <label>Configuration</label>
-          <div class="builder-fields" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:.5rem;"></div>
+          <div class="builder-fields"></div>
         </div>
-        <div style="flex:1;">
+        <div class="flex-1">
           <label>Notify URL (Shoutrrr)</label>
           <input name="url" type="text" required class="shoutrrr-url" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
         </div>
