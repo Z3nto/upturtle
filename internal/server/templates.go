@@ -68,9 +68,13 @@ func formatTime(t time.Time) string {
 
 func formatRelative(t time.Time) string {
 	if t.IsZero() {
-		return "-"
+		return ""
 	}
+	// If the time is more than 365 days ago, treat it as no data
 	diff := time.Since(t)
+	if diff > 365*24*time.Hour {
+		return ""
+	}
 	if diff < time.Second {
 		diff = time.Second
 	}

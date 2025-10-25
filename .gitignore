@@ -42,3 +42,4 @@ volumes/
 *.tmp
 *.temp
 docker-compose-sqlite.yml
+.appdata/

@@ -214,9 +214,11 @@
                             {{end}}
                         </div>
                     </div>
+                    {{if not .LastDownTime.IsZero}}
                     <div class="monitor-last-down">
                         Last down: <span class="format-time" data-time="{{.LastDownTime.Format "2006-01-02T15:04:05Z07:00"}}">{{.LastDownTime.Local.Format "2006/01/02 15:04:05"}}</span>
                     </div>
+                    {{end}}
                     <div class="monitor-status">
                         <span class="status-indicator {{if eq .Status "up"}}up{{else if eq .Status "down"}}down{{else}}unknown{{end}}"></span>
                         <span class="status-text {{if eq .Status "up"}}up{{else if eq .Status "down"}}down{{else}}unknown{{end}}">
@@ -326,7 +328,8 @@
                     group.monitors.forEach(monitor => {
                         const statusClass = monitor.status === 'up' ? 'up' : monitor.status === 'down' ? 'down' : 'unknown';
                         const statusText = getStatusText(monitor.status);
-                        const lastDownTime = formatDate(monitor.last_down_time);
+                        const lastDownTime = monitor.last_down_time ? new Date(monitor.last_down_time) : null;
+                        const isValidDownTime = lastDownTime && !isNaN(lastDownTime.getTime()) && lastDownTime.getTime() > 0;
                         
                         html += `<div class="monitor-item">`;
                         html += `  <div class="monitor-info">`;
@@ -337,9 +340,11 @@
                         }
                         html += `    </div>`;
                         html += `  </div>`;
-                        html += `  <div class="monitor-last-down">`;
-                        html += `    Last down: ${lastDownTime}`;
-                        html += `  </div>`;
+                        if (isValidDownTime) {
+                            html += `  <div class="monitor-last-down">`;
+                            html += `    Last down: ${formatDate(monitor.last_down_time)}`;
+                            html += `  </div>`;
+                        }
                         html += `  <div class="monitor-status">`;
                         html += `    <span class="status-indicator ${statusClass}"></span>`;
                         html += `    <span class="status-text ${statusClass}">${statusText}</span>`;
