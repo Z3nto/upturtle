@@ -114,35 +114,30 @@
       <input type="hidden" name="order" value="1">
       <div class="form-row">
         <div>
-          <label for="new-name">Name</label>
-          <input id="new-name" name="name" type="text" required placeholder="API health" autocomplete="off">
-        </div>
-        <div>
           <label for="new-type">Type</label>
           <select id="new-type" name="type">
             <option value="http">HTTP(S)</option>
             <option value="icmp" selected>ICMP</option>
           </select>
         </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="new-name">Name</label>
+          <input id="new-name" name="name" type="text" required placeholder="Monitor name (e.g., Google DNS)">
+        </div>
         <div>
           <label for="new-target">Target</label>
           <input id="new-target" name="target" type="text" placeholder="URL / Host / IP" required>
         </div>
+      </div>
+      <div class="form-row">
         <div id="new-cert-validation-div" style="display: none;">
           <label for="new-cert-validation">Certificate Validation</label>
           <select id="new-cert-validation" name="cert_validation">
             <option value="full" selected>Valid (Full validation)</option>
             <option value="expiry_only">Expiry only</option>
             <option value="ignore">Ignore</option>
-          </select>
-        </div>
-        <div>
-          <label for="new-group">Group</label>
-          <select id="new-group" name="group_id">
-            <option value="0" selected>(none)</option>
-            {{range .Groups}}
-              {{if .Name}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
-            {{end}}
           </select>
         </div>
       </div>
@@ -154,6 +149,17 @@
         <div>
           <label for="new-timeout">Timeout (seconds)</label>
           <input id="new-timeout" name="timeout_seconds" type="number" min="1" value="10">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="new-group">Group</label>
+          <select id="new-group" name="group_id">
+            <option value="0" selected>(none)</option>
+            {{range .Groups}}
+              {{if .Name}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+            {{end}}
+          </select>
         </div>
         <div>
           <label for="new-master">Master monitor</label>
@@ -168,6 +174,8 @@
             {{end}}
           </select>
         </div>
+      </div>
+      <div class="form-row">
         <div>
           <label for="new-notification">Notification</label>
           <select id="new-notification" name="notification_id">
@@ -204,37 +212,30 @@
       <input type="hidden" name="order" value="1">
       <div class="form-row">
         <div>
-          <label>Name</label>
-          <input name="name" type="text" required>
-        </div>
-        <div>
           <label>Type</label>
           <select name="type">
             <option value="http">HTTP(S)</option>
             <option value="icmp">ICMP</option>
           </select>
         </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Name</label>
+          <input name="name" type="text" required>
+        </div>
         <div>
           <label>Target</label>
           <input name="target" type="text" required>
         </div>
+      </div>
+      <div class="form-row">
         <div class="cert-validation-div" style="display: none;">
           <label>Certificate Validation</label>
           <select name="cert_validation">
             <option value="full">Valid (Full validation)</option>
             <option value="expiry_only">Expiry only</option>
             <option value="ignore">Ignore</option>
-          </select>
-        </div>
-        <div>
-          <label>Group</label>
-          <select name="group_id">
-            <option value="0">Ungrouped</option>
-            {{range .Groups}}
-              {{if .Name}}
-                <option value="{{.ID}}">{{.Name}}</option>
-              {{end}}
-            {{end}}
           </select>
         </div>
       </div>
@@ -246,6 +247,19 @@
         <div>
           <label>Timeout (seconds)</label>
           <input name="timeout_seconds" type="number" min="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Group</label>
+          <select name="group_id">
+            <option value="0">Ungrouped</option>
+            {{range .Groups}}
+              {{if .Name}}
+                <option value="{{.ID}}">{{.Name}}</option>
+              {{end}}
+            {{end}}
+          </select>
         </div>
         <div>
           <label>Master monitor</label>
