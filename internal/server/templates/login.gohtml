@@ -19,6 +19,14 @@
     <div class="form-group">
       <input id="password" name="password" type="password" placeholder="Password" required autocomplete="current-password" />
     </div>
+    {{ if .ShowRememberMe }}
+    <div class="form-group">
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="remember_me" name="remember_me" value="1" />
+        <span>Remember me for 30 days</span>
+      </label>
+    </div>
+    {{ end }}
     <div class="actions">
       <button type="submit" class="primary">Sign in</button>
     </div>

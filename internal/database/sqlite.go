@@ -74,6 +74,10 @@ func (s *SQLiteDB) Initialize() error {
 		return fmt.Errorf("failed to create users table: %w", err)
 	}
 
+	if err := s.createRememberMeTokensTable(); err != nil {
+		return fmt.Errorf("failed to create remember_me_tokens table: %w", err)
+	}
+
 	// Create history tables for today
 	today := time.Now()
 
@@ -1195,4 +1199,146 @@ func ensureDir(dir string) error {
 	}
 
 	return os.MkdirAll(dir, 0755)
+}
+
+// createRememberMeTokensTable creates the remember_me_tokens table
+func (s *SQLiteDB) createRememberMeTokensTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS remember_me_tokens (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		selector TEXT NOT NULL UNIQUE,
+		token_hash TEXT NOT NULL,
+		expires_at DATETIME NOT NULL,
+		last_used_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		user_agent TEXT,
+		ip_address TEXT,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	)`
+
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	// Create indexes
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_remember_me_selector ON remember_me_tokens(selector)`,
+		`CREATE INDEX IF NOT EXISTS idx_remember_me_user_id ON remember_me_tokens(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_remember_me_expires_at ON remember_me_tokens(expires_at)`,
+	}
+
+	for _, indexQuery := range indexes {
+		if _, err := s.db.Exec(indexQuery); err != nil {
+			log.Printf("Warning: Failed to create remember_me_tokens index: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// SaveRememberMeToken saves a remember-me token to the database
+func (s *SQLiteDB) SaveRememberMeToken(token RememberMeToken) (*RememberMeToken, error) {
+	query := `
+	INSERT INTO remember_me_tokens (user_id, selector, token_hash, expires_at, last_used_at, user_agent, ip_address)
+	VALUES (?, ?, ?, ?, ?, ?, ?)`
+
+	result, err := s.db.Exec(query,
+		token.UserID,
+		token.Selector,
+		token.TokenHash,
+		token.ExpiresAt,
+		token.LastUsedAt,
+		token.UserAgent,
+		token.IPAddress,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save remember-me token: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get token ID: %w", err)
+	}
+
+	token.ID = int(id)
+	token.CreatedAt = time.Now()
+	return &token, nil
+}
+
+// GetRememberMeToken retrieves a remember-me token by selector
+func (s *SQLiteDB) GetRememberMeToken(selector string) (*RememberMeToken, error) {
+	query := `
+	SELECT id, user_id, selector, token_hash, expires_at, last_used_at, created_at, user_agent, ip_address
+	FROM remember_me_tokens
+	WHERE selector = ?`
+
+	var token RememberMeToken
+	var lastUsedAt sql.NullTime
+
+	err := s.db.QueryRow(query, selector).Scan(
+		&token.ID,
+		&token.UserID,
+		&token.Selector,
+		&token.TokenHash,
+		&token.ExpiresAt,
+		&lastUsedAt,
+		&token.CreatedAt,
+		&token.UserAgent,
+		&token.IPAddress,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("token not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get remember-me token: %w", err)
+	}
+
+	if lastUsedAt.Valid {
+		token.LastUsedAt = lastUsedAt.Time
+	}
+
+	return &token, nil
+}
+
+// UpdateRememberMeTokenLastUsed updates the last_used_at timestamp
+func (s *SQLiteDB) UpdateRememberMeTokenLastUsed(id int, lastUsed time.Time) error {
+	query := `UPDATE remember_me_tokens SET last_used_at = ? WHERE id = ?`
+	_, err := s.db.Exec(query, lastUsed, id)
+	if err != nil {
+		return fmt.Errorf("failed to update token last used: %w", err)
+	}
+	return nil
+}
+
+// DeleteRememberMeToken deletes a specific remember-me token
+func (s *SQLiteDB) DeleteRememberMeToken(id int) error {
+	query := `DELETE FROM remember_me_tokens WHERE id = ?`
+	_, err := s.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete remember-me token: %w", err)
+	}
+	return nil
+}
+
+// DeleteRememberMeTokensByUser deletes all remember-me tokens for a user
+func (s *SQLiteDB) DeleteRememberMeTokensByUser(userID int) error {
+	query := `DELETE FROM remember_me_tokens WHERE user_id = ?`
+	_, err := s.db.Exec(query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user's remember-me tokens: %w", err)
+	}
+	return nil
+}
+
+// CleanupExpiredRememberMeTokens removes expired tokens
+func (s *SQLiteDB) CleanupExpiredRememberMeTokens() error {
+	query := `DELETE FROM remember_me_tokens WHERE expires_at < ?`
+	_, err := s.db.Exec(query, time.Now())
+	if err != nil {
+		return fmt.Errorf("failed to cleanup expired tokens: %w", err)
+	}
+	return nil
 }

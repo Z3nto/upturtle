@@ -1450,6 +1450,25 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		currentUser := s.getCurrentUser(r)
 		isAuth := currentUser != nil
 
+		// If no session but remember-me cookie exists, try to auto-login
+		if !isAuth && !isPublic {
+			if rememberCookie, err := r.Cookie("upturtle_remember"); err == nil && rememberCookie.Value != "" {
+				user, err := s.validateRememberMeToken(rememberCookie.Value)
+				if err == nil && user != nil {
+					s.authDebugf("Auto-login via remember-me token for user %s", user.Username)
+					// Create a new session with the remember-me flag
+					if err := s.createUserSession(w, r, user, true); err != nil {
+						s.logger.Printf("[ERROR] Failed to create session from remember-me: %v", err)
+					} else {
+						currentUser = user
+						isAuth = true
+					}
+				} else if err != nil {
+					s.authDebugf("Remember-me token validation failed: %v", err)
+				}
+			}
+		}
+
 		s.authDebugf("Auth middleware: path='%s', isPublic=%t, isAuthenticated=%t", r.URL.Path, isPublic, isAuth)
 
 		if isAuth {
@@ -1492,6 +1511,7 @@ func (s *Server) isPublicPath(p string) bool {
 // ==== User Management & Role-Based Access Control ===========================
 
 // getCurrentUser returns the current user from session, or nil if not authenticated
+// Note: Remember-me token validation is handled in the auth middleware
 func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
 	sessionID := s.getSessionID(r)
 	if sessionID == "" {
@@ -1616,8 +1636,9 @@ func (s *Server) authenticateUser(username, password string) (*database.UserData
 }
 
 // createUserSession creates a session for the authenticated user
-func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user *database.UserData) error {
-	s.authDebugf("Creating session for user %s with role %s", user.Username, user.Role)
+// If rememberMe is true, also creates a persistent remember-me token
+func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user *database.UserData, rememberMe bool) error {
+	s.authDebugf("Creating session for user %s with role %s, rememberMe=%v", user.Username, user.Role, rememberMe)
 
 	// Generate session ID
 	b := make([]byte, 32)
@@ -1627,11 +1648,6 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 	}
 	sessionID := hex.EncodeToString(b)
 
-	// Set session expiry (24 hours)
-	expiry := time.Now().Add(24 * time.Hour)
-	s.sessions[sessionID] = expiry
-	s.userSessions[sessionID] = user.ID
-
 	// Clean up any temporary CSRF token for this client
 	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 	delete(s.csrfTokens, tempKey)
@@ -1639,23 +1655,51 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 	// Check if request is over HTTPS
 	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 
-	// Set session cookie
-	cookie := &http.Cookie{
-		Name:     "upturtle_session",
-		Value:    sessionID,
-		Path:     "/",
-		Expires:  expiry,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   isHTTPS,
+	if rememberMe {
+		// Create persistent remember-me token (30 days)
+		if err := s.createRememberMeToken(w, r, user, isHTTPS); err != nil {
+			s.logger.Printf("[ERROR] Failed to create remember-me token: %v", err)
+			// Continue with session creation even if remember-me fails
+		}
+		
+		// For remember-me, create a session without expiry (browser session)
+		s.sessions[sessionID] = time.Now().Add(24 * time.Hour) // Still track in memory
+		s.userSessions[sessionID] = user.ID
+		
+		// Set session cookie without Expires (session cookie)
+		cookie := &http.Cookie{
+			Name:     "upturtle_session",
+			Value:    sessionID,
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   isHTTPS,
+		}
+		http.SetCookie(w, cookie)
+	} else {
+		// Regular session (24 hours)
+		expiry := time.Now().Add(24 * time.Hour)
+		s.sessions[sessionID] = expiry
+		s.userSessions[sessionID] = user.ID
+		
+		// Set session cookie with expiry
+		cookie := &http.Cookie{
+			Name:     "upturtle_session",
+			Value:    sessionID,
+			Path:     "/",
+			Expires:  expiry,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   isHTTPS,
+		}
+		http.SetCookie(w, cookie)
 	}
-	http.SetCookie(w, cookie)
 
 	s.authDebugf("User session created: user=%s, role=%s, sessionID=%s", user.Username, user.Role, sessionID[:8]+"...")
 	return nil
 }
 
-// destroyUserSession destroys the current user session
+// destroyUserSession destroys the current user session and remember-me token
 func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("upturtle_session")
 	if err == nil && c.Value != "" {
@@ -1663,6 +1707,15 @@ func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 		delete(s.userSessions, c.Value)
 		delete(s.csrfTokens, c.Value)
 	}
+
+	// Also destroy remember-me token if present
+	if rememberCookie, err := r.Cookie("upturtle_remember"); err == nil && rememberCookie.Value != "" {
+		s.destroyRememberMeToken(rememberCookie.Value)
+	}
+
+	// Clean up any temporary CSRF tokens for this client
+	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
+	delete(s.csrfTokens, tempKey)
 
 	// Check if request is over HTTPS
 	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
@@ -1678,6 +1731,164 @@ func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 		Secure:   isHTTPS,
 	}
 	http.SetCookie(w, cookie)
+	
+	// Clear remember-me cookie
+	rememberCookie := &http.Cookie{
+		Name:     "upturtle_remember",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isHTTPS,
+	}
+	http.SetCookie(w, rememberCookie)
+}
+
+// createRememberMeToken creates a persistent remember-me token
+func (s *Server) createRememberMeToken(w http.ResponseWriter, r *http.Request, user *database.UserData, isHTTPS bool) error {
+	if s.configDB == nil {
+		return fmt.Errorf("database not available for remember-me tokens")
+	}
+
+	// Generate selector (public identifier) and validator (secret)
+	selectorBytes := make([]byte, 16)
+	validatorBytes := make([]byte, 32)
+	
+	if _, err := rand.Read(selectorBytes); err != nil {
+		return fmt.Errorf("failed to generate selector: %w", err)
+	}
+	if _, err := rand.Read(validatorBytes); err != nil {
+		return fmt.Errorf("failed to generate validator: %w", err)
+	}
+	
+	selector := hex.EncodeToString(selectorBytes)
+	validator := hex.EncodeToString(validatorBytes)
+	
+	// Hash the validator before storing (bcrypt for security)
+	validatorHash, err := bcrypt.GenerateFromPassword([]byte(validator), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash validator: %w", err)
+	}
+	
+	// Get client info
+	userAgent := r.UserAgent()
+	ipAddress := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		ipAddress = forwarded
+	}
+	
+	// Create token (30 days expiry)
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+	token := database.RememberMeToken{
+		UserID:     user.ID,
+		Selector:   selector,
+		TokenHash:  string(validatorHash),
+		ExpiresAt:  expiresAt,
+		LastUsedAt: time.Now(),
+		UserAgent:  userAgent,
+		IPAddress:  ipAddress,
+	}
+	
+	// Save to database
+	savedToken, err := s.configDB.SaveRememberMeToken(token)
+	if err != nil {
+		return fmt.Errorf("failed to save remember-me token: %w", err)
+	}
+	
+	// Set cookie with selector:validator
+	cookieValue := selector + ":" + validator
+	cookie := &http.Cookie{
+		Name:     "upturtle_remember",
+		Value:    cookieValue,
+		Path:     "/",
+		Expires:  expiresAt,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isHTTPS,
+	}
+	http.SetCookie(w, cookie)
+	
+	s.authDebugf("Remember-me token created for user %s, ID=%d, expires=%s", user.Username, savedToken.ID, expiresAt.Format(time.RFC3339))
+	return nil
+}
+
+// validateRememberMeToken validates and uses a remember-me token
+func (s *Server) validateRememberMeToken(cookieValue string) (*database.UserData, error) {
+	if s.configDB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	
+	// Parse cookie value (selector:validator)
+	parts := strings.Split(cookieValue, ":")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid token format")
+	}
+	
+	selector := parts[0]
+	validator := parts[1]
+	
+	// Get token from database
+	token, err := s.configDB.GetRememberMeToken(selector)
+	if err != nil {
+		return nil, fmt.Errorf("token not found: %w", err)
+	}
+	
+	// Check if expired
+	if time.Now().After(token.ExpiresAt) {
+		s.configDB.DeleteRememberMeToken(token.ID)
+		return nil, fmt.Errorf("token expired")
+	}
+	
+	// Verify validator hash
+	if err := bcrypt.CompareHashAndPassword([]byte(token.TokenHash), []byte(validator)); err != nil {
+		// Invalid token - possible theft, delete all tokens for this user
+		s.logger.Printf("[SECURITY] Invalid remember-me token for user ID %d, deleting all tokens", token.UserID)
+		s.configDB.DeleteRememberMeTokensByUser(token.UserID)
+		return nil, fmt.Errorf("invalid token")
+	}
+	
+	// Update last used timestamp
+	if err := s.configDB.UpdateRememberMeTokenLastUsed(token.ID, time.Now()); err != nil {
+		s.logger.Printf("[WARN] Failed to update token last used: %v", err)
+	}
+	
+	// Get user
+	user, err := s.configDB.GetUser(token.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+	
+	// Check if user is still enabled
+	if !user.Enabled {
+		s.configDB.DeleteRememberMeToken(token.ID)
+		return nil, fmt.Errorf("user disabled")
+	}
+	
+	s.authDebugf("Remember-me token validated for user %s", user.Username)
+	return user, nil
+}
+
+// destroyRememberMeToken destroys a remember-me token by cookie value
+func (s *Server) destroyRememberMeToken(cookieValue string) {
+	if s.configDB == nil {
+		return
+	}
+	
+	parts := strings.Split(cookieValue, ":")
+	if len(parts) != 2 {
+		return
+	}
+	
+	selector := parts[0]
+	token, err := s.configDB.GetRememberMeToken(selector)
+	if err != nil {
+		return
+	}
+	
+	if err := s.configDB.DeleteRememberMeToken(token.ID); err != nil {
+		s.logger.Printf("[WARN] Failed to delete remember-me token: %v", err)
+	}
 }
 
 // ==== Auth & Sessions =========================================================
@@ -1698,13 +1909,19 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodGet:
+		// Prevent caching of login page to ensure fresh CSRF tokens
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		
 		s.authDebugf("Login GET request from %s, User-Agent: %s", r.RemoteAddr, r.UserAgent())
 		csrfToken := s.getCSRFToken(r)
 		s.authDebugf("Generated CSRF token for login form: %s...", csrfToken[:10])
 
 		data := struct {
 			BasePageData
-			Error string
+			Error              string
+			ShowRememberMe     bool
 		}{
 			BasePageData: BasePageData{
 				Title:           "Login",
@@ -1712,7 +1929,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 				HideHeader:      true,
 				CSRFToken:       csrfToken,
 			},
-			Error: r.URL.Query().Get("error"),
+			Error:          r.URL.Query().Get("error"),
+			ShowRememberMe: s.configDB != nil, // Only show if database is available
 		}
 
 		if errorMsg := r.URL.Query().Get("error"); errorMsg != "" {
@@ -1738,7 +1956,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		username := strings.TrimSpace(r.FormValue("username"))
 		password := r.FormValue("password")
-		s.authDebugf("Login attempt: username='%s', password_length=%d", username, len(password))
+		rememberMe := r.FormValue("remember_me") == "1"
+		s.authDebugf("Login attempt: username='%s', password_length=%d, remember_me=%v", username, len(password), rememberMe)
 
 		// Authenticate user using new system
 		user, err := s.authenticateUser(username, password)
@@ -1749,7 +1968,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 
 		s.authDebugf("Login successful for user '%s' with role '%s', creating session", user.Username, user.Role)
-		if err := s.createUserSession(w, r, user); err != nil {
+		if err := s.createUserSession(w, r, user, rememberMe); err != nil {
 			s.logger.Printf("[ERROR] create session error: %v", err)
 			http.Redirect(w, r, "/login?error="+url.QueryEscape("internal error"), http.StatusSeeOther)
 			return
@@ -1875,20 +2094,9 @@ func (s *Server) getCSRFToken(r *http.Request) string {
 	}
 
 	// For unauthenticated requests (login/install), generate a temporary token
-	// Store it with a special key based on remote address and user agent
-	// Special handling for Safari mobile which may have changing User-Agent strings
-	userAgent := r.UserAgent()
-	isSafariMobile := strings.Contains(userAgent, "Safari") && (strings.Contains(userAgent, "Mobile") || strings.Contains(userAgent, "iPhone") || strings.Contains(userAgent, "iPad"))
-
-	var tempKey string
-	if isSafariMobile {
-		// For Safari mobile, use a simpler key that's less likely to change
-		tempKey = "temp_safari_" + r.RemoteAddr
-		s.authDebugf("Using Safari mobile CSRF key: '%s'", tempKey)
-	} else {
-		tempKey = "temp_" + r.RemoteAddr + "_" + userAgent
-		s.authDebugf("Using standard CSRF key: '%s'", tempKey)
-	}
+	// Store it with a key based on remote address and user agent
+	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
+	s.authDebugf("Using CSRF key: '%s'", tempKey)
 
 	if token, exists := s.csrfTokens[tempKey]; exists {
 		s.authDebugf("Returning existing temporary CSRF token")
@@ -1926,17 +2134,10 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 		s.authDebugf("CSRF: Using session-based token, key='%s', exists=%t", tokenKey, exists)
 	} else {
 		// For unauthenticated requests (login/install), use temporary tokens
-		// Special handling for Safari mobile
-		userAgent := r.UserAgent()
-		isSafariMobile := strings.Contains(userAgent, "Safari") && (strings.Contains(userAgent, "Mobile") || strings.Contains(userAgent, "iPhone") || strings.Contains(userAgent, "iPad"))
-
-		if isSafariMobile {
-			tokenKey = "temp_safari_" + r.RemoteAddr
-		} else {
-			tokenKey = "temp_" + r.RemoteAddr + "_" + userAgent
-		}
+		// Use RemoteAddr + UserAgent to differentiate between devices
+		tokenKey = "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 		expectedToken, exists = s.csrfTokens[tokenKey]
-		s.authDebugf("CSRF: Using temporary token (Safari mobile: %t), key='%s', exists=%t", isSafariMobile, tokenKey, exists)
+		s.authDebugf("CSRF: Using temporary token, key='%s', exists=%t", tokenKey, exists)
 	}
 
 	if !exists {
@@ -2044,8 +2245,18 @@ func (s *Server) cleanupExpiredSessions() {
 		}
 	}
 
-	if len(expiredSessions) > 0 || tempTokensRemoved > 0 {
-		s.logger.Printf("Cleaned up %d expired sessions and %d temporary CSRF tokens", len(expiredSessions), tempTokensRemoved)
+	// Clean up expired remember-me tokens from database
+	tokensRemoved := 0
+	if s.configDB != nil {
+		if err := s.configDB.CleanupExpiredRememberMeTokens(); err != nil {
+			s.logger.Printf("Failed to cleanup expired remember-me tokens: %v", err)
+		} else {
+			tokensRemoved++
+		}
+	}
+
+	if len(expiredSessions) > 0 || tempTokensRemoved > 0 || tokensRemoved > 0 {
+		s.logger.Printf("Cleaned up %d expired sessions, %d temporary CSRF tokens, and expired remember-me tokens", len(expiredSessions), tempTokensRemoved)
 	}
 }
 

@@ -133,6 +133,19 @@ type UserData struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// RememberMeToken represents a persistent login token
+type RememberMeToken struct {
+	ID           int       `json:"id"`
+	UserID       int       `json:"user_id"`
+	Selector     string    `json:"selector"`      // Public identifier (stored in cookie)
+	TokenHash    string    `json:"token_hash"`    // Hashed validator (stored in DB)
+	ExpiresAt    time.Time `json:"expires_at"`
+	LastUsedAt   time.Time `json:"last_used_at"`
+	CreatedAt    time.Time `json:"created_at"`
+	UserAgent    string    `json:"user_agent"`    // For identifying device
+	IPAddress    string    `json:"ip_address"`    // For security logging
+}
+
 // Database interface defines the contract for database operations
 type Database interface {
 	// Initialize sets up the database connection and creates necessary tables
@@ -201,4 +214,12 @@ type Database interface {
 	GetUserByUsername(username string) (*UserData, error)
 	GetAllUsers() ([]UserData, error)
 	DeleteUser(id int) error
+
+	// Remember-me token management
+	SaveRememberMeToken(token RememberMeToken) (*RememberMeToken, error)
+	GetRememberMeToken(selector string) (*RememberMeToken, error)
+	UpdateRememberMeTokenLastUsed(id int, lastUsed time.Time) error
+	DeleteRememberMeToken(id int) error
+	DeleteRememberMeTokensByUser(userID int) error
+	CleanupExpiredRememberMeTokens() error
 }
