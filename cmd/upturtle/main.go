@@ -124,9 +124,9 @@ func main() {
 					log.Printf("Loaded %d notifications from database", len(dbNotifications))
 				}
 				
-				// Load UI settings from database (only ShowMemoryDisplay). Debug flags must come from config file.
-				if showMemory, err := db.GetSetting("show_memory_display"); err == nil && showMemory == "true" {
-					persisted.ShowMemoryDisplay = true
+				// Load UI settings from database (only ShowDatabaseDisplay). Debug flags must come from config file.
+				if showDatabase, err := db.GetSetting("show_database_display"); err == nil && showDatabase == "true" {
+					persisted.ShowDatabaseDisplay = true
 					log.Printf("Loaded UI settings from database")
 				}
 				
@@ -223,8 +223,8 @@ func main() {
 	
 	// Set default values for UI settings if not configured and no database is used
 	if !exists {
-		persisted.ShowMemoryDisplay = true // Default: enabled
-		persisted.AuthDebug = true         // Default: enabled for debugging login issues
+		persisted.ShowDatabaseDisplay = true // Default: enabled
+		persisted.AuthDebug = true           // Default: enabled for debugging login issues
 	}
 
 	log.Printf("Creating server with %d groups, %d notifications, %d monitors, %d status pages", 
@@ -246,7 +246,7 @@ func main() {
 		NotificationDebug: persisted.NotificationDebug,
 		ApiDebug:          persisted.ApiDebug,
 		AuthDebug:         persisted.AuthDebug,
-		ShowMemoryDisplay: persisted.ShowMemoryDisplay,
+		ShowDatabaseDisplay: persisted.ShowDatabaseDisplay,
 		DatabaseConfig:    persisted.Database,
 	})
 	if err != nil {

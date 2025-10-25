@@ -23,7 +23,7 @@
     <div class="card">
       <h3>UI Settings</h3>
       <div class="form-row checkbox-row">
-        <label><input type="checkbox" id="show_memory_display" {{if .ShowMemoryDisplay}}checked{{end}}> Show Memory Usage</label>
+        <label><input type="checkbox" id="show_database_display" {{if .ShowDatabaseDisplay}}checked{{end}}> Show Database Display</label>
       </div>
     </div>
 
@@ -55,7 +55,7 @@ document.getElementById('settings-form').addEventListener('submit', async functi
         notification_debug: document.getElementById('notification_debug').checked,
         api_debug: document.getElementById('api_debug').checked,
         auth_debug: document.getElementById('auth_debug').checked,
-        show_memory_display: document.getElementById('show_memory_display').checked,
+        show_database_display: document.getElementById('show_database_display').checked,
         csrf_token: '{{.CSRFToken}}'
       })
     });

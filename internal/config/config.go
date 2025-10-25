@@ -32,7 +32,7 @@ type AppConfig struct {
 	ApiDebug          bool `json:"api_debug,omitempty"`
 	AuthDebug         bool `json:"auth_debug,omitempty"`
 	// UI settings
-	ShowMemoryDisplay bool `json:"show_memory_display,omitempty"`
+	ShowDatabaseDisplay bool `json:"show_database_display,omitempty"`
 	// Status pages configuration
 	StatusPages []StatusPageConfig `json:"status_pages,omitempty"`
 }

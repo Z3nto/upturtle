@@ -484,8 +484,8 @@
             height: 20px;
             fill: currentColor;
         }
-        /* Memory Display Styling */
-        #memory-display {
+        /* Database Display Styling */
+        #database-display {
             background: rgba(30, 30, 30, 0.6);
             border: 1px solid rgba(160, 160, 160, 0.2);
             border-radius: 6px;
@@ -499,14 +499,14 @@
             bottom: 20px;
             z-index: 1000;
         }
-        #memory-display:hover {
+        #database-display:hover {
             background: rgba(40, 40, 40, 0.8);
             border-color: rgba(160, 160, 160, 0.3);
         }
-        #memory-display span {
+        #database-display span {
             font-weight: 500;
         }
-        #memory-entries, #memory-db-status, .memory-entries {
+        #database-entries, #database-db-status, .database-entries {
             font-weight: 600;
             color: #e2e8f0;
         }
@@ -531,8 +531,8 @@
         /* Mobile breakpoint - stack header */
         @media (max-width: 640px) {
             header .container { flex-direction: column; align-items: stretch; gap: 0.5rem; }
-            /* memory-display stays fixed in bottom right on mobile too */
-            #memory-display { font-size: 0.75rem; padding: 0.3rem 0.6rem; right: 10px; bottom: 10px; }
+            /* database-display stays fixed in bottom right on mobile too */
+            #database-display { font-size: 0.75rem; padding: 0.3rem 0.6rem; right: 10px; bottom: 10px; }
             /* nav links styling for mobile */
             .nav-links { gap: .35rem; padding-top: .5rem; }
         }
@@ -605,13 +605,13 @@
         GitHub
     </a>
 </footer>
-{{if .ShowMemoryDisplay}}
-<div id="memory-display" style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:#a1a1aa;">
-    <span>Memory:</span>
-    <span id="memory-entries">-</span>
-    <span class="memory-entries">entries</span>
-    <span style="margin-left:0.5rem;">DB:</span>
-    <span id="memory-db-status">-</span>
+{{if .ShowDatabaseDisplay}}
+<div id="database-display" style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:#a1a1aa;">
+    <span id="database-label">Memory:</span>
+    <span id="database-entries">-</span>
+    <span class="database-entries" id="database-entries-label" style="margin-right:0.5rem;">entries</span>
+    <span>DB:</span>
+    <span id="database-db-status">-</span>
 </div>
 {{end}}
 <script>
@@ -660,45 +660,54 @@
   }catch(err){ /* no-op */ }
 })();
 
-// Memory Display Auto-Refresh
-{{if .ShowMemoryDisplay}}
+// Database Display Auto-Refresh
+{{if .ShowDatabaseDisplay}}
 (function(){
-  const memoryEntriesEl = document.getElementById('memory-entries');
-  const memoryDbStatusEl = document.getElementById('memory-db-status');
+  const databaseEntriesEl = document.getElementById('database-entries');
+  const databaseDbStatusEl = document.getElementById('database-db-status');
+  const databaseLabelEl = document.getElementById('database-label');
+  const databaseEntriesLabelEl = document.getElementById('database-entries-label');
   
-  if (!memoryEntriesEl || !memoryDbStatusEl) return;
+  if (!databaseEntriesEl || !databaseDbStatusEl) return;
   
-  async function updateMemoryDisplay() {
+  async function updateDatabaseDisplay() {
     try {
       const response = await fetch('/api/memory');
       if (!response.ok) throw new Error('Failed to fetch memory data');
       
       const data = await response.json();
       
-      // Update memory entries count
-      memoryEntriesEl.textContent = data.total_history_entries || 0;
-      
       // Update database status
       if (data.database_integration) {
-        memoryDbStatusEl.textContent = 'SQLite';
-        memoryDbStatusEl.style.color = '#10b981'; // green
+        databaseDbStatusEl.textContent = 'SQLite';
+        databaseDbStatusEl.style.color = '#10b981'; // green
+        // Hide memory entries when using database
+        if (databaseLabelEl) databaseLabelEl.style.display = 'none';
+        if (databaseEntriesEl) databaseEntriesEl.style.display = 'none';
+        if (databaseEntriesLabelEl) databaseEntriesLabelEl.style.display = 'none';
       } else {
-        memoryDbStatusEl.textContent = 'Memory';
-        memoryDbStatusEl.style.color = '#f59e0b'; // amber
+        databaseDbStatusEl.textContent = 'Memory';
+        databaseDbStatusEl.style.color = '#f59e0b'; // amber
+        // Show memory entries when using in-memory mode
+        if (databaseLabelEl) databaseLabelEl.style.display = '';
+        if (databaseEntriesEl) databaseEntriesEl.style.display = '';
+        if (databaseEntriesLabelEl) databaseEntriesLabelEl.style.display = '';
+        // Update memory entries count
+        databaseEntriesEl.textContent = data.total_history_entries || 0;
       }
     } catch (error) {
-      console.warn('Failed to update memory display:', error);
-      memoryEntriesEl.textContent = 'Error';
-      memoryDbStatusEl.textContent = 'Error';
-      memoryDbStatusEl.style.color = '#ef4444'; // red
+      console.warn('Failed to update database display:', error);
+      databaseEntriesEl.textContent = 'Error';
+      databaseDbStatusEl.textContent = 'Error';
+      databaseDbStatusEl.style.color = '#ef4444'; // red
     }
   }
   
   // Initial load
-  updateMemoryDisplay();
+  updateDatabaseDisplay();
   
   // Auto-refresh every 60 seconds
-  setInterval(updateMemoryDisplay, 60000);
+  setInterval(updateDatabaseDisplay, 60000);
 })();
 {{end}}
 </script>

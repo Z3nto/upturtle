@@ -196,7 +196,7 @@ type Server struct {
 	apiDebug          bool
 	authDebug         bool
 	// UI settings
-	showMemoryDisplay bool
+	showDatabaseDisplay bool
 	// database configuration
 	databaseConfig *database.Config
 	// persistent database connection (only for config storage)
@@ -227,7 +227,7 @@ type Config struct {
 	ApiDebug          bool
 	AuthDebug         bool
 	// UI settings
-	ShowMemoryDisplay bool
+	ShowDatabaseDisplay bool
 	// Database configuration
 	DatabaseConfig *database.Config
 }
@@ -264,7 +264,7 @@ func New(cfg Config) (*Server, error) {
 		notificationDebug: cfg.NotificationDebug,
 		apiDebug:          cfg.ApiDebug,
 		authDebug:         cfg.AuthDebug,
-		showMemoryDisplay: cfg.ShowMemoryDisplay,
+		showDatabaseDisplay: cfg.ShowDatabaseDisplay,
 		databaseConfig:    cfg.DatabaseConfig,
 	}
 
@@ -444,7 +444,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		NotificationDebug bool
 		ApiDebug          bool
 		AuthDebug         bool
-		ShowMemoryDisplay bool
+		ShowDatabaseDisplay bool
 		Error             string
 		Success           string
 	}{
@@ -453,7 +453,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		NotificationDebug: s.notificationDebug,
 		ApiDebug:          s.apiDebug,
 		AuthDebug:         s.authDebug,
-		ShowMemoryDisplay: s.showMemoryDisplay,
+		ShowDatabaseDisplay: s.showDatabaseDisplay,
 		Error:             r.URL.Query().Get("error"),
 		Success:           r.URL.Query().Get("success"),
 	}
@@ -485,7 +485,7 @@ func (s *Server) handleAPISettings(w http.ResponseWriter, r *http.Request) {
 		NotificationDebug bool   `json:"notification_debug"`
 		ApiDebug          bool   `json:"api_debug"`
 		AuthDebug         bool   `json:"auth_debug"`
-		ShowMemoryDisplay bool   `json:"show_memory_display"`
+		ShowDatabaseDisplay bool   `json:"show_database_display"`
 		CSRFToken         string `json:"csrf_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -503,7 +503,7 @@ func (s *Server) handleAPISettings(w http.ResponseWriter, r *http.Request) {
 	s.notificationDebug = body.NotificationDebug
 	s.apiDebug = body.ApiDebug
 	s.authDebug = body.AuthDebug
-	s.showMemoryDisplay = body.ShowMemoryDisplay
+	s.showDatabaseDisplay = body.ShowDatabaseDisplay
 
 	if s.manager != nil {
 		s.manager.SetMonitorDebug(body.MonitorDebug)
@@ -2237,7 +2237,7 @@ type BasePageData struct {
 	DatabaseHealthy bool
 	DatabaseError   string
 	// UI settings
-	ShowMemoryDisplay bool
+	ShowDatabaseDisplay bool
 	// Current user information for menu rendering
 	CurrentUser *database.UserData
 }
@@ -2249,7 +2249,7 @@ func (s *Server) createBasePageData(r *http.Request, title, contentTemplate stri
 		ContentTemplate:   contentTemplate,
 		CSRFToken:         s.getCSRFToken(r),
 		DatabaseEnabled:   s.configDB != nil,
-		ShowMemoryDisplay: s.showMemoryDisplay,
+		ShowDatabaseDisplay: s.showDatabaseDisplay,
 		CurrentUser:       s.getCurrentUser(r),
 	}
 }
@@ -2543,9 +2543,9 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// Save UI setting (ShowMemoryDisplay) to database under 'settings'
-			if s.showMemoryDisplay {
-				if err := db.SaveSetting("show_memory_display", "true"); err != nil {
+			// Save UI setting (ShowDatabaseDisplay) to database under 'settings'
+			if s.showDatabaseDisplay {
+				if err := db.SaveSetting("show_database_display", "true"); err != nil {
 					s.logger.Printf("Warning: Failed to save UI settings to database during install: %v", err)
 				}
 			}
@@ -2702,9 +2702,9 @@ func (s *Server) saveConfig() error {
 			}
 		}
 
-		// Save UI setting (ShowMemoryDisplay) in the database for DB mode; keep debug flags out of DB
-		if s.showMemoryDisplay {
-			if err := s.configDB.SaveSetting("show_memory_display", "true"); err != nil {
+		// Save UI setting (ShowDatabaseDisplay) in the database for DB mode; keep debug flags out of DB
+		if s.showDatabaseDisplay {
+			if err := s.configDB.SaveSetting("show_database_display", "true"); err != nil {
 				s.logger.Printf("Warning: Failed to save UI settings to database: %v", err)
 			}
 		}
@@ -2806,7 +2806,7 @@ func (s *Server) saveConfig() error {
 	cfg.NotificationDebug = s.notificationDebug
 	cfg.ApiDebug = s.apiDebug
 	cfg.AuthDebug = s.authDebug
-	cfg.ShowMemoryDisplay = s.showMemoryDisplay
+	cfg.ShowDatabaseDisplay = s.showDatabaseDisplay
 	configs := s.manager.GetAllConfigs()
 	cfg.Monitors = make([]config.PersistedMonitorConfig, 0, len(configs))
 	for _, mc := range configs {
@@ -2927,7 +2927,7 @@ func (s *Server) handleAdminStatusPagesConfig(w http.ResponseWriter, r *http.Req
 			Title:             "Configure Status Page: " + statusPage.Name,
 			ContentTemplate:   "statuspage_config.content",
 			CSRFToken:         s.getCSRFToken(r),
-			ShowMemoryDisplay: s.showMemoryDisplay,
+			ShowDatabaseDisplay: s.showDatabaseDisplay,
 		},
 		StatusPage:       *statusPage,
 		AllMonitors:      make([]APISnapshot, 0, len(snapshots)),
