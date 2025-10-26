@@ -23,7 +23,7 @@
         </thead>
         <tbody>
           {{range .Monitors}}
-          <tr class="{{statusClass .Status}}" data-id="{{.ID}}">
+          <tr class="monitor-row {{statusClass .Status}}" data-id="{{.ID}}" data-type="{{.Type}}">
             <td>
               <div>{{.Name}}</div>
               <div class="muted">{{.ID}}</div>
@@ -54,6 +54,16 @@
               </div>
             </td>
             <td><span data-field="uptime">{{printf "%.1f" .SuccessRate}}%</span></td>
+          </tr>
+          <tr class="chart-row" data-monitor-id="{{.ID}}" style="display: none;">
+            <td colspan="5" style="padding: 0;">
+              <div class="chart-container" style="overflow: hidden; height: 0; transition: height 0.3s ease;">
+                <div class="chart-content" style="padding: 1.5rem;">
+                  <div class="chart-loading">Loading chart data...</div>
+                  <canvas class="monitor-chart" style="display: none; height: 375px;"></canvas>
+                </div>
+              </div>
+            </td>
           </tr>
           {{end}}
         </tbody>
@@ -117,6 +127,13 @@
     background: #1f1f23;
     color: #e2e8f0;
   }
+
+  /* Chart row styles */
+  tr.monitor-row { cursor: pointer; transition: background-color 0.2s ease; }
+  tr.monitor-row:hover { background-color: rgba(160, 160, 160, 0.08); }
+  tr.chart-row { border-bottom: none; }
+  .chart-container { background: rgba(30, 30, 30, 0.5); }
+  .chart-loading { text-align: center; color: #a1a1aa; padding: 2rem; }
 </style>
 <script>
 (function(){
@@ -399,6 +416,358 @@
   // React to user changes immediately
   const sel = document.getElementById('refresh-select');
   if(sel){ sel.addEventListener('change', function(){ if(timer){ clearTimeout(timer); } poll(); }); }
+})();
+
+// Chart expansion functionality
+(function(){
+  let currentOpenMonitorId = null;
+  let chartInstances = {}; // Store chart instances to destroy them later
+  let animationTimeouts = {}; // Store animation timeouts to cancel them
+  let isAnimating = {}; // Track which monitors are currently animating
+
+  // Handle monitor row clicks
+  document.addEventListener('click', function(ev){
+    const monitorRow = ev.target.closest('tr.monitor-row');
+    if(!monitorRow) return;
+
+    const monitorId = monitorRow.getAttribute('data-id');
+    const monitorType = monitorRow.getAttribute('data-type');
+    
+    // Prevent multiple clicks during animation
+    if(isAnimating[monitorId]) return;
+    
+    // If clicking the same row, close it
+    if(currentOpenMonitorId === monitorId){
+      closeChart(monitorId);
+      currentOpenMonitorId = null;
+      return;
+    }
+
+    // If another chart is open, close it first
+    if(currentOpenMonitorId){
+      closeChart(currentOpenMonitorId);
+    }
+
+    // Open the new chart
+    openChart(monitorId, monitorType);
+    currentOpenMonitorId = monitorId;
+  });
+
+  function openChart(monitorId, monitorType){
+    const chartRow = document.querySelector(`tr.chart-row[data-monitor-id="${monitorId}"]`);
+    if(!chartRow) return;
+
+    const container = chartRow.querySelector('.chart-container');
+    const loading = chartRow.querySelector('.chart-loading');
+    const canvas = chartRow.querySelector('.monitor-chart');
+
+    // Cancel any pending animation timeout for this monitor
+    if(animationTimeouts[monitorId]){
+      clearTimeout(animationTimeouts[monitorId]);
+      delete animationTimeouts[monitorId];
+    }
+
+    // Mark as animating
+    isAnimating[monitorId] = true;
+
+    // Force reflow to ensure transition works
+    container.style.transition = 'none';
+    container.style.height = '0';
+    chartRow.style.display = '';
+    
+    // Force reflow
+    void container.offsetHeight;
+    
+    // Re-enable transition and animate
+    container.style.transition = 'height 0.3s ease';
+    container.style.height = '400px';
+
+    // Show loading state
+    loading.style.display = 'block';
+    canvas.style.display = 'none';
+
+    // Mark animation as complete after transition
+    animationTimeouts[monitorId] = setTimeout(function(){
+      isAnimating[monitorId] = false;
+      delete animationTimeouts[monitorId];
+    }, 300);
+
+    // Fetch chart data
+    fetch(`/api/monitors/chart/${monitorId}`)
+      .then(res => {
+        if(!res.ok) throw new Error('Failed to fetch chart data');
+        return res.json();
+      })
+      .then(data => {
+        loading.style.display = 'none';
+        canvas.style.display = 'block';
+        renderChart(canvas, data, monitorType);
+      })
+      .catch(err => {
+        console.error('Error loading chart:', err);
+        loading.textContent = 'Error loading chart data';
+      });
+  }
+
+  function closeChart(monitorId){
+    const chartRow = document.querySelector(`tr.chart-row[data-monitor-id="${monitorId}"]`);
+    if(!chartRow) return;
+
+    const container = chartRow.querySelector('.chart-container');
+    const loading = chartRow.querySelector('.chart-loading');
+    const canvas = chartRow.querySelector('.monitor-chart');
+
+    // Cancel any pending animation timeout for this monitor
+    if(animationTimeouts[monitorId]){
+      clearTimeout(animationTimeouts[monitorId]);
+      delete animationTimeouts[monitorId];
+    }
+
+    // Mark as animating
+    isAnimating[monitorId] = true;
+
+    // Destroy chart instance if exists
+    if(chartInstances[monitorId]){
+      chartInstances[monitorId].destroy();
+      delete chartInstances[monitorId];
+    }
+
+    // Animate height to 0
+    container.style.transition = 'height 0.3s ease';
+    container.style.height = '0';
+
+    // After animation, hide row and reset content
+    animationTimeouts[monitorId] = setTimeout(function(){
+      chartRow.style.display = 'none';
+      loading.style.display = 'block';
+      loading.textContent = 'Loading chart data...';
+      canvas.style.display = 'none';
+      isAnimating[monitorId] = false;
+      delete animationTimeouts[monitorId];
+    }, 300);
+  }
+
+  function renderChart(canvas, data, monitorType){
+    const ctx = canvas.getContext('2d');
+    
+    // Destroy existing chart if any
+    if(chartInstances[data.id]){
+      chartInstances[data.id].destroy();
+    }
+
+    // Format timestamps for display - show date only once per day
+    const labels = data.timestamps.map((ts, i) => {
+      const d = new Date(ts);
+      const prevD = i > 0 ? new Date(data.timestamps[i - 1]) : null;
+      
+      // Check if this is a new day
+      const isNewDay = !prevD || 
+                       d.getDate() !== prevD.getDate() || 
+                       d.getMonth() !== prevD.getMonth() || 
+                       d.getFullYear() !== prevD.getFullYear();
+      
+      if(isNewDay){
+        // Show full date and time for first entry of the day
+        return d.toLocaleString('de-DE', { 
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+      } else {
+        // Show only time for subsequent entries
+        return d.toLocaleTimeString('de-DE', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+      }
+    });
+
+    // Create datasets based on monitor type
+    const datasets = [];
+
+    // For all monitor types, show latency (only when status is up)
+    datasets.push({
+      label: 'Response Time (ms)',
+      data: data.latencies.map((lat, i) => data.statuses[i] === 1 ? lat : null),
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      spanGaps: false,
+      yAxisID: 'y'
+    });
+
+    // Add status as a separate dataset on secondary y-axis
+    datasets.push({
+      label: 'Status',
+      data: data.statuses,
+      borderColor: '#34d399',
+      backgroundColor: 'rgba(52, 211, 153, 0.1)',
+      borderWidth: 2,
+      fill: false,
+      stepped: true,
+      pointRadius: 0,
+      pointHoverRadius: 6,
+      yAxisID: 'y1'
+    });
+
+    // Custom plugin to draw red background for down periods
+    const downBackgroundPlugin = {
+      id: 'downBackground',
+      beforeDatasetsDraw: function(chart) {
+        const ctx = chart.ctx;
+        const chartArea = chart.chartArea;
+        const xScale = chart.scales.x;
+        
+        ctx.save();
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.1)'; // Red with transparency
+        
+        // Find continuous down periods
+        let downStart = null;
+        for(let i = 0; i < data.statuses.length; i++){
+          if(data.statuses[i] === 0){ // Monitor is down
+            if(downStart === null){
+              downStart = i; // Start of down period
+            }
+          } else {
+            if(downStart !== null){
+              // End of down period, draw rectangle
+              const x1 = xScale.getPixelForValue(downStart);
+              const x2 = xScale.getPixelForValue(i);
+              ctx.fillRect(x1, chartArea.top, x2 - x1, chartArea.bottom - chartArea.top);
+              downStart = null;
+            }
+          }
+        }
+        
+        // Handle case where chart ends with down status
+        if(downStart !== null){
+          const x1 = xScale.getPixelForValue(downStart);
+          const x2 = chartArea.right;
+          ctx.fillRect(x1, chartArea.top, x2 - x1, chartArea.bottom - chartArea.top);
+        }
+        
+        ctx.restore();
+      }
+    };
+
+    const config = {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: datasets
+      },
+      plugins: [downBackgroundPlugin],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: '#e2e8f0',
+              font: { size: 12 }
+            }
+          },
+          title: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'rgba(24, 24, 24, 0.95)',
+            titleColor: '#e2e8f0',
+            bodyColor: '#e2e8f0',
+            borderColor: 'rgba(160, 160, 160, 0.3)',
+            borderWidth: 1,
+            callbacks: {
+              label: function(context){
+                let label = context.dataset.label || '';
+                if(label === 'Status'){
+                  const status = data.statuses[context.dataIndex];
+                  return label + ': ' + (status === 1 ? 'Up' : 'Down');
+                }
+                if(label && context.parsed.y !== null){
+                  return label + ': ' + context.parsed.y.toFixed(2) + ' ms';
+                }
+                return label;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { 
+              color: '#a1a1aa',
+              maxRotation: 45,
+              minRotation: 45
+            },
+            grid: { 
+              color: 'rgba(160, 160, 160, 0.1)' 
+            }
+          },
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            title: {
+              display: true,
+              text: 'Response Time (ms)',
+              color: '#e2e8f0'
+            },
+            ticks: { 
+              color: '#a1a1aa',
+              callback: function(value){
+                return value.toFixed(0) + ' ms';
+              }
+            },
+            grid: { 
+              color: 'rgba(160, 160, 160, 0.1)' 
+            }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            min: 0,
+            max: 1.5,
+            title: {
+              display: true,
+              text: 'Status',
+              color: '#e2e8f0'
+            },
+            ticks: {
+              color: '#a1a1aa',
+              stepSize: 1,
+              callback: function(value){
+                if(value === 1){
+                  return 'Up';
+                }
+                else if(value === 0){
+                  return 'Down';
+                } else {
+                  return '';
+                }
+              }
+            },
+            grid: {
+              drawOnChartArea: false
+            }
+          }
+        }
+      }
+    };
+
+    // Create and store chart instance
+    chartInstances[data.id] = new Chart(ctx, config);
+  }
 })();
 </script>
 {{end}}
