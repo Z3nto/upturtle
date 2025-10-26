@@ -158,7 +158,7 @@
     const name = formData.get('name');
     
     try {
-      const response = await fetch('/api/apikeys/generate', {
+      const response = await fetch('/api/users/apikeys/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +199,7 @@
     const id = parseInt(formData.get('id'));
     
     try {
-      const response = await fetch('/api/apikeys/revoke', {
+      const response = await fetch('/api/users/apikeys/revoke', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +226,7 @@
     const loading = document.getElementById('apikeys-loading');
     
     try {
-      const response = await fetch('/api/apikeys');
+      const response = await fetch('/api/users/apikeys');
       if (!response.ok) {
         throw new Error('Failed to load API keys');
       }
