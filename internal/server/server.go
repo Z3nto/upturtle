@@ -1628,9 +1628,22 @@ func (s *Server) isPublicPath(p string) bool {
 
 // ==== User Management & Role-Based Access Control ===========================
 
-// getCurrentUser returns the current user from session, or nil if not authenticated
+// getCurrentUser returns the current user from session, API key, or nil if not authenticated
 // Note: Remember-me token validation is handled in the auth middleware
 func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
+	// First, try API key authentication (for API requests)
+	authHeader := r.Header.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		apiKey := strings.TrimPrefix(authHeader, "Bearer ")
+		if apiKey != "" && s.configDB != nil {
+			user, err := s.validateAPIKey(apiKey)
+			if err == nil && user != nil {
+				return user
+			}
+		}
+	}
+
+	// Fall back to session-based authentication
 	sessionID := s.getSessionID(r)
 	if sessionID == "" {
 		return nil
@@ -2191,6 +2204,12 @@ func (s *Server) ensureAuthAndCSRF(w http.ResponseWriter, r *http.Request) bool 
 		return true
 	}
 
+	// Skip CSRF check for API key authentication (Bearer token)
+	authHeader := r.Header.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return true
+	}
+
 	// For session-based requests, validate CSRF token
 	if !s.validateCSRFToken(r) {
 		http.Error(w, "CSRF token validation failed", http.StatusForbidden)
@@ -2285,6 +2304,19 @@ func (s *Server) getSessionID(r *http.Request) string {
 
 // validateCSRFToken validates the CSRF token from the request
 func (s *Server) validateCSRFToken(r *http.Request) bool {
+	// Skip CSRF check for API key authentication (Bearer token)
+	authHeader := r.Header.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		s.authDebugf("CSRF validation skipped: API key authentication detected")
+		return true
+	}
+
+	// Skip CSRF check for HTTP Basic Auth (API clients)
+	if _, _, ok := r.BasicAuth(); ok {
+		s.authDebugf("CSRF validation skipped: HTTP Basic Auth detected")
+		return true
+	}
+
 	sessionID := s.getSessionID(r)
 	s.authDebugf("CSRF validation: sessionID='%s', RemoteAddr='%s', UserAgent='%s'", sessionID, r.RemoteAddr, r.UserAgent())
 
@@ -2347,6 +2379,17 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 
 // validateCSRFTokenFromJSON validates CSRF token from a JSON body
 func (s *Server) validateCSRFTokenFromJSON(r *http.Request, jsonToken string) bool {
+	// Skip CSRF check for API key authentication (Bearer token)
+	authHeader := r.Header.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return true
+	}
+
+	// Skip CSRF check for HTTP Basic Auth (API clients)
+	if _, _, ok := r.BasicAuth(); ok {
+		return true
+	}
+
 	sessionID := s.getSessionID(r)
 
 	var expectedToken string
@@ -3917,14 +3960,24 @@ func (s *Server) handleAPIUsersUnified(w http.ResponseWriter, r *http.Request) {
 
 	// Only allow access if using database authentication
 	if !s.isUsingDatabaseAuth() {
-		http.Error(w, "User management only available with database authentication", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "bad_request",
+			"message": "User management only available with database authentication",
+		})
 		return
 	}
 
 	// Check if current user has admin permissions
 	currentUser := s.getCurrentUser(r)
 	if currentUser == nil || currentUser.Role != database.UserRoleAdmin {
-		http.Error(w, "Access denied", http.StatusForbidden)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "forbidden",
+			"message": "Access denied - admin role required",
+		})
 		return
 	}
 
@@ -4262,7 +4315,12 @@ func (s *Server) handleAPIGenerateAPIKey(w http.ResponseWriter, r *http.Request)
 	// Get current user
 	currentUser := s.getCurrentUser(r)
 	if currentUser == nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "unauthorized",
+			"message": "Authentication required",
+		})
 		return
 	}
 
@@ -4340,7 +4398,12 @@ func (s *Server) handleAPIRevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	// Get current user
 	currentUser := s.getCurrentUser(r)
 	if currentUser == nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "unauthorized",
+			"message": "Authentication required",
+		})
 		return
 	}
 
@@ -4390,7 +4453,12 @@ func (s *Server) handleAPIListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	// Get current user
 	currentUser := s.getCurrentUser(r)
 	if currentUser == nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "unauthorized",
+			"message": "Authentication required",
+		})
 		return
 	}
 
