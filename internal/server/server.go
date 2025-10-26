@@ -1536,7 +1536,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if !isPublic {
 			if !isAuth {
-				s.authDebugf("Redirecting unauthenticated request to /login")
+				s.authDebugf("Unauthenticated request to %s", r.URL.Path)
+				// For API requests, return JSON error instead of redirecting
+				if strings.HasPrefix(r.URL.Path, "/api/") {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusUnauthorized)
+					json.NewEncoder(w).Encode(map[string]string{
+						"error": "unauthorized",
+						"message": "Authentication required",
+					})
+					return
+				}
+				// For web pages, redirect to login
 				http.Redirect(w, r, "/login", http.StatusSeeOther)
 				return
 			}
@@ -1544,6 +1555,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// Check role-based permissions
 			if !s.hasPermission(currentUser, r.URL.Path) {
 				s.authDebugf("Access denied for user %s (role: %s) to path %s", currentUser.Username, currentUser.Role, r.URL.Path)
+				// For API requests, return JSON error
+				if strings.HasPrefix(r.URL.Path, "/api/") {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusForbidden)
+					json.NewEncoder(w).Encode(map[string]string{
+						"error": "forbidden",
+						"message": "Access denied",
+					})
+					return
+				}
+				// For web pages, return HTTP error
 				http.Error(w, "Access denied", http.StatusForbidden)
 				return
 			}
