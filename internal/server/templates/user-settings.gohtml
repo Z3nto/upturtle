@@ -1,0 +1,340 @@
+{{define "user-settings.gohtml"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "user-settings.content"}}
+<div>
+  <h2>User Settings</h2>
+  
+  <div class="card">
+    <h3>Account Information</h3>
+    <div style="margin-top: 1rem;">
+      <p><strong>Username:</strong> {{.CurrentUser.Username}}</p>
+      <p><strong>Role:</strong> <span style="text-transform: capitalize;">{{.CurrentUser.Role}}</span></p>
+      <p><strong>Account Created:</strong> {{.CurrentUser.CreatedAt.Format "Jan 2, 2006"}}</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="page-header-with-actions">
+      <h3>API Keys</h3>
+      <div class="page-header-actions">
+        <button id="btn-new-apikey" class="primary" type="button" title="Generate new API key">+ New API Key</button>
+      </div>
+    </div>
+    
+    <p class="muted" style="margin-top: 0.5rem; margin-bottom: 1.5rem;">
+      API keys allow you to authenticate API requests. Keep your keys secure and never share them.
+    </p>
+
+    <div id="apikeys-container">
+      <div id="apikeys-loading" style="text-align: center; padding: 2rem; color: #a1a1aa;">
+        Loading API keys...
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create API Key Modal -->
+<div id="modal-create-apikey" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-create-apikey-title">
+    <header>
+      <h3 id="modal-create-apikey-title">Generate New API Key</h3>
+      <button type="button" class="close" aria-label="Close" onclick="closeModal(document.getElementById('modal-create-apikey'))">&times;</button>
+    </header>
+    <form id="form-create-apikey">
+      <div class="form-group">
+        <label for="apikey-name">Name <span style="color: #ef4444;">*</span></label>
+        <input type="text" id="apikey-name" name="name" required placeholder="e.g., Production Server, CI/CD Pipeline">
+        <small class="muted">Give this API key a descriptive name to identify its purpose.</small>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="secondary" onclick="closeModal(document.getElementById('modal-create-apikey'))">Cancel</button>
+        <button type="submit" class="primary">Generate Key</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Show API Key Modal -->
+<div id="modal-show-apikey" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-show-apikey-title">
+    <header>
+      <h3 id="modal-show-apikey-title">API Key Generated</h3>
+      <button type="button" class="close" aria-label="Close" onclick="closeModal(document.getElementById('modal-show-apikey'))">&times;</button>
+    </header>
+    <div style="padding: 1rem 0;">
+      <p style="color: #ef4444; margin-bottom: 1rem;">
+        <strong>⚠️ Important:</strong> This API key will only be shown once. Make sure to copy it now and store it securely.
+      </p>
+      <div class="form-group">
+        <label for="generated-apikey">Your API Key</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="generated-apikey" readonly style="font-family: monospace; font-size: 13px;">
+          <button type="button" class="secondary" onclick="copyAPIKey()" style="white-space: nowrap;">Copy</button>
+        </div>
+      </div>
+      <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+        <p style="margin: 0; font-size: 14px;"><strong>Usage Example:</strong></p>
+        <pre style="margin-top: 0.5rem; font-size: 12px; overflow-x: auto;">curl -H "Authorization: Bearer YOUR_API_KEY" \
+     https://your-server.com/api/status</pre>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="primary" onclick="closeModal(document.getElementById('modal-show-apikey'))">I've Saved the Key</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete API Key Modal -->
+<div id="modal-delete-apikey" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-apikey-title">
+    <header>
+      <h3 id="modal-delete-apikey-title">Revoke API Key</h3>
+      <button type="button" class="close" aria-label="Close" onclick="closeModal(document.getElementById('modal-delete-apikey'))">&times;</button>
+    </header>
+    <form id="form-delete-apikey">
+      <input type="hidden" name="id" id="delete-apikey-id">
+      <p>Are you sure you want to revoke the API key "<strong id="delete-apikey-name"></strong>"?</p>
+      <p class="muted">This action cannot be undone. Any applications using this key will no longer be able to authenticate.</p>
+      <div class="form-actions">
+        <button type="button" class="secondary" onclick="closeModal(document.getElementById('modal-delete-apikey'))">Cancel</button>
+        <button type="submit" class="danger">Revoke Key</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // Modal helper functions
+  function openModal(modal) {
+    if (!modal) return;
+    modal.setAttribute('aria-hidden', 'false');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(modal) {
+    if (!modal) return;
+    modal.setAttribute('aria-hidden', 'true');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  // Close modal on backdrop click
+  document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeModal(this);
+      }
+    });
+  });
+
+  // Close modal on Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-backdrop[aria-hidden="false"]').forEach(modal => {
+        closeModal(modal);
+      });
+    }
+  });
+
+  // Load API keys on page load
+  loadAPIKeys();
+
+  // New API key button
+  document.getElementById('btn-new-apikey')?.addEventListener('click', function() {
+    openModal(document.getElementById('modal-create-apikey'));
+  });
+
+  // Create API key form
+  document.getElementById('form-create-apikey')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const name = formData.get('name');
+    
+    try {
+      const response = await fetch('/api/apikeys/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name })
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+      
+      const result = await response.json();
+      
+      // Close create modal
+      closeModal(document.getElementById('modal-create-apikey'));
+      
+      // Show the generated API key
+      document.getElementById('generated-apikey').value = result.api_key;
+      openModal(document.getElementById('modal-show-apikey'));
+      
+      // Reset form
+      this.reset();
+      
+      // Reload API keys list
+      loadAPIKeys();
+    } catch (error) {
+      console.error('Failed to generate API key:', error);
+      alert('Failed to generate API key: ' + error.message);
+    }
+  });
+
+  // Delete API key form
+  document.getElementById('form-delete-apikey')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const id = parseInt(formData.get('id'));
+    
+    try {
+      const response = await fetch('/api/apikeys/revoke', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id })
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+      
+      closeModal(document.getElementById('modal-delete-apikey'));
+      loadAPIKeys();
+    } catch (error) {
+      console.error('Failed to revoke API key:', error);
+      alert('Failed to revoke API key: ' + error.message);
+    }
+  });
+
+  // Load API keys from server
+  async function loadAPIKeys() {
+    const container = document.getElementById('apikeys-container');
+    const loading = document.getElementById('apikeys-loading');
+    
+    try {
+      const response = await fetch('/api/apikeys');
+      if (!response.ok) {
+        throw new Error('Failed to load API keys');
+      }
+      
+      const data = await response.json();
+      const keys = data.keys || [];
+      
+      if (keys.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: #a1a1aa;">
+            <p>No API keys yet. Create one to get started.</p>
+          </div>
+        `;
+        return;
+      }
+      
+      // Build table
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Selector</th>
+              <th>Last Used</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      keys.forEach(key => {
+        const lastUsed = key.last_used_at ? new Date(key.last_used_at).toLocaleString() : 'Never';
+        const created = new Date(key.created_at).toLocaleDateString();
+        
+        html += `
+          <tr>
+            <td><strong>${escapeHtml(key.name)}</strong></td>
+            <td><code style="font-size: 12px;">upt_${escapeHtml(key.selector)}</code></td>
+            <td><span class="muted">${lastUsed}</span></td>
+            <td><span class="muted">${created}</span></td>
+            <td>
+              <div class="actions">
+                <button type="button" class="icon delete" data-action="delete-apikey" data-id="${key.id}" data-name="${escapeHtml(key.name)}" title="Revoke key">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += `
+          </tbody>
+        </table>
+      `;
+      
+      container.innerHTML = html;
+      
+      // Attach delete handlers
+      container.querySelectorAll('[data-action="delete-apikey"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const id = this.dataset.id;
+          const name = this.dataset.name;
+          openDeleteAPIKeyModal(id, name);
+        });
+      });
+      
+    } catch (error) {
+      console.error('Failed to load API keys:', error);
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: #ef4444;">
+          <p>Failed to load API keys. Please refresh the page.</p>
+        </div>
+      `;
+    }
+  }
+
+  function openDeleteAPIKeyModal(id, name) {
+    document.getElementById('delete-apikey-id').value = id;
+    document.getElementById('delete-apikey-name').textContent = name;
+    openModal(document.getElementById('modal-delete-apikey'));
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Make functions globally available for onclick handlers
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+  
+  window.copyAPIKey = function() {
+    const input = document.getElementById('generated-apikey');
+    input.select();
+    document.execCommand('copy');
+    
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => {
+      btn.textContent = originalText;
+    }, 2000);
+  };
+})();
+</script>
+{{end}}

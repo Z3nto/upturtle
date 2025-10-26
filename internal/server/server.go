@@ -431,6 +431,21 @@ func (s *Server) handleAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ---- User Settings page ----
+// handleUserSettings renders the user settings page (GET only).
+func (s *Server) handleUserSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	data := s.createBasePageData(r, "User Settings", "user-settings.content")
+	if err := s.templates.ExecuteTemplate(w, "user-settings.gohtml", data); err != nil {
+		s.logger.Printf("user-settings template error: %v", err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
 // ---- Settings page ----
 // handleAdminSettings renders the settings page (GET only).
 func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
@@ -1392,6 +1407,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/admin/notifications/", s.ensureInstalled(s.handleAdminNotifications))
 	// Settings
 	s.mux.HandleFunc("/admin/settings", s.ensureInstalled(s.handleAdminSettings))
+	s.mux.HandleFunc("/settings", s.ensureInstalled(s.handleUserSettings))
 	// Status pages management
 	s.mux.HandleFunc("/admin/statuspages", s.ensureInstalled(s.handleAdminStatusPages))
 	s.mux.HandleFunc("/admin/statuspages/", s.ensureInstalled(s.handleAdminStatusPages))
@@ -1417,6 +1433,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/statuspages/", s.ensureInstalled(s.handleAPIStatusPagesUnified))
 	s.mux.HandleFunc("/api/users", s.ensureInstalled(s.handleAPIUsersUnified))
 	s.mux.HandleFunc("/api/users/", s.ensureInstalled(s.handleAPIUsersUnified))
+	s.mux.HandleFunc("/api/apikeys", s.ensureInstalled(s.handleAPIListAPIKeys))
+	s.mux.HandleFunc("/api/apikeys/generate", s.ensureInstalled(s.handleAPIGenerateAPIKey))
+	s.mux.HandleFunc("/api/apikeys/revoke", s.ensureInstalled(s.handleAPIRevokeAPIKey))
 
 	// Public status page endpoints
 	s.mux.HandleFunc("/status/", s.handlePublicStatusPage)
@@ -1508,6 +1527,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		isPublic := s.isPublicPath(r.URL.Path)
 		currentUser := s.getCurrentUser(r)
 		isAuth := currentUser != nil
+
+		// Check for API key authentication (for API requests only)
+		if !isAuth && strings.HasPrefix(r.URL.Path, "/api/") {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				apiKey := strings.TrimPrefix(authHeader, "Bearer ")
+				if apiKey != "" && s.configDB != nil {
+					user, err := s.validateAPIKey(apiKey)
+					if err == nil && user != nil {
+						s.authDebugf("API key authentication successful for user %s", user.Username)
+						currentUser = user
+						isAuth = true
+					} else {
+						s.authDebugf("API key authentication failed: %v", err)
+					}
+				}
+			}
+		}
 
 		// If no session but remember-me cookie exists, try to auto-login
 		if !isAuth && !isPublic {
@@ -1892,6 +1929,53 @@ func (s *Server) createRememberMeToken(w http.ResponseWriter, r *http.Request, u
 	
 	s.authDebugf("Remember-me token created for user %s, ID=%d, expires=%s", user.Username, savedToken.ID, expiresAt.Format(time.RFC3339))
 	return nil
+}
+
+// validateAPIKey validates an API key using selector:token format
+func (s *Server) validateAPIKey(apiKey string) (*database.UserData, error) {
+	if s.configDB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	// Parse API key (format: upt_selector:token)
+	if !strings.HasPrefix(apiKey, "upt_") {
+		return nil, fmt.Errorf("invalid API key format")
+	}
+
+	parts := strings.SplitN(strings.TrimPrefix(apiKey, "upt_"), ":", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid API key format")
+	}
+
+	selector := parts[0]
+	token := parts[1]
+
+	// Get API key from database by selector
+	keyData, err := s.configDB.GetAPIKeyBySelector(selector)
+	if err != nil {
+		return nil, fmt.Errorf("API key not found")
+	}
+
+	// Verify token hash
+	if err := bcrypt.CompareHashAndPassword([]byte(keyData.TokenHash), []byte(token)); err != nil {
+		return nil, fmt.Errorf("invalid API key")
+	}
+
+	// Get user
+	user, err := s.configDB.GetUser(keyData.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	// Check if user is enabled
+	if !user.Enabled {
+		return nil, fmt.Errorf("user disabled")
+	}
+
+	// Update last used timestamp
+	go s.configDB.UpdateAPIKeyLastUsed(keyData.ID, time.Now())
+
+	return user, nil
 }
 
 // validateRememberMeToken validates and uses a remember-me token
@@ -4152,4 +4236,195 @@ func (s *Server) handleAPIUsersDelete(w http.ResponseWriter, r *http.Request, us
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"success":true}`))
+}
+
+// handleAPIGenerateAPIKey generates a new API key for the current user
+func (s *Server) handleAPIGenerateAPIKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	// Get current user
+	currentUser := s.getCurrentUser(r)
+	if currentUser == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Generate selector (16 bytes = 32 hex chars)
+	selectorBytes := make([]byte, 16)
+	if _, err := rand.Read(selectorBytes); err != nil {
+		s.logger.Printf("Failed to generate selector: %v", err)
+		http.Error(w, "Failed to generate API key", http.StatusInternalServerError)
+		return
+	}
+	selector := hex.EncodeToString(selectorBytes)
+
+	// Generate token (32 bytes = 64 hex chars)
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		s.logger.Printf("Failed to generate token: %v", err)
+		http.Error(w, "Failed to generate API key", http.StatusInternalServerError)
+		return
+	}
+	token := hex.EncodeToString(tokenBytes)
+
+	// Hash the token
+	tokenHash, err := bcrypt.GenerateFromPassword([]byte(token), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.Printf("Failed to hash token: %v", err)
+		http.Error(w, "Failed to hash API key", http.StatusInternalServerError)
+		return
+	}
+
+	// Save API key to database
+	keyData := database.APIKeyData{
+		UserID:    currentUser.ID,
+		Name:      req.Name,
+		Selector:  selector,
+		TokenHash: string(tokenHash),
+	}
+
+	savedKey, err := s.configDB.SaveAPIKey(keyData)
+	if err != nil {
+		s.logger.Printf("Failed to save API key: %v", err)
+		http.Error(w, "Failed to save API key", http.StatusInternalServerError)
+		return
+	}
+
+	// Construct full API key (format: upt_selector:token)
+	fullAPIKey := fmt.Sprintf("upt_%s:%s", selector, token)
+
+	s.logger.Printf("Generated API key '%s' for user %s (ID: %d)", req.Name, currentUser.Username, currentUser.ID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"id":      savedKey.ID,
+		"api_key": fullAPIKey,
+		"message": "API key generated successfully. Please save it securely as it won't be shown again.",
+	})
+}
+
+// handleAPIRevokeAPIKey revokes an API key by ID
+func (s *Server) handleAPIRevokeAPIKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID int `json:"id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Get current user
+	currentUser := s.getCurrentUser(r)
+	if currentUser == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Verify ownership by getting all keys for user and finding by ID
+	keys, err := s.configDB.GetAPIKeysByUser(currentUser.ID)
+	if err != nil {
+		http.Error(w, "failed to get API keys", http.StatusInternalServerError)
+		return
+	}
+
+	found := false
+	for _, key := range keys {
+		if key.ID == req.ID {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		http.Error(w, "API key not found or access denied", http.StatusNotFound)
+		return
+	}
+
+	// Delete API key
+	if err := s.configDB.DeleteAPIKey(req.ID); err != nil {
+		s.logger.Printf("Failed to revoke API key: %v", err)
+		http.Error(w, "Failed to revoke API key", http.StatusInternalServerError)
+		return
+	}
+
+	s.logger.Printf("Revoked API key ID %d for user %s", req.ID, currentUser.Username)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "API key revoked successfully",
+	})
+}
+
+// handleAPIListAPIKeys lists all API keys for the current user
+func (s *Server) handleAPIListAPIKeys(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get current user
+	currentUser := s.getCurrentUser(r)
+	if currentUser == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get all API keys for user
+	keys, err := s.configDB.GetAPIKeysByUser(currentUser.ID)
+	if err != nil {
+		s.logger.Printf("Failed to get API keys: %v", err)
+		http.Error(w, "Failed to get API keys", http.StatusInternalServerError)
+		return
+	}
+
+	// Don't send token hashes to client
+	type APIKeyResponse struct {
+		ID         int       `json:"id"`
+		Name       string    `json:"name"`
+		Selector   string    `json:"selector"`
+		LastUsedAt time.Time `json:"last_used_at,omitempty"`
+		CreatedAt  time.Time `json:"created_at"`
+	}
+
+	response := make([]APIKeyResponse, len(keys))
+	for i, key := range keys {
+		response[i] = APIKeyResponse{
+			ID:         key.ID,
+			Name:       key.Name,
+			Selector:   key.Selector,
+			LastUsedAt: key.LastUsedAt,
+			CreatedAt:  key.CreatedAt,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"keys":    response,
+	})
 }

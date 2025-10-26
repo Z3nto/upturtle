@@ -74,6 +74,10 @@ func (s *SQLiteDB) Initialize() error {
 		return fmt.Errorf("failed to create users table: %w", err)
 	}
 
+	if err := s.createAPIKeysTable(); err != nil {
+		return fmt.Errorf("failed to create api_keys table: %w", err)
+	}
+
 	if err := s.createRememberMeTokensTable(); err != nil {
 		return fmt.Errorf("failed to create remember_me_tokens table: %w", err)
 	}
@@ -1201,6 +1205,40 @@ func ensureDir(dir string) error {
 	return os.MkdirAll(dir, 0755)
 }
 
+// createAPIKeysTable creates the api_keys table
+func (s *SQLiteDB) createAPIKeysTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS api_keys (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		selector TEXT NOT NULL UNIQUE,
+		token_hash TEXT NOT NULL,
+		last_used_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	)`
+
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	// Create indexes
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_api_keys_selector ON api_keys(selector)`,
+		`CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id)`,
+	}
+
+	for _, indexQuery := range indexes {
+		if _, err := s.db.Exec(indexQuery); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // createRememberMeTokensTable creates the remember_me_tokens table
 func (s *SQLiteDB) createRememberMeTokensTable() error {
 	query := `
@@ -1341,4 +1379,107 @@ func (s *SQLiteDB) CleanupExpiredRememberMeTokens() error {
 		return fmt.Errorf("failed to cleanup expired tokens: %w", err)
 	}
 	return nil
+}
+
+// ==== API Keys ================================================================
+
+// SaveAPIKey saves an API key to the database
+func (s *SQLiteDB) SaveAPIKey(key APIKeyData) (*APIKeyData, error) {
+	query := `
+	INSERT INTO api_keys (user_id, name, selector, token_hash, created_at)
+	VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
+
+	result, err := s.db.Exec(query, key.UserID, key.Name, key.Selector, key.TokenHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save API key: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API key ID: %w", err)
+	}
+
+	key.ID = int(id)
+	return &key, nil
+}
+
+// GetAPIKeyBySelector retrieves an API key by its selector
+func (s *SQLiteDB) GetAPIKeyBySelector(selector string) (*APIKeyData, error) {
+	query := `
+	SELECT id, user_id, name, selector, token_hash, last_used_at, created_at
+	FROM api_keys
+	WHERE selector = ?`
+
+	var key APIKeyData
+	var lastUsed sql.NullTime
+
+	err := s.db.QueryRow(query, selector).Scan(
+		&key.ID, &key.UserID, &key.Name, &key.Selector, &key.TokenHash,
+		&lastUsed, &key.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	if lastUsed.Valid {
+		key.LastUsedAt = lastUsed.Time
+	}
+
+	return &key, nil
+}
+
+// GetAPIKeysByUser retrieves all API keys for a user
+func (s *SQLiteDB) GetAPIKeysByUser(userID int) ([]APIKeyData, error) {
+	query := `
+	SELECT id, user_id, name, selector, token_hash, last_used_at, created_at
+	FROM api_keys
+	WHERE user_id = ?
+	ORDER BY created_at DESC`
+
+	rows, err := s.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []APIKeyData
+	for rows.Next() {
+		var key APIKeyData
+		var lastUsed sql.NullTime
+
+		err := rows.Scan(
+			&key.ID, &key.UserID, &key.Name, &key.Selector, &key.TokenHash,
+			&lastUsed, &key.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		if lastUsed.Valid {
+			key.LastUsedAt = lastUsed.Time
+		}
+
+		keys = append(keys, key)
+	}
+
+	return keys, rows.Err()
+}
+
+// DeleteAPIKey deletes an API key
+func (s *SQLiteDB) DeleteAPIKey(id int) error {
+	query := `DELETE FROM api_keys WHERE id = ?`
+	_, err := s.db.Exec(query, id)
+	return err
+}
+
+// DeleteAPIKeysByUser deletes all API keys for a user
+func (s *SQLiteDB) DeleteAPIKeysByUser(userID int) error {
+	query := `DELETE FROM api_keys WHERE user_id = ?`
+	_, err := s.db.Exec(query, userID)
+	return err
+}
+
+// UpdateAPIKeyLastUsed updates the last_used_at timestamp for an API key
+func (s *SQLiteDB) UpdateAPIKeyLastUsed(id int, lastUsed time.Time) error {
+	query := `UPDATE api_keys SET last_used_at = ? WHERE id = ?`
+	_, err := s.db.Exec(query, lastUsed, id)
+	return err
 }

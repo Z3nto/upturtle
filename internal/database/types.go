@@ -126,7 +126,7 @@ const (
 type UserData struct {
 	ID           int       `json:"id"`
 	Username     string    `json:"username"`
-	PasswordHash string    `json:"password_hash"`
+	PasswordHash string    `json:"-"` // Never send password hash to client
 	Role         UserRole  `json:"role"`
 	Enabled      bool      `json:"enabled"`
 	CreatedAt    time.Time `json:"created_at"`
@@ -144,6 +144,17 @@ type RememberMeToken struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UserAgent    string    `json:"user_agent"`    // For identifying device
 	IPAddress    string    `json:"ip_address"`    // For security logging
+}
+
+// APIKeyData represents an API key for programmatic access
+type APIKeyData struct {
+	ID          int       `json:"id"`
+	UserID      int       `json:"user_id"`
+	Name        string    `json:"name"`          // User-defined name for the key
+	Selector    string    `json:"selector"`      // Public identifier (first part of key)
+	TokenHash   string    `json:"token_hash"`    // Hashed token (second part of key)
+	LastUsedAt  time.Time `json:"last_used_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Database interface defines the contract for database operations
@@ -222,4 +233,12 @@ type Database interface {
 	DeleteRememberMeToken(id int) error
 	DeleteRememberMeTokensByUser(userID int) error
 	CleanupExpiredRememberMeTokens() error
+
+	// API key management
+	SaveAPIKey(key APIKeyData) (*APIKeyData, error)
+	GetAPIKeyBySelector(selector string) (*APIKeyData, error)
+	GetAPIKeysByUser(userID int) ([]APIKeyData, error)
+	DeleteAPIKey(id int) error
+	DeleteAPIKeysByUser(userID int) error
+	UpdateAPIKeyLastUsed(id int, lastUsed time.Time) error
 }

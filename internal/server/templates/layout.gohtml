@@ -125,6 +125,58 @@
         nav .submenu a:hover { background: rgba(160,160,160,0.12); text-decoration: none; }
         nav .menu:hover .submenu, nav .menu:focus-within .submenu { display: block; }
         nav .menu.open .submenu { display: block; }
+        
+        /* User Avatar Menu */
+        .user-menu .user-avatar {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            padding: 0;
+        }
+        .avatar-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .avatar-circle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .user-menu .submenu {
+            min-width: 200px;
+            right: 0;
+            left: auto;
+        }
+        .user-menu .user-info {
+            display: flex;
+            flex-direction: column;
+            padding: 0.65rem;
+            gap: 0.25rem;
+        }
+        .user-menu .user-info strong {
+            font-size: 14px;
+        }
+        .user-menu .user-info .muted {
+            font-size: 12px;
+            color: #a1a1aa;
+            text-transform: capitalize;
+        }
+        .user-menu hr {
+            border: none;
+            border-top: 1px solid rgba(160, 160, 160, 0.2);
+            margin: 0.5rem 0;
+        }
+        
         .container {
             max-width: 960px;
             margin: 0 auto;
@@ -570,7 +622,20 @@
                         </div>
                     </div>
                     {{end}}
-                    <a href="/logout">Logout</a>
+                    <div class="menu user-menu">
+                        <a href="#" class="user-avatar" aria-haspopup="true" aria-expanded="false" title="{{.CurrentUser.Username}}">
+                            <span class="avatar-circle">{{slice .CurrentUser.Username 0 1}}</span>
+                        </a>
+                        <div class="submenu" role="menu" aria-label="User menu">
+                            <div class="user-info">
+                                <strong>{{.CurrentUser.Username}}</strong>
+                                <span class="muted">{{.CurrentUser.Role}}</span>
+                            </div>
+                            <hr>
+                            <a href="/settings" role="menuitem">Settings</a>
+                            <a href="/logout" role="menuitem">Logout</a>
+                        </div>
+                    </div>
                 {{else}}
                     {{/* Legacy mode or no authentication */}}
                     <div class="menu">
