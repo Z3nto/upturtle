@@ -787,6 +787,64 @@ func (s *Server) handleAPIMemory(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(memoryUsage)
 }
 
+// handleAPIMonitorChart returns chart data for a specific monitor
+func (s *Server) handleAPIMonitorChart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.apiDebug {
+		s.logger.Printf("[API DEBUG] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+	}
+
+	// Extract monitor ID from URL path: /api/monitors/chart/{id}
+	path := strings.TrimPrefix(r.URL.Path, "/api/monitors/chart/")
+	monitorID := strings.TrimSpace(path)
+
+	if monitorID == "" {
+		http.Error(w, "monitor ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Get monitor snapshot
+	snap, err := s.manager.GetSnapshot(monitorID)
+	if err != nil {
+		http.Error(w, "monitor not found", http.StatusNotFound)
+		return
+	}
+
+	// Prepare chart data based on monitor type
+	chartData := map[string]any{
+		"id":   snap.Config.ID,
+		"name": snap.Config.Name,
+		"type": snap.Config.Type,
+	}
+
+	// Collect time series data from history
+	timestamps := make([]string, 0, len(snap.History))
+	latencies := make([]float64, 0, len(snap.History))
+	statuses := make([]int, 0, len(snap.History))
+
+	for _, h := range snap.History {
+		timestamps = append(timestamps, h.Timestamp.Format(time.RFC3339))
+		latencies = append(latencies, h.Latency.Seconds()*1000) // Convert to milliseconds
+		if h.Success {
+			statuses = append(statuses, 1)
+		} else {
+			statuses = append(statuses, 0)
+		}
+	}
+
+	chartData["timestamps"] = timestamps
+	chartData["latencies"] = latencies
+	chartData["statuses"] = statuses
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(chartData); err != nil {
+		s.logger.Printf("encode monitor chart json: %v", err)
+	}
+}
+
 // ==== API: Notifications ======================================================
 
 func (s *Server) handleAPINotificationsUnified(w http.ResponseWriter, r *http.Request) {
@@ -1348,6 +1406,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/monitors", s.ensureInstalled(s.handleAPIMonitorsUnified))
 	s.mux.HandleFunc("/api/monitors/", s.ensureInstalled(s.handleAPIMonitorsUnified))
 	s.mux.HandleFunc("/api/monitors/reorder", s.ensureInstalled(s.handleAPIMonitorsReorder))
+	s.mux.HandleFunc("/api/monitors/chart/", s.ensureInstalled(s.handleAPIMonitorChart))
 	s.mux.HandleFunc("/api/notifications", s.ensureInstalled(s.handleAPINotificationsUnified))
 	s.mux.HandleFunc("/api/notifications/", s.ensureInstalled(s.handleAPINotificationsUnified))
 	s.mux.HandleFunc("/api/groups", s.ensureInstalled(s.handleAPIGroupsUnified))
@@ -1432,7 +1491,7 @@ func (s *Server) newNotificationID() int {
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Apply security headers to all responses
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
