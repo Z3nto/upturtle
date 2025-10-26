@@ -44,3 +44,4 @@ volumes/
 docker-compose-sqlite.yml
 .appdata/
 API.md
+app_test/api_auth_test.py
