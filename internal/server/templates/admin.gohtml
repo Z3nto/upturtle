@@ -32,6 +32,11 @@
                     <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
                   </svg>
                 </button>
+                <button type="button" class="icon add-to-group" data-action="add-monitor-to-group" data-group-id="{{.ID}}" title="Add monitor to this group" aria-label="Add monitor to group" style="color: #4caeff;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                  </svg>
+                </button>
               {{end}}
             </h3>
           </div>
@@ -588,6 +593,9 @@
       case 'delete-group':
         openDeleteGroupModal(t.getAttribute('data-group-id'), t.getAttribute('data-group-name'));
         break;
+      case 'add-monitor-to-group':
+        openNewMonitorModalWithGroup(parseInt(t.getAttribute('data-group-id'), 10));
+        break;
     }
   }, true);
   
@@ -690,11 +698,26 @@
     openModal('modal-delete-group');
   }
   
+  function openNewMonitorModalWithGroup(groupId) {
+    // Pre-select the group in the dropdown
+    const groupSelect = document.getElementById('new-group');
+    if (groupSelect) {
+      groupSelect.value = groupId.toString();
+    }
+    
+    // Calculate and set the order for the selected group
+    updateOrderForNewMonitor(groupId);
+    
+    // Open the modal
+    openModal('modal-new');
+  }
+  
   // Make functions globally available
   window.openEditMonitorModal = openEditMonitorModal;
   window.openDeleteMonitorModal = openDeleteMonitorModal;
   window.openRenameGroupModal = openRenameGroupModal;
   window.openDeleteGroupModal = openDeleteGroupModal;
+  window.openNewMonitorModalWithGroup = openNewMonitorModalWithGroup;
 })();
 
 // REST API integration for Admin UI
