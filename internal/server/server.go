@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"embed"
 	"encoding/hex"
@@ -32,6 +33,11 @@ import (
 //
 //go:embed static/*
 var staticFS embed.FS
+
+// Context key for storing the current user in request context
+type contextKey string
+
+const currentUserKey contextKey = "currentUser"
 
 // normalizeShoutrrrURL cleans up known shoutrrr URL variants.
 // For example, Discord supports both discord://TOKEN@ID and users sometimes append
@@ -708,6 +714,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				s.authDebugf("Public path accessed by authenticated user: %s (role: %s)", currentUser.Username, currentUser.Role)
 			}
 		}
+
+		// Store authenticated user in request context for handlers to use
+		if isAuth && currentUser != nil {
+			ctx := context.WithValue(r.Context(), currentUserKey, currentUser)
+			r = r.WithContext(ctx)
+		}
 	}
 
 	s.mux.ServeHTTP(w, r)
@@ -727,6 +739,11 @@ func (s *Server) isPublicPath(p string) bool {
 // getCurrentUser returns the current user from session, API key, or nil if not authenticated
 // Note: Remember-me token validation is handled in the auth middleware
 func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
+	// First, check if user is already in request context (set by auth middleware)
+	if user, ok := r.Context().Value(currentUserKey).(*database.UserData); ok && user != nil {
+		return user
+	}
+
 	// First, try API key authentication (for API requests)
 	authHeader := r.Header.Get("Authorization")
 	if strings.HasPrefix(authHeader, "Bearer ") {
@@ -761,7 +778,7 @@ func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
 		// Use database
 		user, err := s.configDB.GetUser(userID)
 		if err != nil || !user.Enabled {
-			return nil
+				return nil
 		}
 		return user
 	}
