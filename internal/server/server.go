@@ -415,10 +415,11 @@ func (s *Server) buildAdminData(r *http.Request, success, failure string) AdminP
 		groups = append(groups, AdminGroupView{ID: g, Name: s.getGroupName(g), Monitors: mons})
 	}
 	return AdminPageData{
-		BasePageData: s.createBasePageData(r, "Administration", "admin.content"),
-		Groups:       groups,
-		Error:        failure,
-		Success:      success,
+		BasePageData:  s.createBasePageData(r, "Administration", "admin.content"),
+		Groups:        groups,
+		Error:         failure,
+		Success:       success,
+		Notifications: s.notifications,
 	}
 }
 
