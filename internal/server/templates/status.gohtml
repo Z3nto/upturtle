@@ -76,65 +76,6 @@
 {{else}}
   <p class="muted">No monitors configured yet. Visit the admin area to create one.</p>
 {{end}}
-<style>
-  /* Lightweight tooltip styling scoped to status page */
-  #upturtle-tooltip {
-    position: fixed;
-    z-index: 9999;
-    pointer-events: none;
-    background: rgba(24,24,24,0.95);
-    color: #e2e8f0;
-    border: 1px solid rgba(160,160,160,0.25);
-    padding: .35rem .5rem;
-    border-radius: 6px;
-    font-size: .8rem;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
-    max-width: 420px;
-    white-space: pre-line; /* preserve \n from data-tip while wrapping */
-    line-height: 1.25;
-    overflow: visible;
-    display: none;
-  }
-  /* Break long continuous strings to avoid overflow */
-  #upturtle-tooltip { word-break: break-word; }
-
-  /* Refresh control dark styling */
-  #refresh-control {
-    background: rgba(24,24,24,0.85);
-    border: 1px solid rgba(160,160,160,0.2);
-    color: #d1d5db;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-  }
-  #refresh-select {
-    background-color: rgba(40,40,40,0.6);
-    color: #e2e8f0;
-    border: 1px solid rgba(160,160,160,0.3);
-    border-radius: 6px;
-    padding: .32rem 2rem .32rem .6rem;
-    outline: none;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right .5rem center;
-    background-size: 16px 16px;
-  }
-  #refresh-select:hover { border-color: rgba(160,160,160,0.45); }
-  #refresh-select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.25); }
-  #refresh-select option {
-    background: #1f1f23;
-    color: #e2e8f0;
-  }
-
-  /* Chart row styles */
-  tr.monitor-row { cursor: pointer; transition: background-color 0.2s ease; }
-  tr.monitor-row:hover { background-color: rgba(160, 160, 160, 0.08); }
-  tr.chart-row { border-bottom: none; }
-  .chart-container { background: rgba(30, 30, 30, 0.5); }
-  .chart-loading { text-align: center; color: #a1a1aa; padding: 2rem; }
-</style>
 <script>
 (function(){
   // Simple tooltip for elements with [data-tip]

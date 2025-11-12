@@ -23,6 +23,7 @@
             padding: 0;
             background: radial-gradient(circle at top, rgba(170,170,170,0.16), transparent 60%), #1f1f23;
             min-height: 100vh;
+            overflow-x: hidden;
         }
         a { color: #d1d5db; text-decoration: none; }
         a:hover { text-decoration: underline; }
@@ -30,7 +31,6 @@
             background: rgba(24, 24, 24, 0.8);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(160, 160, 160, 0.2);
-            position: relative; /* allow absolute positioning of memory widget to screen edge */
         }
         header .container {
             display: flex;
@@ -77,24 +77,20 @@
         }
         .nav-toggle {
             display: none; /* shown on small screens */
-            background: rgba(30, 30, 30, 0.6);
-            border: 1px solid rgba(160, 160, 160, 0.2);
-            border-radius: 6px;
-            padding: 0.4rem 0.8rem;
-            font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
-            font-size: 0.8rem;
-            backdrop-filter: blur(8px);
-            transition: all 0.2s ease;
+            background: transparent;
+            border: none;
+            padding: 0.5rem;
             color: #d1d5db;
             cursor: pointer;
-            font-weight: 500;
+            font-size: 1.5rem;
+            line-height: 1;
+            transition: color 0.2s ease;
         }
         .nav-toggle:hover {
-            background: rgba(40, 40, 40, 0.8);
-            border-color: rgba(160, 160, 160, 0.3);
+            color: #fff;
         }
         /* Admin dropdown menu */
-        nav .menu { 
+        .nav-links .menu, nav .menu { 
             position: relative; 
             display: inline-flex; 
             align-items: center;
@@ -180,6 +176,7 @@
         .container {
             max-width: 960px;
             margin: 0 auto;
+            padding: 0 1rem;
         }
         .card {
             background: rgba(24, 24, 24, 0.78);
@@ -569,25 +566,561 @@
             header .container { gap: 0.75rem; }
             nav { justify-content: flex-start; }
             .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
-            /* Hide nav links and show burger menu at same breakpoint */
-            .nav-links { display: none; }
-            nav.open .nav-links { 
-                display: flex; 
-                flex-direction: column; 
-                align-items: flex-start; 
-                gap: .5rem; 
-                padding-top: .75rem;
+            
+            /* Transform nav links to mobile slide-in menu */
+            .nav-links { 
+                display: flex;
+                position: fixed;
+                top: 0;
+                right: -100%;
+                width: 280px;
+                max-width: 85vw;
+                height: 100vh;
+                background: #1f1f23;
+                border-left: 1px solid rgba(160, 160, 160, 0.3);
+                z-index: 9999;
+                padding: 2rem 1.5rem;
+                overflow-y: auto;
+                transition: right 0.3s ease;
+                box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
+                flex-direction: column !important; 
+                align-items: stretch !important; 
+                gap: 0 !important;
+            }
+            
+            body.nav-open .nav-links { 
+                right: 0;
+            }
+            
+            /* Hide button hover effects when menu is open */
+            body.nav-open button:hover {
+                transform: none;
+                box-shadow: none;
+            }
+            
+            /* Mobile menu close button */
+            .nav-links::before {
+                content: '✕';
+                position: absolute;
+                top: 1rem;
+                right: 1rem;
+                font-size: 1.5rem;
+                color: #d1d5db;
+                cursor: pointer;
+                width: 2.5rem;
+                height: 2.5rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 6px;
+                transition: background 0.2s ease;
+            }
+            .nav-links::before:hover {
+                background: rgba(160, 160, 160, 0.1);
+            }
+            
+            /* Mobile menu items styling */
+            .nav-links > a {
+                padding: 1rem 0;
+                margin: 0;
+                border-bottom: 1px solid rgba(160, 160, 160, 0.1);
+                font-size: 1.1rem;
+                display: block;
                 width: 100%;
+            }
+            
+            .nav-links > .menu {
+                padding: 0;
+                margin: 0;
+                border-bottom: 1px solid rgba(160, 160, 160, 0.1);
+                width: 100%;
+                display: block;
+            }
+            
+            .nav-links > .menu > a {
+                font-size: 1.1rem;
+                display: block;
+                padding: 1rem 0;
+                margin: 0;
+                width: 100%;
+            }
+            
+            .nav-links > a:hover,
+            .nav-links > .menu > a:hover {
+                background: rgba(160, 160, 160, 0.05);
+                text-decoration: none;
+            }
+            
+            /* Hide main menu items when submenu is active */
+            .nav-links.submenu-active > a,
+            .nav-links.submenu-active > .menu:not(.active-submenu) {
+                display: none;
+            }
+            
+            /* Hide the trigger link (Admin ▾) when submenu is active */
+            .nav-links.submenu-active .menu.active-submenu > a[aria-haspopup="true"] {
+                display: none;
+            }
+            
+            .nav-links .submenu {
+                position: static;
+                display: none !important; /* Force hide on mobile */
+                margin: 0;
+                padding: 0;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                min-width: 0;
+            }
+            
+            /* Show submenu when active (overrides !important) */
+            .nav-links.submenu-active .menu.active-submenu .submenu {
+                display: block !important;
+            }
+            
+            /* Prevent hover from opening submenu on mobile */
+            .nav-links .menu:hover .submenu {
+                display: none !important;
+            }
+            
+            .nav-links .menu.open .submenu {
+                display: none !important;
+            }
+            
+            /* Add back button before submenu */
+            .nav-links.submenu-active .menu.active-submenu::before {
+                content: '← Zurück';
+                display: block;
+                padding: 0.75rem 0;
+                margin: 0 0 0.5rem 0;
+                border-bottom: 1px solid rgba(160, 160, 160, 0.2);
+                font-size: 1rem;
+                font-weight: 400;
+                font-family: inherit;
+                cursor: pointer;
+                color: #d1d5db;
+            }
+            
+            .nav-links.submenu-active .menu.active-submenu::before:hover {
+                background: rgba(160, 160, 160, 0.05);
+            }
+            
+            .nav-links .submenu a {
+                padding: 0.75rem 0;
+                margin: 0;
+                border-bottom: 1px solid rgba(160, 160, 160, 0.05);
+                font-size: 1rem;
+            }
+            
+            /* User menu in mobile */
+            .nav-links .user-menu {
+                margin-top: auto;
+                padding-top: 1rem;
+                border-top: 1px solid rgba(160, 160, 160, 0.2);
+            }
+            
+            .nav-links .user-menu .user-avatar {
+                padding: 1rem 0;
+                justify-content: flex-start;
+                gap: 1rem;
+            }
+            
+            .nav-links .user-menu .avatar-circle {
+                width: 48px;
+                height: 48px;
+                font-size: 18px;
+            }
+            
+            .nav-links .user-menu .submenu {
+                padding-left: 1rem;
             }
         }
 
         /* Mobile breakpoint - stack header */
         @media (max-width: 640px) {
-            header .container { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+            header .container { flex-direction: row; align-items: center; gap: 0.75rem; }
             /* database-display stays fixed in bottom right on mobile too */
             #database-display { font-size: 0.75rem; padding: 0.3rem 0.6rem; right: 10px; bottom: 10px; }
-            /* nav links styling for mobile */
-            .nav-links { gap: .35rem; padding-top: .5rem; }
+        }
+        
+        /* General mobile optimizations */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 0.75rem;
+            }
+            
+            .card {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+            
+            /* Modal adjustments for mobile */
+            .modal {
+                width: 95vw;
+                max-height: 95vh;
+                padding: 0.75rem;
+            }
+            
+            .modal header h3 {
+                font-size: 1.1rem;
+            }
+            
+            /* Button adjustments */
+            button {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+            
+            /* Form adjustments */
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            input[type="text"], 
+            input[type="url"], 
+            input[type="number"], 
+            input[type="password"], 
+            select {
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 0.5rem;
+            }
+            
+            .card {
+                padding: 0.75rem;
+                border-radius: 8px;
+            }
+            
+            h2 {
+                font-size: 1.5rem;
+            }
+            
+            h3 {
+                font-size: 1.2rem;
+            }
+        }
+        
+        /* Status Page Specific Styles */
+        /* Lightweight tooltip styling scoped to status page */
+        #upturtle-tooltip {
+            position: fixed;
+            z-index: 9999;
+            pointer-events: none;
+            background: rgba(24,24,24,0.95);
+            color: #e2e8f0;
+            border: 1px solid rgba(160,160,160,0.25);
+            padding: .35rem .5rem;
+            border-radius: 6px;
+            font-size: .8rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+            max-width: 420px;
+            white-space: pre-line;
+            line-height: 1.25;
+            overflow: visible;
+            display: none;
+            word-break: break-word;
+        }
+        
+        /* Refresh control dark styling */
+        #refresh-control {
+            background: rgba(24,24,24,0.85);
+            border: 1px solid rgba(160,160,160,0.2);
+            color: #d1d5db;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+        #refresh-select {
+            background-color: rgba(40,40,40,0.6);
+            color: #e2e8f0;
+            border: 1px solid rgba(160,160,160,0.3);
+            border-radius: 6px;
+            padding: .32rem 2rem .32rem .6rem;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right .5rem center;
+            background-size: 16px 16px;
+        }
+        #refresh-select:hover { border-color: rgba(160,160,160,0.45); }
+        #refresh-select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.25); }
+        #refresh-select option {
+            background: #1f1f23;
+            color: #e2e8f0;
+        }
+        
+        /* Chart row styles */
+        tr.monitor-row { cursor: pointer; transition: background-color 0.2s ease; }
+        tr.monitor-row:hover { background-color: rgba(160, 160, 160, 0.08); }
+        tr.chart-row { border-bottom: none; }
+        .chart-container { background: rgba(30, 30, 30, 0.5); }
+        .chart-loading { text-align: center; color: #a1a1aa; padding: 2rem; }
+        
+        /* Responsive Styles for Status and Admin Tables */
+        @media (max-width: 768px) {
+            /* Admin page header adjustments */
+            .page-header-with-actions {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.75rem;
+            }
+            
+            .page-header-actions {
+                flex-direction: row;
+                justify-content: stretch;
+                width: 100%;
+            }
+            
+            .page-header-actions button {
+                flex: 1;
+            }
+            
+            /* Group header adjustments */
+            .group-header-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            
+            .group-header-left h3 {
+                flex-wrap: wrap;
+                font-size: 1.1rem;
+            }
+            
+            .group-header-right {
+                justify-content: flex-end;
+            }
+            
+            /* Transform admin draggable table to card layout */
+            .draggable-table {
+                display: block;
+                overflow-x: visible;
+            }
+            
+            .draggable-table thead {
+                display: none;
+            }
+            
+            .draggable-table tbody {
+                display: block;
+            }
+            
+            .draggable-table tbody tr {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+                background: rgba(30, 30, 30, 0.5);
+                border-radius: 8px;
+                border: 1px solid rgba(160, 160, 160, 0.15);
+                border-bottom: 1px solid rgba(160, 160, 160, 0.15) !important;
+            }
+            
+            .draggable-table tbody tr:hover {
+                background: rgba(40, 40, 40, 0.6);
+            }
+            
+            .draggable-table tbody td {
+                display: block;
+                padding: 0;
+                border: none;
+            }
+            
+            /* Add labels before content on mobile */
+            .draggable-table tbody td:nth-child(1)::before {
+                content: 'Name: ';
+                font-weight: 600;
+                color: #a1a1aa;
+                font-size: 0.85rem;
+                display: block;
+                margin-bottom: 0.25rem;
+            }
+            
+            .draggable-table tbody td:nth-child(2)::before {
+                content: 'Type: ';
+                font-weight: 600;
+                color: #a1a1aa;
+                font-size: 0.85rem;
+                display: inline;
+                margin-right: 0.5rem;
+            }
+            
+            .draggable-table tbody td:nth-child(3)::before {
+                content: 'Target: ';
+                font-weight: 600;
+                color: #a1a1aa;
+                font-size: 0.85rem;
+                display: block;
+                margin-bottom: 0.25rem;
+            }
+            
+            .draggable-table tbody td:nth-child(4)::before {
+                content: 'Status: ';
+                font-weight: 600;
+                color: #a1a1aa;
+                font-size: 0.85rem;
+                display: inline;
+                margin-right: 0.5rem;
+            }
+            
+            /* Actions row */
+            .draggable-table tbody td:nth-child(5) {
+                margin-top: 0.5rem;
+                padding-top: 0.5rem;
+                border-top: 1px solid rgba(160, 160, 160, 0.1);
+            }
+            
+            .draggable-table tbody td:nth-child(5) .actions {
+                justify-content: flex-start;
+                gap: 1rem;
+            }
+            
+            .draggable-table tbody td:nth-child(5) button.icon {
+                padding: 0.5rem;
+                font-size: 1rem;
+            }
+            
+            /* Disable drag on mobile */
+            .draggable-table tbody tr[draggable] {
+                cursor: default;
+            }
+            
+            /* Status table responsive layout */
+            .status-table {
+                display: block;
+                overflow-x: visible;
+            }
+            
+            .status-table thead {
+                display: none;
+            }
+            
+            .status-table tbody {
+                display: block;
+            }
+            
+            .status-table tbody tr.monitor-row {
+                display: grid;
+                grid-template-columns: 1fr auto;
+                grid-template-rows: auto auto auto;
+                gap: 0.75rem;
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+                background: rgba(30, 30, 30, 0.5);
+                border-radius: 8px;
+                border: 1px solid rgba(160, 160, 160, 0.15);
+                border-bottom: 1px solid rgba(160, 160, 160, 0.15) !important;
+            }
+            
+            .status-table tbody tr.monitor-row:hover {
+                background: rgba(40, 40, 40, 0.6);
+            }
+            
+            /* Name and ID - top left */
+            .status-table tbody tr.monitor-row td:nth-child(1) {
+                grid-column: 1;
+                grid-row: 1;
+                padding: 0;
+                border: none;
+            }
+            
+            /* Status badge - top right */
+            .status-table tbody tr.monitor-row td:nth-child(2) {
+                grid-column: 2;
+                grid-row: 1;
+                padding: 0;
+                border: none;
+                text-align: right;
+            }
+            
+            /* Last check - bottom left */
+            .status-table tbody tr.monitor-row td:nth-child(3) {
+                grid-column: 1;
+                grid-row: 2;
+                padding: 0;
+                border: none;
+            }
+            
+            /* Uptime - bottom right */
+            .status-table tbody tr.monitor-row td:nth-child(5) {
+                grid-column: 2;
+                grid-row: 2;
+                padding: 0;
+                border: none;
+                text-align: right;
+                font-size: 0.9rem;
+            }
+            
+            /* History - full width at bottom */
+            .status-table tbody tr.monitor-row td:nth-child(4) {
+                grid-column: 1 / -1;
+                grid-row: 3;
+                padding: 0;
+                border: none;
+            }
+            
+            /* Chart row - full width */
+            .status-table tbody tr.chart-row {
+                display: block;
+                margin-bottom: 0.75rem;
+            }
+            
+            .status-table tbody tr.chart-row td {
+                display: block;
+                padding: 0;
+            }
+            
+            /* Adjust history bar height for mobile */
+            .history span {
+                height: 24px;
+            }
+            
+            /* Adjust refresh control position for mobile */
+            #refresh-control {
+                left: 10px;
+                bottom: 10px;
+                font-size: 0.85rem;
+                padding: 0.4rem 0.6rem;
+            }
+            
+            #refresh-select {
+                font-size: 0.85rem;
+                padding: 0.25rem 1.75rem 0.25rem 0.5rem;
+            }
+        }
+        
+        /* Extra small screens - additional adjustments */
+        @media (max-width: 480px) {
+            /* Admin table adjustments */
+            .draggable-table tbody tr {
+                padding: 0.75rem;
+            }
+            
+            .group-header-left h3 {
+                font-size: 1rem;
+            }
+            
+            /* Status table adjustments */
+            .status-table tbody tr.monitor-row {
+                padding: 0.75rem;
+                gap: 0.5rem;
+            }
+            
+            .history {
+                gap: 2px;
+            }
+            
+            .history span {
+                width: 8px;
+                height: 20px;
+            }
         }
     </style>
 </head>
@@ -671,46 +1204,148 @@
 (function(){
   try{
     // Burger menu toggle
-    const nav = document.querySelector('header nav');
-    const toggle = nav?.querySelector('.nav-toggle');
-    const links = nav?.querySelector('.nav-links');
+    const toggle = document.querySelector('.nav-toggle');
+    const links = document.querySelector('.nav-links');
+    const body = document.body;
     
-    if (toggle && nav) {
+    function openNav() {
+      if (!links) return;
+      body.classList.add('nav-open');
+      toggle?.setAttribute('aria-expanded', 'true');
+      body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    
+    function closeNav() {
+      if (!links) return;
+      body.classList.remove('nav-open');
+      toggle?.setAttribute('aria-expanded', 'false');
+      body.style.overflow = '';
+      // Close all open submenus
+      document.querySelectorAll('.nav-links .menu.open').forEach(m => m.classList.remove('open'));
+    }
+    
+    // Toggle button click
+    if (toggle) {
       toggle.addEventListener('click', function(e){
         e.preventDefault();
-        const isOpen = nav.classList.toggle('open');
-        toggle.setAttribute('aria-expanded', String(isOpen));
-        console.log('Burger menu toggled:', isOpen); // Debug log
+        if (body.classList.contains('nav-open')) {
+          closeNav();
+        } else {
+          openNav();
+        }
       });
     }
-
-    // Admin dropdown behavior (hover + touch)
-    const menu = document.querySelector('nav .menu');
-    if(!menu) return;
-    const trigger = menu.querySelector('a[href="/admin"]');
-    const submenu = menu.querySelector('.submenu');
-    let closeTimer;
-    function openMenu(){ menu.classList.add('open'); if(trigger) trigger.setAttribute('aria-expanded','true'); }
-    function closeMenu(){ menu.classList.remove('open'); if(trigger) trigger.setAttribute('aria-expanded','false'); }
-    menu.addEventListener('mouseenter', function(){ if(closeTimer){ clearTimeout(closeTimer); } openMenu(); });
-    menu.addEventListener('mouseleave', function(){ closeTimer = setTimeout(closeMenu, 150); });
-    submenu?.addEventListener('mouseenter', function(){ if(closeTimer){ clearTimeout(closeTimer); } openMenu(); });
-    submenu?.addEventListener('mouseleave', function(){ closeTimer = setTimeout(closeMenu, 150); });
-    // Touch/click toggle for accessibility
-    trigger?.addEventListener('click', function(e){
-      if (window.matchMedia && window.matchMedia('(hover: none)').matches) {
-        e.preventDefault();
-        if(menu.classList.contains('open')) closeMenu(); else openMenu();
+    
+    // Close button (pseudo-element) click handler
+    links?.addEventListener('click', function(e) {
+      const rect = links.getBoundingClientRect();
+      const closeButtonArea = {
+        left: rect.right - 60,
+        right: rect.right - 10,
+        top: rect.top + 10,
+        bottom: rect.top + 60
+      };
+      
+      if (e.clientX >= closeButtonArea.left && e.clientX <= closeButtonArea.right &&
+          e.clientY >= closeButtonArea.top && e.clientY <= closeButtonArea.bottom) {
+        closeNav();
       }
     });
-    // Close nav on link click (mobile UX)
-    links?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
-      if (nav.classList.contains('open')) {
-        nav.classList.remove('open');
-        toggle?.setAttribute('aria-expanded','false');
+    
+    // ESC key to close
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && body.classList.contains('nav-open')) {
+        closeNav();
       }
-    }));
-  }catch(err){ /* no-op */ }
+    });
+    
+    // Close menu when clicking outside of it
+    document.addEventListener('click', function(e) {
+      if (!body.classList.contains('nav-open')) return;
+      
+      // Check if click is outside the nav menu and toggle button
+      if (!links.contains(e.target) && !toggle?.contains(e.target)) {
+        closeNav();
+      }
+    });
+
+    // Menu behavior (hover on desktop, slide on mobile)
+    const menus = document.querySelectorAll('.nav-links .menu');
+    const isMobile = () => window.innerWidth <= 900;
+    
+    menus.forEach(menu => {
+      const trigger = menu.querySelector('a[aria-haspopup="true"]');
+      const submenu = menu.querySelector('.submenu');
+      let closeTimer;
+      
+      function openMenu(){ 
+        menu.classList.add('open'); 
+        if(trigger) trigger.setAttribute('aria-expanded','true'); 
+      }
+      function closeMenu(){ 
+        menu.classList.remove('open'); 
+        if(trigger) trigger.setAttribute('aria-expanded','false'); 
+      }
+      
+      // Desktop hover behavior
+      menu.addEventListener('mouseenter', function(){ 
+        if (!isMobile()) {
+          if(closeTimer){ clearTimeout(closeTimer); } 
+          openMenu(); 
+        }
+      });
+      menu.addEventListener('mouseleave', function(){ 
+        if (!isMobile()) {
+          closeTimer = setTimeout(closeMenu, 150); 
+        }
+      });
+      submenu?.addEventListener('mouseenter', function(){ 
+        if (!isMobile()) {
+          if(closeTimer){ clearTimeout(closeTimer); } 
+          openMenu(); 
+        }
+      });
+      submenu?.addEventListener('mouseleave', function(){ 
+        if (!isMobile()) {
+          closeTimer = setTimeout(closeMenu, 150); 
+        }
+      });
+      
+      // Mobile: slide to submenu
+      trigger?.addEventListener('click', function(e){
+        if (isMobile()) {
+          e.preventDefault();
+          // Hide main menu items and show submenu
+          links.classList.add('submenu-active');
+          menu.classList.add('active-submenu');
+        }
+      });
+      
+      // Back button click handler (on the ::before pseudo-element)
+      menu.addEventListener('click', function(e) {
+        if (isMobile() && menu.classList.contains('active-submenu')) {
+          const rect = menu.getBoundingClientRect();
+          // Check if click is in the back button area (top of menu)
+          if (e.clientY >= rect.top && e.clientY <= rect.top + 60) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Go back to main menu
+            links.classList.remove('submenu-active');
+            menu.classList.remove('active-submenu');
+          }
+        }
+      });
+    });
+    
+    // Close mobile nav on link click (except submenu toggles)
+    links?.querySelectorAll('a:not([aria-haspopup="true"])').forEach(a => {
+      a.addEventListener('click', () => {
+        if (body.classList.contains('nav-open')) {
+          closeNav();
+        }
+      });
+    });
+  }catch(err){ console.error('Nav error:', err); }
 })();
 
 // Database Display Auto-Refresh
