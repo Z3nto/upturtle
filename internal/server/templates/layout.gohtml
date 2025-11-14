@@ -440,15 +440,25 @@
         .draggable-table { table-layout: auto; width: 100%; }
         .draggable-table th, .draggable-table td { overflow: visible; text-overflow: initial; }
         /* Column sizing to keep layout tidy */
-        .draggable-table th:nth-child(1), .draggable-table td:nth-child(1) { max-width: 260px; }
+        .draggable-table th:nth-child(1), .draggable-table td:nth-child(1) { 
+            
+            overflow: hidden;
+        }
+        .draggable-table td:nth-child(1) strong,
+        .draggable-table td:nth-child(1) .muted {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .draggable-table th:nth-child(2), .draggable-table td:nth-child(2) { width: 100px; }
-        .draggable-table th:nth-child(3), .draggable-table td:nth-child(3) { max-width: 420px; word-break: break-word; white-space: normal; }
+        .draggable-table th:nth-child(3), .draggable-table td:nth-child(3) { width: 100px; }
         /* Let the last column (Actions) fully show buttons */
         .draggable-table th:last-child, .draggable-table td:last-child {
             overflow: visible;
             white-space: normal;   /* allow wrapping to avoid clipping */
-            width: auto;           /* let it grow as needed */
-            min-width: 180px;      /* sensible minimum */
+            width: 97px;          
+            //min-width: 180px;      /* sensible minimum */
         }
         /* Fixed column widths for Status page */
         .status-table th:nth-child(5), .status-table td:nth-child(5) { width: 70px; text-align: right; }
@@ -951,7 +961,8 @@
             
             .draggable-table tbody tr {
                 display: grid;
-                grid-template-columns: 1fr;
+                grid-template-columns: auto auto 1fr;
+                grid-template-rows: auto auto auto;
                 gap: 0.5rem;
                 padding: 1rem;
                 margin-bottom: 0.75rem;
@@ -966,19 +977,29 @@
             }
             
             .draggable-table tbody td {
-                display: block;
                 padding: 0;
                 border: none;
             }
             
-            /* Add labels before content on mobile */
-            .draggable-table tbody td:nth-child(1)::before {
-                content: 'Name: ';
-                font-weight: 600;
-                color: #a1a1aa;
-                font-size: 0.85rem;
-                display: block;
-                margin-bottom: 0.25rem;
+            /* Name column - first row, full width */
+            .draggable-table tbody td:nth-child(1) {
+                grid-column: 1 / -1;
+                grid-row: 1;
+                overflow: hidden;
+                min-width: 0;
+            }
+            
+            .draggable-table tbody td:nth-child(1) strong,
+            .draggable-table tbody td:nth-child(1) .muted {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            
+            /* Second row - Type and Status side by side */
+            .draggable-table tbody td:nth-child(2) {
+                grid-column: 1;
+                grid-row: 2;
             }
             
             .draggable-table tbody td:nth-child(2)::before {
@@ -986,41 +1007,37 @@
                 font-weight: 600;
                 color: #a1a1aa;
                 font-size: 0.85rem;
-                display: inline;
                 margin-right: 0.5rem;
             }
             
-            .draggable-table tbody td:nth-child(3)::before {
-                content: 'Target: ';
-                font-weight: 600;
-                color: #a1a1aa;
-                font-size: 0.85rem;
-                display: block;
-                margin-bottom: 0.25rem;
+            .draggable-table tbody td:nth-child(3) {
+                grid-column: 2;
+                grid-row: 2;
             }
             
-            .draggable-table tbody td:nth-child(4)::before {
+            .draggable-table tbody td:nth-child(3)::before {
                 content: 'Status: ';
                 font-weight: 600;
                 color: #a1a1aa;
                 font-size: 0.85rem;
-                display: inline;
                 margin-right: 0.5rem;
             }
             
-            /* Actions row */
-            .draggable-table tbody td:nth-child(5) {
+            /* Third row - Actions */
+            .draggable-table tbody td:nth-child(4) {
+                grid-column: 1 / -1;
+                grid-row: 3;
                 margin-top: 0.5rem;
                 padding-top: 0.5rem;
                 border-top: 1px solid rgba(160, 160, 160, 0.1);
             }
             
-            .draggable-table tbody td:nth-child(5) .actions {
+            .draggable-table tbody td:nth-child(4) .actions {
                 justify-content: flex-start;
-                gap: 1rem;
+                gap: 0.5rem;
             }
             
-            .draggable-table tbody td:nth-child(5) button.icon {
+            .draggable-table tbody td:nth-child(4) button.icon {
                 padding: 0.5rem;
                 font-size: 1rem;
             }

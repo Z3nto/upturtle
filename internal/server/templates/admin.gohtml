@@ -57,7 +57,6 @@
               <tr>
                 <th>Name</th>
                 <th>Type</th>
-                <th>Target</th>
                 <th>Status</th>
                 <th class="col-actions">Actions</th>
               </tr>
@@ -66,9 +65,8 @@
               {{if .Monitors}}
               {{range .Monitors}}
               <tr class="draggable-row" draggable="true" data-id="{{.ID}}">
-                <td><strong>{{.Name}}</strong><div class="muted">{{.ID}}</div></td>
+                <td><strong>{{.Name}}</strong><div class="muted">{{.Target}}</div></td>
                 <td>{{.Type}}</td>
-                <td class="muted">{{.Target}}</td>
                 <td>
                   {{if not .Enabled}}
                     <span class="badge status-disabled">Disabled</span>
