@@ -451,7 +451,6 @@
             min-width: 180px;      /* sensible minimum */
         }
         /* Fixed column widths for Status page */
-        .status-table th:nth-child(4), .status-table td:nth-child(4) { width: 300px; }
         .status-table th:nth-child(5), .status-table td:nth-child(5) { width: 70px; text-align: right; }
         .actions { flex-wrap: wrap; gap: 0.4rem; }
         .draggable-table .actions button { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
@@ -863,6 +862,45 @@
         .chart-loading { text-align: center; color: #a1a1aa; padding: 2rem; }
         
         /* Responsive Styles for Status and Admin Tables */
+        @media (min-width: 769px) {
+            /* Fixed table layout for precise column control - DESKTOP ONLY */
+            .status-table {
+                table-layout: fixed;
+            }
+            /* Name column - dynamic with ellipsis */
+            .status-table th:nth-child(1),
+            .status-table tr.monitor-row td:nth-child(1) {
+                width: auto;
+                overflow: hidden;
+            }
+            .status-table tr.monitor-row .monitor-name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: block;
+            }
+            /* Status column - 86px */
+            .status-table th:nth-child(2),
+            .status-table tr.monitor-row td:nth-child(2) {
+                width: 86px;
+            }
+            /* Last column - 60px */
+            .status-table th:nth-child(3),
+            .status-table tr.monitor-row td:nth-child(3) {
+                width: 60px;
+            }
+            /* History column - 293px */
+            .status-table th:nth-child(4),
+            .status-table tr.monitor-row td:nth-child(4) {
+                width: 293px;
+            }
+            /* Uptime column - 68px */
+            .status-table th:nth-child(5),
+            .status-table tr.monitor-row td:nth-child(5) {
+                width: 68px;
+            }
+        }
+        
         @media (max-width: 768px) {
             /* Admin page header adjustments */
             .page-header-with-actions {
@@ -1008,7 +1046,7 @@
             
             .status-table tbody tr.monitor-row {
                 display: grid;
-                grid-template-columns: 1fr auto;
+                grid-template-columns: minmax(0, 1fr) auto;
                 grid-template-rows: auto auto auto;
                 gap: 0.75rem;
                 padding: 1rem;
@@ -1029,6 +1067,15 @@
                 grid-row: 1;
                 padding: 0;
                 border: none;
+                overflow: hidden;
+                min-width: 0;
+            }
+            
+            /* Truncate monitor name in mobile view too */
+            .status-table tbody tr.monitor-row .monitor-name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
             
             /* Status badge - top right */

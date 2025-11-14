@@ -16,7 +16,7 @@
           <tr>
             <th>Name</th>
             <th>Status</th>
-            <th>Last check</th>
+            <th>Last</th>
             <th>History</th>
             <th>Uptime</th>
           </tr>
@@ -25,7 +25,7 @@
           {{range .Monitors}}
           <tr class="monitor-row {{statusClass .Status}}" data-id="{{.ID}}" data-type="{{.Type}}">
             <td>
-              <div>{{.Name}}</div>
+              <div class="monitor-name">{{.Name}}</div>
               <div class="muted">{{.ID}}</div>
             </td>
             <td>
