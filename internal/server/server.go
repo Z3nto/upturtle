@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"embed"
 	"encoding/hex"
 	"encoding/json"
@@ -16,12 +17,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/time/rate"
 
 	"upturtle/internal/config"
 	"upturtle/internal/database"
@@ -169,6 +173,58 @@ func convertSnapshotToAPI(snap monitor.Snapshot) APISnapshot {
 	}
 }
 
+// rateLimiter tracks rate limits per IP address
+type rateLimiter struct {
+	mu       sync.RWMutex
+	visitors map[string]*visitorInfo
+}
+
+type visitorInfo struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
+}
+
+// newRateLimiter creates a new rate limiter
+func newRateLimiter() *rateLimiter {
+	rl := &rateLimiter{
+		visitors: make(map[string]*visitorInfo),
+	}
+	// Start cleanup goroutine
+	go rl.cleanupVisitors()
+	return rl
+}
+
+// getVisitor returns the rate limiter for a given IP, creating one if needed
+func (rl *rateLimiter) getVisitor(ip string) *rate.Limiter {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	v, exists := rl.visitors[ip]
+	if !exists {
+		// Allow 5 requests per minute with burst of 5
+		limiter := rate.NewLimiter(rate.Every(time.Minute/5), 5)
+		rl.visitors[ip] = &visitorInfo{limiter: limiter, lastSeen: time.Now()}
+		return limiter
+	}
+
+	v.lastSeen = time.Now()
+	return v.limiter
+}
+
+// cleanupVisitors removes old entries every 3 minutes
+func (rl *rateLimiter) cleanupVisitors() {
+	for {
+		time.Sleep(3 * time.Minute)
+		rl.mu.Lock()
+		for ip, v := range rl.visitors {
+			if time.Since(v.lastSeen) > 5*time.Minute {
+				delete(rl.visitors, ip)
+			}
+		}
+		rl.mu.Unlock()
+	}
+}
+
 // Server exposes HTTP endpoints for the uptime monitor.
 type Server struct {
 	manager         *monitor.Manager
@@ -180,12 +236,16 @@ type Server struct {
 	mux             *http.ServeMux
 	installRequired bool
 	configPath      string
+	// Mutex for thread-safe access to session maps
+	sessionsMu sync.RWMutex
 	// simple in-memory session store: sessionID -> expiry
 	sessions map[string]time.Time
 	// CSRF token store: sessionID -> token
 	csrfTokens map[string]string
 	// user session store: sessionID -> userID
 	userSessions map[string]int
+	// Rate limiter for login/install endpoints
+	loginLimiter *rateLimiter
 	// ordered list of groups for display in UI
 	groups []config.GroupConfig
 	// list of predefined notifications for selection
@@ -302,6 +362,8 @@ func New(cfg Config) (*Server, error) {
 	s.csrfTokens = make(map[string]string)
 	// initialize user session store
 	s.userSessions = make(map[string]int)
+	// initialize rate limiter for login/install
+	s.loginLimiter = newRateLimiter()
 	// normalize group orders if missing and sort by Order
 	s.normalizeAndSortGroups()
 	// compute next counters from existing config
@@ -644,10 +706,14 @@ func (s *Server) newNotificationID() int {
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Apply security headers to all responses
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:")
+	// CSP: Allow inline styles/scripts for Tailwind and Alpine.js, but use strict sources
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()")
+	w.Header().Set("X-Permitted-Cross-Domain-Policies", "none")
 
 	// If installation is required, redirect all requests to /install
 	// until credentials are configured, except when already on /install.
@@ -766,6 +832,76 @@ func (s *Server) isPublicPath(p string) bool {
 	return false
 }
 
+// getClientIP extracts the client IP address from the request
+func getClientIP(r *http.Request) string {
+	// Check X-Forwarded-For header first (for reverse proxies)
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// Take the first IP in the chain
+		if idx := strings.Index(xff, ","); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+	// Check X-Real-IP header
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+	// Fall back to RemoteAddr
+	ip := r.RemoteAddr
+	// Remove port if present
+	if idx := strings.LastIndex(ip, ":"); idx != -1 {
+		ip = ip[:idx]
+	}
+	return ip
+}
+
+// validatePassword checks if a password meets security requirements
+func validatePassword(password string) error {
+	if len(password) < 8 {
+		return errors.New("password must be at least 8 characters long")
+	}
+	
+	var hasUpper, hasLower, hasDigit bool
+	for _, c := range password {
+		switch {
+		case c >= 'A' && c <= 'Z':
+			hasUpper = true
+		case c >= 'a' && c <= 'z':
+			hasLower = true
+		case c >= '0' && c <= '9':
+			hasDigit = true
+		}
+	}
+	
+	if !hasUpper {
+		return errors.New("password must contain at least one uppercase letter")
+	}
+	if !hasLower {
+		return errors.New("password must contain at least one lowercase letter")
+	}
+	if !hasDigit {
+		return errors.New("password must contain at least one digit")
+	}
+	
+	return nil
+}
+
+// validateUsername checks if a username meets security requirements
+var usernameRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{2,31}$`)
+
+func validateUsername(username string) error {
+	if len(username) < 3 {
+		return errors.New("username must be at least 3 characters long")
+	}
+	if len(username) > 32 {
+		return errors.New("username must be at most 32 characters long")
+	}
+	if !usernameRegex.MatchString(username) {
+		return errors.New("username must start with a letter and contain only letters, numbers, underscores, and hyphens")
+	}
+	return nil
+}
+
 // ==== User Management & Role-Based Access Control ===========================
 
 // getCurrentUser returns the current user from session, API key, or nil if not authenticated
@@ -794,14 +930,16 @@ func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
 		return nil
 	}
 
+	s.sessionsMu.RLock()
 	// Check if session exists and is valid
-	if expiry, exists := s.sessions[sessionID]; !exists || time.Now().After(expiry) {
+	expiry, sessionExists := s.sessions[sessionID]
+	userID, userExists := s.userSessions[sessionID]
+	s.sessionsMu.RUnlock()
+
+	if !sessionExists || time.Now().After(expiry) {
 		return nil
 	}
-
-	// Get user ID from session
-	userID, exists := s.userSessions[sessionID]
-	if !exists {
+	if !userExists {
 		return nil
 	}
 
@@ -924,12 +1062,25 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 	}
 	sessionID := hex.EncodeToString(b)
 
+	// Check if request is over HTTPS
+	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+
+	s.sessionsMu.Lock()
 	// Clean up any temporary CSRF token for this client
 	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 	delete(s.csrfTokens, tempKey)
 
-	// Check if request is over HTTPS
-	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+	if rememberMe {
+		// For remember-me, create a session without expiry (browser session)
+		s.sessions[sessionID] = time.Now().Add(24 * time.Hour) // Still track in memory
+		s.userSessions[sessionID] = user.ID
+	} else {
+		// Regular session (24 hours)
+		expiry := time.Now().Add(24 * time.Hour)
+		s.sessions[sessionID] = expiry
+		s.userSessions[sessionID] = user.ID
+	}
+	s.sessionsMu.Unlock()
 
 	if rememberMe {
 		// Create persistent remember-me token (30 days)
@@ -937,10 +1088,6 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 			s.logger.Printf("[ERROR] Failed to create remember-me token: %v", err)
 			// Continue with session creation even if remember-me fails
 		}
-		
-		// For remember-me, create a session without expiry (browser session)
-		s.sessions[sessionID] = time.Now().Add(24 * time.Hour) // Still track in memory
-		s.userSessions[sessionID] = user.ID
 		
 		// Set session cookie without Expires (session cookie)
 		cookie := &http.Cookie{
@@ -953,12 +1100,8 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 		}
 		http.SetCookie(w, cookie)
 	} else {
-		// Regular session (24 hours)
-		expiry := time.Now().Add(24 * time.Hour)
-		s.sessions[sessionID] = expiry
-		s.userSessions[sessionID] = user.ID
-		
 		// Set session cookie with expiry
+		expiry := time.Now().Add(24 * time.Hour)
 		cookie := &http.Cookie{
 			Name:     "upturtle_session",
 			Value:    sessionID,
@@ -971,27 +1114,29 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 		http.SetCookie(w, cookie)
 	}
 
-	s.authDebugf("User session created: user=%s, role=%s, sessionID=%s", user.Username, user.Role, sessionID[:8]+"...")
+	s.authDebugf("User session created: user=%s, role=%s", user.Username, user.Role)
 	return nil
 }
 
 // destroyUserSession destroys the current user session and remember-me token
 func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("upturtle_session")
+	
+	s.sessionsMu.Lock()
 	if err == nil && c.Value != "" {
 		delete(s.sessions, c.Value)
 		delete(s.userSessions, c.Value)
 		delete(s.csrfTokens, c.Value)
 	}
+	// Clean up any temporary CSRF tokens for this client
+	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
+	delete(s.csrfTokens, tempKey)
+	s.sessionsMu.Unlock()
 
 	// Also destroy remember-me token if present
 	if rememberCookie, err := r.Cookie("upturtle_remember"); err == nil && rememberCookie.Value != "" {
 		s.destroyRememberMeToken(rememberCookie.Value)
 	}
-
-	// Clean up any temporary CSRF tokens for this client
-	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-	delete(s.csrfTokens, tempKey)
 
 	// Check if request is over HTTPS
 	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
@@ -1265,6 +1410,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "template error", http.StatusInternalServerError)
 		}
 	case http.MethodPost:
+		// Rate limiting check
+		clientIP := getClientIP(r)
+		if !s.loginLimiter.getVisitor(clientIP).Allow() {
+			s.authDebugf("Login rate limited for IP %s", clientIP)
+			http.Redirect(w, r, "/login?error="+url.QueryEscape("Too many login attempts. Please try again later."), http.StatusSeeOther)
+			return
+		}
+
 		// Validate CSRF token for login form
 		s.authDebugf("Login POST attempt from %s, User-Agent: %s", r.RemoteAddr, r.UserAgent())
 		if !s.validateCSRFToken(r) {
@@ -1280,7 +1433,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		username := strings.TrimSpace(r.FormValue("username"))
 		password := r.FormValue("password")
 		rememberMe := r.FormValue("remember_me") == "1"
-		s.authDebugf("Login attempt: username='%s', password_length=%d, remember_me=%v", username, len(password), rememberMe)
+		s.authDebugf("Login attempt for user '%s' from IP %s", username, clientIP)
 
 		// Authenticate user using new system
 		user, err := s.authenticateUser(username, password)
@@ -1309,25 +1462,22 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
-// ensureAuth protects API routes. If admin credentials are configured, accept either
-// a valid logged-in session OR valid HTTP Basic credentials.
+// ensureAuth protects API routes. Requires a valid logged-in session.
+// Note: HTTP Basic Auth has been removed for security reasons.
+// Use API keys (Bearer token) for programmatic access.
 func (s *Server) ensureAuth(w http.ResponseWriter, r *http.Request) bool {
 	if s.adminUser == "" || s.adminPassword == "" {
 		return true
 	}
-	// Prefer session cookie to avoid browser basic-auth prompts
+	// Check session cookie
 	if c, err := r.Cookie("upturtle_session"); err == nil && c.Value != "" {
-		if exp, ok := s.sessions[c.Value]; ok && time.Now().Before(exp) {
+		s.sessionsMu.RLock()
+		exp, ok := s.sessions[c.Value]
+		s.sessionsMu.RUnlock()
+		if ok && time.Now().Before(exp) {
 			return true
 		}
 	}
-	// Fallback to HTTP Basic
-	if user, pass, ok := r.BasicAuth(); ok {
-		if user == s.adminUser && s.verifyPassword(pass) {
-			return true
-		}
-	}
-	w.Header().Set("WWW-Authenticate", "Basic realm=upturtle")
 	http.Error(w, "unauthorized", http.StatusUnauthorized)
 	return false
 }
@@ -1341,11 +1491,6 @@ func (s *Server) ensureAuthAndCSRF(w http.ResponseWriter, r *http.Request) bool 
 
 	// Skip CSRF check for GET requests (they should be safe)
 	if r.Method == http.MethodGet {
-		return true
-	}
-
-	// Skip CSRF check for HTTP Basic Auth (API clients)
-	if _, _, ok := r.BasicAuth(); ok {
 		return true
 	}
 
@@ -1371,16 +1516,14 @@ func (s *Server) verifyPassword(password string) bool {
 		return false
 	}
 
-	s.authDebugf("Verifying password: provided_length=%d, stored_hash_length=%d", len(password), len(s.adminPassword))
-
 	// Check if the stored password looks like a bcrypt hash
 	if !strings.HasPrefix(s.adminPassword, "$2") {
-		s.authDebugf("Warning: stored admin password doesn't look like a bcrypt hash (should start with $2)")
+		s.authDebugf("Warning: stored admin password doesn't look like a bcrypt hash")
 	}
 
 	err := bcrypt.CompareHashAndPassword([]byte(s.adminPassword), []byte(password))
 	if err != nil {
-		s.authDebugf("Password verification failed: %v", err)
+		s.authDebugf("Password verification failed")
 		return false
 	}
 
@@ -1394,9 +1537,8 @@ func (s *Server) verifyPassword(password string) bool {
 func (s *Server) generateCSRFToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		s.logger.Printf("CSRF token generation error: %v", err)
-		// Fallback to less secure but still usable token
-		return hex.EncodeToString([]byte(strconv.FormatInt(time.Now().UnixNano(), 36)))
+		// crypto/rand failure is a critical error - do not use insecure fallback
+		panic("crypto/rand failed: " + err.Error())
 	}
 	return hex.EncodeToString(b)
 }
@@ -1405,7 +1547,10 @@ func (s *Server) generateCSRFToken() string {
 // For requests without sessions (login/install), generates a temporary token
 func (s *Server) getCSRFToken(r *http.Request) string {
 	sessionID := s.getSessionID(r)
-	s.authDebugf("Getting CSRF token: sessionID='%s', RemoteAddr='%s', UserAgent='%s'", sessionID, r.RemoteAddr, r.UserAgent())
+	s.authDebugf("Getting CSRF token: sessionID='%s'", sessionID)
+
+	s.sessionsMu.Lock()
+	defer s.sessionsMu.Unlock()
 
 	// For authenticated sessions, use session-based tokens
 	if sessionID != "" {
@@ -1425,7 +1570,6 @@ func (s *Server) getCSRFToken(r *http.Request) string {
 	// For unauthenticated requests (login/install), generate a temporary token
 	// Store it with a key based on remote address and user agent
 	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-	s.authDebugf("Using CSRF key: '%s'", tempKey)
 
 	if token, exists := s.csrfTokens[tempKey]; exists {
 		s.authDebugf("Returning existing temporary CSRF token")
@@ -1456,38 +1600,27 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 		return true
 	}
 
-	// Skip CSRF check for HTTP Basic Auth (API clients)
-	if _, _, ok := r.BasicAuth(); ok {
-		s.authDebugf("CSRF validation skipped: HTTP Basic Auth detected")
-		return true
-	}
-
 	sessionID := s.getSessionID(r)
-	s.authDebugf("CSRF validation: sessionID='%s', RemoteAddr='%s', UserAgent='%s'", sessionID, r.RemoteAddr, r.UserAgent())
+	s.authDebugf("CSRF validation: sessionID='%s'", sessionID)
 
 	var expectedToken string
 	var exists bool
 	var tokenKey string
 
+	s.sessionsMu.RLock()
 	// For authenticated sessions, use session-based tokens
 	if sessionID != "" {
 		tokenKey = sessionID
 		expectedToken, exists = s.csrfTokens[sessionID]
-		s.authDebugf("CSRF: Using session-based token, key='%s', exists=%t", tokenKey, exists)
 	} else {
 		// For unauthenticated requests (login/install), use temporary tokens
-		// Use RemoteAddr + UserAgent to differentiate between devices
 		tokenKey = "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 		expectedToken, exists = s.csrfTokens[tokenKey]
-		s.authDebugf("CSRF: Using temporary token, key='%s', exists=%t", tokenKey, exists)
 	}
+	s.sessionsMu.RUnlock()
 
 	if !exists {
-		s.authDebugf("CSRF validation failed: no token found for key '%s'", tokenKey)
-		s.authDebugf("CSRF: Available tokens: %d", len(s.csrfTokens))
-		for k := range s.csrfTokens {
-			s.authDebugf("CSRF: Available key: '%s'", k)
-		}
+		s.authDebugf("CSRF validation failed: no token found")
 		return false
 	}
 
@@ -1495,20 +1628,8 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 	var providedToken string
 	if headerToken := r.Header.Get("X-CSRF-Token"); headerToken != "" {
 		providedToken = headerToken
-		tokenPreview := providedToken
-		if len(tokenPreview) > 10 {
-			tokenPreview = tokenPreview[:10] + "..."
-		}
-		s.authDebugf("CSRF: Got token from header: '%s'", tokenPreview)
 	} else if err := r.ParseForm(); err == nil {
 		providedToken = r.FormValue("csrf_token")
-		tokenPreview := providedToken
-		if len(tokenPreview) > 10 {
-			tokenPreview = tokenPreview[:10] + "..."
-		}
-		s.authDebugf("CSRF: Got token from form: '%s'", tokenPreview)
-	} else {
-		s.authDebugf("CSRF: Failed to parse form: %v", err)
 	}
 
 	if providedToken == "" {
@@ -1517,8 +1638,8 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 	}
 
 	// Constant-time comparison to prevent timing attacks
-	valid := len(expectedToken) == len(providedToken) && expectedToken == providedToken
-	s.authDebugf("CSRF validation result: %t (expected length: %d, provided length: %d)", valid, len(expectedToken), len(providedToken))
+	valid := subtle.ConstantTimeCompare([]byte(expectedToken), []byte(providedToken)) == 1
+	s.authDebugf("CSRF validation result: %t", valid)
 	return valid
 }
 
@@ -1530,16 +1651,12 @@ func (s *Server) validateCSRFTokenFromJSON(r *http.Request, jsonToken string) bo
 		return true
 	}
 
-	// Skip CSRF check for HTTP Basic Auth (API clients)
-	if _, _, ok := r.BasicAuth(); ok {
-		return true
-	}
-
 	sessionID := s.getSessionID(r)
 
 	var expectedToken string
 	var exists bool
 
+	s.sessionsMu.RLock()
 	// For authenticated sessions, use session-based tokens
 	if sessionID != "" {
 		expectedToken, exists = s.csrfTokens[sessionID]
@@ -1548,14 +1665,14 @@ func (s *Server) validateCSRFTokenFromJSON(r *http.Request, jsonToken string) bo
 		tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
 		expectedToken, exists = s.csrfTokens[tempKey]
 	}
+	s.sessionsMu.RUnlock()
 
 	if !exists || jsonToken == "" {
 		return false
 	}
 
 	// Constant-time comparison to prevent timing attacks
-	return len(expectedToken) == len(jsonToken) &&
-		expectedToken == jsonToken
+	return subtle.ConstantTimeCompare([]byte(expectedToken), []byte(jsonToken)) == 1
 }
 
 // startSessionCleanup starts a background goroutine to periodically clean up expired sessions and CSRF tokens
@@ -1575,6 +1692,7 @@ func (s *Server) cleanupExpiredSessions() {
 	now := time.Now()
 	expiredSessions := make([]string, 0)
 
+	s.sessionsMu.Lock()
 	// Find expired sessions
 	for sessionID, expiry := range s.sessions {
 		if now.After(expiry) {
@@ -1586,6 +1704,7 @@ func (s *Server) cleanupExpiredSessions() {
 	for _, sessionID := range expiredSessions {
 		delete(s.sessions, sessionID)
 		delete(s.csrfTokens, sessionID)
+		delete(s.userSessions, sessionID)
 	}
 
 	// Also clean up old temporary CSRF tokens (older than 24 hours)
@@ -1597,6 +1716,7 @@ func (s *Server) cleanupExpiredSessions() {
 			tempTokensRemoved++
 		}
 	}
+	s.sessionsMu.Unlock()
 
 	// Clean up expired remember-me tokens from database
 	tokensRemoved := 0
@@ -1942,6 +2062,13 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodPost {
+		// Rate limiting check
+		clientIP := getClientIP(r)
+		if !s.loginLimiter.getVisitor(clientIP).Allow() {
+			http.Redirect(w, r, "/install?error="+url.QueryEscape("Too many attempts. Please try again later."), http.StatusSeeOther)
+			return
+		}
+
 		// Validate CSRF token for install form
 		if !s.validateCSRFToken(r) {
 			http.Error(w, "CSRF token validation failed", http.StatusForbidden)
@@ -1958,6 +2085,18 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 
 		if user == "" || pass == "" {
 			http.Redirect(w, r, "/install?error=Username+and+password+are+required", http.StatusSeeOther)
+			return
+		}
+
+		// Validate username format
+		if err := validateUsername(user); err != nil {
+			http.Redirect(w, r, "/install?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+			return
+		}
+
+		// Validate password complexity
+		if err := validatePassword(pass); err != nil {
+			http.Redirect(w, r, "/install?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return
 		}
 

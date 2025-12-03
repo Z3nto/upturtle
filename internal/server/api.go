@@ -442,7 +442,8 @@ func (s *Server) routeNotificationsEndpoint(subPath, method string) (exists bool
 		switch method {
 		case http.MethodGet:
 			handler = s.apiNotificationsList
-			requireAuth = false // Public endpoint
+			// Notifications may contain sensitive URLs (API keys, tokens)
+			// Require authentication to access
 		case http.MethodPost:
 			handler = s.apiNotificationsCreate
 		default:
@@ -462,7 +463,8 @@ func (s *Server) routeNotificationsEndpoint(subPath, method string) (exists bool
 		switch method {
 		case http.MethodGet:
 			handler = s.apiNotificationGet
-			requireAuth = false // Public endpoint
+			// Notifications may contain sensitive URLs (API keys, tokens)
+			// Require authentication to access
 		case http.MethodPut:
 			handler = s.apiNotificationUpdate
 		case http.MethodDelete:
@@ -1533,6 +1535,17 @@ func (s *Server) apiUsersCreate(r *http.Request) (interface{}, int, error) {
 	if req.Password == "" {
 		return nil, http.StatusBadRequest, fmt.Errorf("password is required")
 	}
+
+	// Validate username format
+	if err := validateUsername(req.Username); err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+
+	// Validate password complexity
+	if err := validatePassword(req.Password); err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+
 	if req.Role == "" {
 		req.Role = database.UserRoleReadOnly // Default role
 	}
@@ -1616,6 +1629,13 @@ func (s *Server) apiUserUpdate(r *http.Request) (interface{}, int, error) {
 		return nil, http.StatusBadRequest, fmt.Errorf("username is required")
 	}
 
+	// Validate username format if changed
+	if req.Username != existingUser.Username {
+		if err := validateUsername(req.Username); err != nil {
+			return nil, http.StatusBadRequest, err
+		}
+	}
+
 	// Validate role
 	if req.Role != database.UserRoleReadOnly && req.Role != database.UserRoleWrite && req.Role != database.UserRoleAdmin {
 		return nil, http.StatusBadRequest, fmt.Errorf("invalid role")
@@ -1628,6 +1648,10 @@ func (s *Server) apiUserUpdate(r *http.Request) (interface{}, int, error) {
 
 	// Update password if provided
 	if req.Password != "" {
+		// Validate password complexity
+		if err := validatePassword(req.Password); err != nil {
+			return nil, http.StatusBadRequest, err
+		}
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {
 			s.logger.Printf("Failed to hash password: %v", err)

@@ -120,11 +120,36 @@ func checkICMP(cfg MonitorConfig) CheckResult {
 	return CheckResult{Success: true, Latency: latency, Message: "", Timestamp: time.Now()}
 }
 
+// validPingTarget validates that a ping target is safe to use
+// Only allows hostnames, IPv4, and IPv6 addresses
+var validPingTargetRegex = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-\.]*[a-zA-Z0-9])?$|^(\d{1,3}\.){3}\d{1,3}$|^([0-9a-fA-F:]+)$`)
+
+func validatePingTarget(target string) error {
+	if len(target) > 253 {
+		return errors.New("target too long")
+	}
+	if !validPingTargetRegex.MatchString(target) {
+		return errors.New("invalid target format: only hostnames, IPv4, and IPv6 addresses are allowed")
+	}
+	// Additional check: no shell metacharacters
+	for _, c := range target {
+		if c == ';' || c == '|' || c == '&' || c == '$' || c == '`' || c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\r' {
+			return errors.New("invalid characters in target")
+		}
+	}
+	return nil
+}
+
 // pingHost executes /bin/ping once and parses RTT
 func pingHost(target string, timeout time.Duration) (time.Duration, error) {
 	target = strings.TrimSpace(target)
 	if target == "" {
 		return 0, errors.New("empty target")
+	}
+
+	// Validate target to prevent command injection
+	if err := validatePingTarget(target); err != nil {
+		return 0, fmt.Errorf("invalid ping target: %w", err)
 	}
 
 	// Use system ping binary. We prefer iputils-ping at /bin/ping.
