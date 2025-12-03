@@ -4,57 +4,61 @@
 
 {{define "statuspages.content"}}
 <div>
-    <div class="page-header-with-actions">
-        <h2>Status Pages</h2>
-        <button id="btn-new-statuspage" class="primary" type="button" title="Create new status page">+ New Status Page</button>
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-semibold text-gray-100 m-0">Status Pages</h2>
+        <button id="btn-new-statuspage" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors" type="button" title="Create new status page">+ New Status Page</button>
     </div>
     
-    {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
-    {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
+    {{if .Success}}<div class="mb-4 p-4 bg-green-900/30 border border-green-700/50 text-green-300 rounded-lg">{{.Success}}</div>{{end}}
+    {{if .Error}}<div class="mb-4 p-4 bg-red-900/30 border border-red-700/50 text-red-300 rounded-lg">{{.Error}}</div>{{end}}
 
     {{if .StatusPages}}
         {{range .StatusPages}}
-        <div class="card">
-            <div class="card-header-flex">
-                <div>
-                    <h3 class="no-margin margin-bottom-05">{{.Name}}</h3>
-                    <div class="muted card-subtitle">
-                        <strong>URL:</strong> <code>/status/{{.Slug}}</code> · 
-                        <strong>Monitors:</strong> {{len .Monitors}} · 
-                        <span class="badge {{if .Active}}status-up{{else}}status-disabled{{end}}">
-                            {{if .Active}}Active{{else}}Inactive{{end}}
-                        </span>
+        <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-100 m-0 mb-2">{{.Name}}</h3>
+                    <div class="text-sm text-gray-400 flex flex-wrap items-center gap-2">
+                        <span><strong class="text-gray-300">URL:</strong> <code class="bg-gray-800/50 px-1.5 py-0.5 rounded text-gray-300">/status/{{.Slug}}</code></span>
+                        <span class="text-gray-600">·</span>
+                        <span><strong class="text-gray-300">Monitors:</strong> {{len .Monitors}}</span>
+                        <span class="text-gray-600">·</span>
+                        {{if .Active}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50">Active</span>
+                        {{else}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">Inactive</span>
+                        {{end}}
                     </div>
                 </div>
-            </div>
-            <div class="actions">
-                <a href="/admin/statuspages/{{.ID}}" class="no-decoration">
-                    <button type="button" class="icon edit" title="Configure">
+                <div class="flex items-center gap-1 ml-4">
+                    <a href="/admin/statuspages/{{.ID}}" class="no-underline">
+                        <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" title="Configure">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+                            </svg>
+                        </button>
+                    </a>
+                    {{if .Active}}
+                    <a href="/status/{{.Slug}}" target="_blank" class="no-underline">
+                        <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" title="View public page">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                            </svg>
+                        </button>
+                    </a>
+                    {{end}}
+                    <button type="button" class="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors" data-action="delete-statuspage" data-statuspage-id="{{.ID}}" data-statuspage-name="{{.Name}}" title="Delete">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+                            <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
                         </svg>
                     </button>
-                </a>
-                {{if .Active}}
-                <a href="/status/{{.Slug}}" target="_blank" class="no-decoration">
-                    <button type="button" class="icon" title="View public page">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                        </svg>
-                    </button>
-                </a>
-                {{end}}
-                <button type="button" class="icon delete" data-action="delete-statuspage" data-statuspage-id="{{.ID}}" data-statuspage-name="{{.Name}}" title="Delete">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
-                    </svg>
-                </button>
+                </div>
             </div>
         </div>
         {{end}}
     {{else}}
-        <div class="card">
-            <p class="empty-state">
+        <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6">
+            <p class="text-gray-400 text-center py-4">
                 No status pages configured yet. Click "+ New Status Page" to create your first one.
             </p>
         </div>
@@ -62,56 +66,52 @@
 </div>
 
 <!-- Create Status Page Modal -->
-<div id="modal-create-statuspage" class="modal-backdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-create-statuspage-title">
-        <header>
-            <h3 id="modal-create-statuspage-title">Create Status Page</h3>
-            <button type="button" class="close" data-close="modal-create-statuspage" aria-label="Close">&times;</button>
-        </header>
-        <form id="form-create-statuspage">
-            <div class="form-row">
-                <div>
-                    <label for="create-statuspage-name">Name *</label>
-                    <input type="text" id="create-statuspage-name" name="name" required placeholder="My Service Status">
-                </div>
+<div id="modal-create-statuspage" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
+    <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-md mx-4" role="dialog" aria-modal="true" aria-labelledby="modal-create-statuspage-title">
+        <div class="flex items-center justify-between p-4 border-b border-dark-border">
+            <h3 id="modal-create-statuspage-title" class="text-lg font-semibold text-gray-100">Create Status Page</h3>
+            <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" data-close="modal-create-statuspage" aria-label="Close">&times;</button>
+        </div>
+        <form id="form-create-statuspage" class="p-4">
+            <div class="mb-4">
+                <label for="create-statuspage-name" class="block text-sm font-medium text-gray-300 mb-2">Name *</label>
+                <input type="text" id="create-statuspage-name" name="name" required placeholder="My Service Status" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
             </div>
-            <div class="form-row">
-                <div>
-                    <label for="create-statuspage-slug">URL Slug *</label>
-                    <input type="text" id="create-statuspage-slug" name="slug" required placeholder="my-service" pattern="[a-z0-9\-]+">
-                    <small class="muted">Only lowercase letters, numbers, and hyphens</small>
-                </div>
+            <div class="mb-4">
+                <label for="create-statuspage-slug" class="block text-sm font-medium text-gray-300 mb-2">URL Slug *</label>
+                <input type="text" id="create-statuspage-slug" name="slug" required placeholder="my-service" pattern="[a-z0-9\-]+" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+                <small class="text-gray-500 text-sm mt-1 block">Only lowercase letters, numbers, and hyphens</small>
             </div>
-            <div class="form-row">
-                <label>
-                    <input type="checkbox" name="active" value="true" checked>
-                    Active (page is publicly accessible)
+            <div class="mb-4">
+                <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                    <input type="checkbox" name="active" value="true" checked class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
+                    <span>Active (page is publicly accessible)</span>
                 </label>
             </div>
-            <div class="actions" style="justify-content:flex-end; margin-top:1rem;">
-                <button type="button" data-close="modal-create-statuspage">Cancel</button>
-                <button type="submit" class="primary">Create</button>
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" data-close="modal-create-statuspage" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Create</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Delete Status Page Modal -->
-<div id="modal-delete-statuspage" class="modal-backdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-statuspage-title">
-        <header>
-            <h3 id="modal-delete-statuspage-title">Delete Status Page</h3>
-            <button type="button" class="close" data-close="modal-delete-statuspage" aria-label="Close">&times;</button>
-        </header>
-        <form id="form-delete-statuspage">
-            <p>Are you sure you want to delete the status page <strong id="delete-statuspage-name"></strong>?</p>
-            <p style="color:#fbbf24; background:rgba(251,191,36,0.15); padding:0.75rem; border-radius:8px; margin-top:1rem;">
+<div id="modal-delete-statuspage" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
+    <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-md mx-4" role="dialog" aria-modal="true" aria-labelledby="modal-delete-statuspage-title">
+        <div class="flex items-center justify-between p-4 border-b border-dark-border">
+            <h3 id="modal-delete-statuspage-title" class="text-lg font-semibold text-gray-100">Delete Status Page</h3>
+            <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" data-close="modal-delete-statuspage" aria-label="Close">&times;</button>
+        </div>
+        <form id="form-delete-statuspage" class="p-4">
+            <p class="text-gray-200 mb-4">Are you sure you want to delete the status page <strong id="delete-statuspage-name" class="text-white"></strong>?</p>
+            <p class="text-yellow-400 bg-yellow-900/20 border border-yellow-700/50 p-3 rounded-lg mb-4">
                 This action cannot be undone.
             </p>
             <input type="hidden" id="delete-statuspage-id" name="id">
-            <div class="actions" style="justify-content:flex-end; margin-top:1rem;">
-                <button type="button" data-close="modal-delete-statuspage">Cancel</button>
-                <button type="submit" class="danger">Delete</button>
+            <div class="flex justify-end gap-2">
+                <button type="button" data-close="modal-delete-statuspage" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Delete</button>
             </div>
         </form>
     </div>
@@ -123,7 +123,8 @@
   function openModal(id) {
     const modal = document.getElementById(id);
     if (modal) {
-      modal.classList.add('show');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
       modal.setAttribute('aria-hidden', 'false');
     }
   }
@@ -133,7 +134,8 @@
       backdrop = document.getElementById(backdrop);
     }
     if (backdrop) {
-      backdrop.classList.remove('show');
+      backdrop.classList.add('hidden');
+      backdrop.classList.remove('flex');
       backdrop.setAttribute('aria-hidden', 'true');
     }
   }
@@ -144,7 +146,7 @@
   });
 
   // Modal backdrop click to close
-  document.querySelectorAll('.modal-backdrop').forEach(function(bg) {
+  document.querySelectorAll('#modal-create-statuspage, #modal-delete-statuspage').forEach(function(bg) {
     bg.addEventListener('click', function(e) {
       if (e.target === bg) closeModal(bg);
     });

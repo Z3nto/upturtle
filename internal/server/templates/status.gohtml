@@ -3,78 +3,185 @@
 {{end}}
 
 {{define "status.content"}}
-<div class="page-header">
-  <h2>Current status</h2>
+<style>
+#upturtle-tooltip {
+  position: fixed;
+  display: none;
+  background: rgba(24,24,24,0.95);
+  border: 1px solid rgba(160,160,160,0.3);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #e2e8f0;
+  z-index: 10000;
+  pointer-events: none;
+  max-width: 300px;
+  word-wrap: break-word;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+</style>
+<div class="mb-6">
+  <h2 class="text-2xl font-semibold text-gray-100 m-0">Current status</h2>
 </div>
 {{if .Groups}}
   {{range .Groups}}
-    <div class="card">
-      <h3>{{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}</h3>
+    <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg mb-4 overflow-hidden">
+      <div class="px-6 py-4 border-b border-dark-border">
+        <h3 class="text-lg font-semibold text-gray-100 m-0">{{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}</h3>
+      </div>
       {{if .Monitors}}
-      <table class="status-table" data-group="{{.Name}}">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th></th>
-            <th>Last</th>
-            <th>History</th>
-            <th>Uptime</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{range .Monitors}}
-          <tr class="monitor-row {{statusClass .Status}}" data-id="{{.ID}}" data-type="{{.Type}}">
-            <td>
-              <div class="monitor-name">{{.Name}}</div>
-              <div class="muted">{{.ID}}</div>
-            </td>
-            <td>
+      <!-- Desktop Table View -->
+      <div class="hidden md:block overflow-x-auto">
+        <table class="status-table w-full table-fixed" data-group="{{.Name}}">
+          <colgroup>
+            <col class="w-auto">
+            <col class="w-24">
+            <col class="w-20">
+            <col class="w-[200px]">
+            <col class="w-24">
+          </colgroup>
+          <thead class="bg-gray-800/30">
+            <tr>
+              <th class="pl-4 lg:pl-6 pr-2 lg:pr-4 py-2 text-left text-sm font-medium text-gray-300">Name</th>
+              <th class="px-2 lg:px-4 py-2 text-left text-sm font-medium text-gray-300">Status</th>
+              <th class="px-2 lg:px-4 py-2 text-left text-sm font-medium text-gray-300">Last</th>
+              <th class="px-2 lg:px-4 py-2 text-left text-sm font-medium text-gray-300">History</th>
+              <th class="pl-2 lg:pl-4 pr-4 lg:pr-6 py-2 text-right text-sm font-medium text-gray-300">Uptime</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-800/50">
+            {{range .Monitors}}
+            <tr class="monitor-row {{statusClass .Status}} hover:bg-gray-800/30 transition-colors cursor-pointer" data-id="{{.ID}}" data-type="{{.Type}}">
+              <td class="pl-4 lg:pl-6 pr-2 lg:pr-4 py-3 max-w-0">
+                <div class="font-medium text-gray-200 truncate" title="{{.Name}}">{{.Name}}</div>
+                <div class="text-sm text-gray-500 truncate" title="{{.ID}}">{{.ID}}</div>
+              </td>
+              <td class="px-2 lg:px-4 py-3">
+                {{if not .Enabled}}
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">Disabled</span>
+                {{else}}
+                  {{if .MasterDown}}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Master monitor is down">Master down</span>
+                  {{else}}
+                    {{if eq .Status "up"}}
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50" data-field="status">{{.Status}}</span>
+                    {{else if eq .Status "down"}}
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/50 text-red-300 border border-red-700/50" data-field="status">{{.Status}}</span>
+                    {{else}}
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-field="status">{{.Status}}</span>
+                    {{end}}
+                  {{end}}
+                {{end}}
+              </td>
+              <td class="px-2 lg:px-4 py-3">
+                <span class="text-sm text-gray-400" data-field="last-checked-rel">{{formatRelative .LastChecked}}</span>
+              </td>
+              <td class="px-2 lg:px-4 py-3">
+                <div class="history flex gap-0.5" data-field="history">
+                  {{range .History}}
+                    {{if .Success}}
+                      <span class="up w-2 h-5 bg-green-500 rounded-sm" data-tip="{{formatTime .Timestamp}} · OK"></span>
+                    {{else}}
+                      <span class="down w-2 h-5 bg-red-500 rounded-sm" data-tip="{{formatTime .Timestamp}} · {{.Message}}"></span>
+                    {{end}}
+                  {{end}}
+                </div>
+              </td>
+              <td class="pl-2 lg:pl-4 pr-4 lg:pr-6 py-3 text-right"><span class="text-sm text-gray-300" data-field="uptime">{{printf "%.1f" .SuccessRate}}%</span></td>
+            </tr>
+            <tr class="chart-row" data-monitor-id="{{.ID}}" style="display: none;">
+              <td colspan="5" class="p-0">
+                <div class="chart-container overflow-hidden" style="height: 0; transition: height 0.3s ease;">
+                  <div class="chart-content p-6">
+                    <div class="chart-loading text-gray-400 text-center py-8">Loading chart data...</div>
+                    <canvas class="monitor-chart" style="display: none; height: 375px;"></canvas>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Mobile Card View -->
+      <div class="md:hidden space-y-4 p-4">
+        {{range .Monitors}}
+        <div class="mobile-monitor-wrapper">
+          <div class="monitor-row {{statusClass .Status}} bg-gray-800/30 border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/50 transition-colors cursor-pointer" data-id="{{.ID}}" data-type="{{.Type}}">
+            <!-- Monitor Name -->
+            <div class="mb-3 pb-3 border-b border-gray-700/50">
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Monitor</div>
+              <div class="font-medium text-gray-200 truncate" title="{{.Name}}">{{.Name}}</div>
+              <div class="text-sm text-gray-500 truncate" title="{{.ID}}">{{.ID}}</div>
+            </div>
+            
+            <!-- Status -->
+            <div class="mb-3">
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Status</div>
               {{if not .Enabled}}
-                <span class="badge status-disabled">Disabled</span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">Disabled</span>
               {{else}}
                 {{if .MasterDown}}
-                  <span class="badge status-unknown" data-tip="Master monitor is down">Master down</span>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Master monitor is down">Master down</span>
                 {{else}}
-                  <span class="badge {{statusClass .Status}}" data-field="status">{{.Status}}</span>
+                  {{if eq .Status "up"}}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50" data-field="status">{{.Status}}</span>
+                  {{else if eq .Status "down"}}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/50 text-red-300 border border-red-700/50" data-field="status">{{.Status}}</span>
+                  {{else}}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-field="status">{{.Status}}</span>
+                  {{end}}
                 {{end}}
               {{end}}
-            </td>
-            <td>
-              <span class="muted" data-field="last-checked-rel">{{formatRelative .LastChecked}}</span>
-            </td>
-            <td>
-              <div class="history" data-field="history">
+            </div>
+            
+            <!-- Last Checked -->
+            <div class="mb-3">
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Last Checked</div>
+              <span class="text-sm text-gray-400" data-field="last-checked-rel">{{formatRelative .LastChecked}}</span>
+            </div>
+            
+            <!-- History -->
+            <div class="mb-3">
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">History</div>
+              <div class="history flex gap-0.5" data-field="history">
                 {{range .History}}
                   {{if .Success}}
-                    <span class="up" data-tip="{{formatTime .Timestamp}} · OK"></span>
+                    <span class="up w-2 h-5 bg-green-500 rounded-sm" data-tip="{{formatTime .Timestamp}} · OK"></span>
                   {{else}}
-                    <span class="down" data-tip="{{formatTime .Timestamp}} · {{.Message}}"></span>
+                    <span class="down w-2 h-5 bg-red-500 rounded-sm" data-tip="{{formatTime .Timestamp}} · {{.Message}}"></span>
                   {{end}}
                 {{end}}
               </div>
-            </td>
-            <td><span data-field="uptime">{{printf "%.1f" .SuccessRate}}%</span></td>
-          </tr>
-          <tr class="chart-row" data-monitor-id="{{.ID}}" style="display: none;">
-            <td colspan="5" style="padding: 0;">
-              <div class="chart-container" style="overflow: hidden; height: 0; transition: height 0.3s ease;">
-                <div class="chart-content" style="padding: 1.5rem;">
-                  <div class="chart-loading">Loading chart data...</div>
-                  <canvas class="monitor-chart" style="display: none; height: 375px;"></canvas>
-                </div>
+            </div>
+            
+            <!-- Uptime -->
+            <div>
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Uptime</div>
+              <span class="text-sm text-gray-300" data-field="uptime">{{printf "%.1f" .SuccessRate}}%</span>
+            </div>
+          </div>
+          
+          <!-- Chart Row for Mobile -->
+          <div class="chart-row bg-gray-800/30 border border-gray-700/50 border-t-0 rounded-b-lg" data-monitor-id="{{.ID}}" style="display: none;">
+            <div class="chart-container overflow-hidden" style="height: 0; transition: height 0.3s ease;">
+              <div class="chart-content p-4">
+                <div class="chart-loading text-gray-400 text-center py-8">Loading chart data...</div>
+                <canvas class="monitor-chart" style="display: none; height: 375px;"></canvas>
               </div>
-            </td>
-          </tr>
-          {{end}}
-        </tbody>
-      </table>
+            </div>
+          </div>
+        </div>
+        {{end}}
+      </div>
       {{else}}
-        <p class="muted">No monitors in this group.</p>
+        <p class="text-gray-400 text-center py-8">No monitors in this group.</p>
       {{end}}
     </div>
   {{end}}
 {{else}}
-  <p class="muted">No monitors configured yet. Visit the admin area to create one.</p>
+  <p class="text-gray-400 text-center py-8">No monitors configured yet. Visit the admin area to create one.</p>
 {{end}}
 <script>
 (function(){
@@ -115,17 +222,17 @@
   });
 })();
 </script>
-<div id="refresh-control" style="position:fixed; left:12px; bottom:12px; background: rgba(24,24,24,0.85); border:1px solid rgba(160,160,160,0.2); padding:.5rem .75rem; border-radius: 8px; font-size:.9rem; color:#d1d5db;">
-  <label for="refresh-select" style="margin-right:.5rem;">Refresh:</label>
-  <select id="refresh-select">
+<div id="refresh-control" class="fixed left-3 bottom-3 bg-[rgba(24,24,24,0.85)] border border-dark-border px-3 py-2 rounded-lg text-sm text-gray-300 flex items-center gap-2 backdrop-blur-sm">
+  <label for="refresh-select">Refresh:</label>
+  <select id="refresh-select" class="bg-gray-800/50 border border-gray-700 rounded px-2 py-1 text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
     <option value="5000">5s</option>
     <option value="10000" selected>10s</option>
     <option value="15000">15s</option>
     <option value="30000">30s</option>
     <option value="60000">60s</option>
   </select>
-  <span class="muted" style="margin-left:.5rem;">auto refresh</span>
-  </div>
+  <span class="text-gray-400">auto refresh</span>
+</div>
 <script>
 (function(){
   const KEY = 'upturtle_status_poll_ms';
@@ -182,14 +289,14 @@
     const real = items.map(h => {
       const tipText = formatAbs(h.timestamp) + ' · ' + (h.success ? 'OK' : (h.message || ''));
       const encodedTip = btoa(encodeURIComponent(tipText));
-      const className = h.success ? 'up' : 'down';
+      const className = h.success ? 'up w-2 h-5 bg-green-500 rounded-sm' : 'down w-2 h-5 bg-red-500 rounded-sm';
       // include data-ts for incremental updates
       return `<span class="${className}" data-ts="${String(h.timestamp)}" data-tip-encoded="${encodedTip}" onmouseover="this.setAttribute('data-tip', decodeURIComponent(atob(this.getAttribute('data-tip-encoded'))))"></span>`;
     });
     const placeholders = [];
     const need = Math.max(0, HISTORY_PREVIEW - real.length);
     for (let i = 0; i < need; i++) {
-      placeholders.push('<span class="unknown" data-tip="unknown"></span>');
+      placeholders.push('<span class="unknown w-2 h-5 bg-gray-700 rounded-sm" data-tip="unknown"></span>');
     }
     // unknown placeholders should be on the LEFT of the real values
     return placeholders.join('') + real.join('');
@@ -201,7 +308,7 @@
       const need = Math.max(0, HISTORY_PREVIEW - current);
       for(let i=0; i < need; i++){
         const sp = document.createElement('span');
-        sp.className = 'unknown';
+        sp.className = 'unknown w-2 h-5 bg-gray-700 rounded-sm';
         sp.setAttribute('data-tip', 'unknown');
         el.insertBefore(sp, el.firstChild);
       }
@@ -212,7 +319,7 @@
     const tipText = formatAbs(h.timestamp) + ' · ' + (h.success ? 'OK' : (h.message || ''));
     const encodedTip = btoa(encodeURIComponent(tipText));
     const sp = document.createElement('span');
-    sp.className = h.success ? 'up' : 'down';
+    sp.className = h.success ? 'up w-2 h-5 bg-green-500 rounded-sm' : 'down w-2 h-5 bg-red-500 rounded-sm';
     sp.setAttribute('data-ts', String(h.timestamp));
     sp.setAttribute('data-tip-encoded', encodedTip);
     sp.onmouseover = function(){
@@ -287,32 +394,50 @@
       const data = await res.json();
       const byId = {};
       data.forEach(x => { byId[x.id] = x; });
-      document.querySelectorAll('table.status-table tbody tr[data-id]').forEach(tr => {
-        const id = tr.getAttribute('data-id');
+      // Update both desktop table rows and mobile cards
+      document.querySelectorAll('.monitor-row[data-id]').forEach(row => {
+        const id = row.getAttribute('data-id');
         const it = byId[id];
         if(!it) return;
 
         // Always update row class (cheap) and master-dependent status badge
-        tr.classList.remove('status-up','status-down','status-unknown');
-        tr.classList.add(statusClass(it.status));
-        const statusCell = tr.querySelector('[data-field="status"]');
-        const statusContainer = tr.querySelector('td:nth-child(2)');
+        row.classList.remove('status-up','status-down','status-unknown');
+        row.classList.add(statusClass(it.status));
+        const statusCell = row.querySelector('[data-field="status"]');
         const isMasterDown = !!(it.master_id && byId[it.master_id] && byId[it.master_id].status === 'down');
+        
         if(isMasterDown){
-          if(statusContainer){ statusContainer.innerHTML = '<span class="badge status-unknown" data-tip="Master monitor is down">Master down<\/span>'; }
+          // For desktop table, update the td container
+          const statusContainer = row.querySelector('td:nth-child(2)');
+          if(statusContainer){ 
+            statusContainer.innerHTML = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Master monitor is down">Master down<\/span>'; 
+          }
+          // For mobile cards, update the status badge directly
+          if(statusCell && !statusContainer){
+            statusCell.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50';
+            statusCell.textContent = 'Master down';
+            statusCell.setAttribute('data-tip', 'Master monitor is down');
+          }
         } else if(statusCell){
-          statusCell.className = 'badge ' + statusClass(it.status);
+          // Update badge with Tailwind classes
+          if(it.status === 'up'){
+            statusCell.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50';
+          } else if(it.status === 'down'){
+            statusCell.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/50 text-red-300 border border-red-700/50';
+          } else {
+            statusCell.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50';
+          }
           statusCell.textContent = it.status;
         }
 
         // Always refresh relative time text
-        const relEl = tr.querySelector('[data-field="last-checked-rel"]');
+        const relEl = row.querySelector('[data-field="last-checked-rel"]');
         if(relEl) relEl.textContent = formatRel(it.last_checked);
 
         // History and uptime: initialize once, then incremental updates only when new data
-        const histEl = tr.querySelector('[data-field="history"]');
-        const upEl = tr.querySelector('[data-field="uptime"]');
-        const initialized = tr.getAttribute('data-init') === '1';
+        const histEl = row.querySelector('[data-field="history"]');
+        const upEl = row.querySelector('[data-field="uptime"]');
+        const initialized = row.getAttribute('data-init') === '1';
         if(!initialized){
           if(histEl && Array.isArray(it.history)){
             histEl.innerHTML = renderHistoryHTML(it.history);
@@ -321,10 +446,10 @@
             const ok = it.history.filter(h => h.success).length;
             upEl.textContent = ((ok / it.history.length) * 100).toFixed(1) + '%';
           }
-          tr.setAttribute('data-last-checked', String(it.last_checked || ''));
-          tr.setAttribute('data-init', '1');
+          row.setAttribute('data-last-checked', String(it.last_checked || ''));
+          row.setAttribute('data-init', '1');
         } else {
-          const prevLC = tr.getAttribute('data-last-checked') || '';
+          const prevLC = row.getAttribute('data-last-checked') || '';
           const currLC = String(it.last_checked || '');
           if(prevLC !== currLC){
             // Incremental history update
@@ -341,7 +466,7 @@
                 upEl.textContent = ((okCount / total) * 100).toFixed(1) + '%';
               }
             }
-            tr.setAttribute('data-last-checked', currLC);
+            row.setAttribute('data-last-checked', currLC);
           }
         }
       });
@@ -368,11 +493,13 @@
 
   // Handle monitor row clicks
   document.addEventListener('click', function(ev){
-    const monitorRow = ev.target.closest('tr.monitor-row');
+    const monitorRow = ev.target.closest('.monitor-row');
     if(!monitorRow) return;
 
     const monitorId = monitorRow.getAttribute('data-id');
     const monitorType = monitorRow.getAttribute('data-type');
+    
+    console.log('Monitor clicked:', monitorId, monitorType);
     
     // Prevent multiple clicks during animation
     if(isAnimating[monitorId]) return;
@@ -394,13 +521,83 @@
     currentOpenMonitorId = monitorId;
   });
 
+  // Close chart when viewport crosses the mobile/desktop breakpoint
+  let lastWasMobile = window.innerWidth < 768;
+  window.addEventListener('resize', function() {
+    const isMobile = window.innerWidth < 768;
+    // Only close if we crossed the breakpoint
+    if (isMobile !== lastWasMobile) {
+      if (currentOpenMonitorId) {
+        // Close chart on the old viewport type
+        closeChartImmediate(currentOpenMonitorId, lastWasMobile);
+        currentOpenMonitorId = null;
+      }
+      lastWasMobile = isMobile;
+    }
+  });
+
+  // Immediate close without animation (for viewport switch)
+  function closeChartImmediate(monitorId, wasMobile) {
+    const allChartRows = document.querySelectorAll(`.chart-row[data-monitor-id="${monitorId}"]`);
+    for(const row of allChartRows) {
+      const isDesktopRow = row.tagName === 'TR';
+      const isMobileRow = row.tagName === 'DIV' && row.closest('.mobile-monitor-wrapper');
+      
+      if((wasMobile && isMobileRow) || (!wasMobile && isDesktopRow)) {
+        row.style.display = 'none';
+        const container = row.querySelector('.chart-container');
+        if(container) container.style.height = '0';
+        if(chartInstances[monitorId]) {
+          chartInstances[monitorId].destroy();
+          delete chartInstances[monitorId];
+        }
+        break;
+      }
+    }
+  }
+
   function openChart(monitorId, monitorType){
-    const chartRow = document.querySelector(`tr.chart-row[data-monitor-id="${monitorId}"]`);
-    if(!chartRow) return;
+    console.log('Opening chart for monitor:', monitorId);
+    
+    // Find all chart rows with this monitor ID
+    const allChartRows = document.querySelectorAll(`.chart-row[data-monitor-id="${monitorId}"]`);
+    console.log('Found chart rows:', allChartRows.length);
+    
+    // Determine if we're on mobile or desktop based on viewport width
+    const isMobile = window.innerWidth < 768; // md breakpoint
+    
+    // Find the appropriate chart row based on viewport
+    let chartRow = null;
+    for(const row of allChartRows) {
+      // Desktop: TR element (inside table)
+      // Mobile: DIV element (inside mobile-monitor-wrapper)
+      const isDesktopRow = row.tagName === 'TR';
+      const isMobileRow = row.tagName === 'DIV' && row.closest('.mobile-monitor-wrapper');
+      
+      if(isMobile && isMobileRow) {
+        chartRow = row;
+        break;
+      } else if(!isMobile && isDesktopRow) {
+        chartRow = row;
+        break;
+      }
+    }
+    
+    if(!chartRow) {
+      console.error('No chart row found for monitor', monitorId, 'isMobile:', isMobile);
+      return;
+    }
+    console.log('Using chart row:', chartRow.tagName, 'isMobile:', isMobile);
 
     const container = chartRow.querySelector('.chart-container');
     const loading = chartRow.querySelector('.chart-loading');
     const canvas = chartRow.querySelector('.monitor-chart');
+
+    if(!container) {
+      console.error('Chart container not found for monitor', monitorId);
+      return;
+    }
+    console.log('Chart container found, animating...');
 
     // Cancel any pending animation timeout for this monitor
     if(animationTimeouts[monitorId]){
@@ -411,10 +608,16 @@
     // Mark as animating
     isAnimating[monitorId] = true;
 
+    // Show the chart row first - use table-row for <tr>, block for <div>
+    if(chartRow.tagName === 'TR') {
+      chartRow.style.display = 'table-row';
+    } else {
+      chartRow.style.display = 'block';
+    }
+    
     // Force reflow to ensure transition works
     container.style.transition = 'none';
     container.style.height = '0';
-    chartRow.style.display = '';
     
     // Force reflow
     void container.offsetHeight;
@@ -451,7 +654,24 @@
   }
 
   function closeChart(monitorId){
-    const chartRow = document.querySelector(`tr.chart-row[data-monitor-id="${monitorId}"]`);
+    // Find the appropriate chart row based on viewport
+    const isMobile = window.innerWidth < 768;
+    const allChartRows = document.querySelectorAll(`.chart-row[data-monitor-id="${monitorId}"]`);
+    
+    let chartRow = null;
+    for(const row of allChartRows) {
+      const isDesktopRow = row.tagName === 'TR';
+      const isMobileRow = row.tagName === 'DIV' && row.closest('.mobile-monitor-wrapper');
+      
+      if(isMobile && isMobileRow) {
+        chartRow = row;
+        break;
+      } else if(!isMobile && isDesktopRow) {
+        chartRow = row;
+        break;
+      }
+    }
+    
     if(!chartRow) return;
 
     const container = chartRow.querySelector('.chart-container');

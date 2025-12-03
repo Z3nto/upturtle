@@ -1,584 +1,49 @@
 {{define "layout"}}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Upturtle{{if .Title}} · {{.Title}}{{end}}</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     {{if gt .RefreshSeconds 0}}
     <meta http-equiv="refresh" content="{{.RefreshSeconds}}">
     {{end}}
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#1f1f23',
+                            card: 'rgba(24, 24, 24, 0.78)',
+                            border: 'rgba(160, 160, 160, 0.2)',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
         :root {
-            color-scheme: light dark;
+            color-scheme: dark;
             font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-            background-color: #141418;
-            color: #e2e8f0;
         }
-        *, *::before, *::after { box-sizing: border-box; }
+        
         body {
-            margin: 0;
-            padding: 0;
             background: radial-gradient(circle at top, rgba(170,170,170,0.16), transparent 60%), #1f1f23;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-        a { color: #d1d5db; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        header {
-            background: rgba(24, 24, 24, 0.8);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(160, 160, 160, 0.2);
-        }
-        header .container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1rem 1.5rem;
-        }
-        header h1 {
-            font-size: 1.5rem;
-            margin: 0;
-        }
-        header h1.brand { display:flex; align-items:center; gap: .6rem; }
-        header h1.brand img { height: 28px; width: auto; display: block; }
-
-        nav a {
-            margin-left: 1rem;
-            font-weight: 500;
-            line-height: 1.5;
-        }
-        /* Navigation layout */
-        nav {
-            display: flex;
-            align-items: center;
-            gap: .5rem;
-        }
-        .nav-links {
-            display: flex;
-            align-items: center;
-            gap: .25rem;
-        }
-        .nav-links > a, .nav-links > .menu {
-            display: inline-flex;
-            align-items: center;
-            line-height: 1.5;
-            vertical-align: top;
-        }
-        .nav-links > .menu > a {
-            line-height: 1.5;
-            vertical-align: baseline;
-        }
-        /* Force all nav items to same baseline */
-        .nav-links > * {
-            align-self: center;
-        }
-        .nav-toggle {
-            display: none; /* shown on small screens */
-            background: transparent;
-            border: none;
-            padding: 0.5rem;
-            color: #d1d5db;
-            cursor: pointer;
-            font-size: 1.5rem;
-            line-height: 1;
-            transition: color 0.2s ease;
-        }
-        .nav-toggle:hover {
-            color: #fff;
-        }
-        /* Admin dropdown menu */
-        .nav-links .menu, nav .menu { 
-            position: relative; 
-            display: inline-flex; 
-            align-items: center;
-        }
-        nav .menu > a { 
-            display: inline-flex; 
-            align-items: center; 
-            gap: .35rem;
-            vertical-align: baseline;
-        }
-        nav .submenu {
-            position: absolute;
-            right: 0;
-            top: 100%;
-            margin-top: 6px; /* visual offset without breaking hover area */
-            background: rgba(24,24,24,0.95);
-            border: 1px solid rgba(160,160,160,0.2);
-            border-radius: 10px;
-            box-shadow: 0 14px 28px rgba(0,0,0,0.35);
-            padding: .4rem;
-            min-width: 200px;
-            display: none;
-            z-index: 100;
-        }
-        /* create a small invisible hover bridge above submenu to avoid gaps */
-        nav .submenu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
-        nav .submenu a { display: block; padding: .45rem .65rem; border-radius: 8px; margin: 0; }
-        nav .submenu a:hover { background: rgba(160,160,160,0.12); text-decoration: none; }
-        nav .menu:hover .submenu, nav .menu:focus-within .submenu { display: block; }
-        nav .menu.open .submenu { display: block; }
-        
-        /* User Avatar Menu */
-        .user-menu .user-avatar {
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-            padding: 0;
-        }
-        .avatar-circle {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 14px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .avatar-circle:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        .user-menu .submenu {
-            min-width: 200px;
-            right: 0;
-            left: auto;
-        }
-        .user-menu .user-info {
-            display: flex;
-            flex-direction: column;
-            padding: 0.65rem;
-            gap: 0.25rem;
-        }
-        .user-menu .user-info strong {
-            font-size: 14px;
-        }
-        .user-menu .user-info .muted {
-            font-size: 12px;
-            color: #a1a1aa;
-            text-transform: capitalize;
-        }
-        .user-menu hr {
-            border: none;
-            border-top: 1px solid rgba(160, 160, 160, 0.2);
-            margin: 0.5rem 0;
         }
         
-        .container {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 0 1rem;
-        }
-        .card {
-            background: rgba(24, 24, 24, 0.78);
-            border: 1px solid rgba(160, 160, 160, 0.2);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.45);
-            overflow: visible; /* prevent inner content like action buttons from clipping */
-        }
-        .card > h3:first-child {
-            margin-top: 0;
-        }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 0.75rem 0.5rem; text-align: left; vertical-align: middle; }
-        th {
-            font-size: 0.75rem;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #a1a1aa;
-        }
-        tr {
-            border-bottom: 1px solid rgba(160, 160, 160, 0.12);
-        }
-        tr:last-child {
-            border-bottom: none;
-        }
-        tr.clickable { cursor: pointer; }
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.6rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .status-up { color: #34d399; }
-        .status-down { color: #f87171; }
-        .status-unknown { color: #fbbf24; }
-        .status-disabled { color: #a1a1aa; }
-        .badge.status-up { background: rgba(52, 211, 153, 0.15); }
-        .badge.status-down { background: rgba(248, 113, 113, 0.2); }
-        .badge.status-unknown { background: rgba(251, 191, 36, 0.18); }
-        .badge.status-disabled { background: rgba(160, 160, 160, 0.18); }
-        .history {
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-        }
-        .history span {
-            width: 10px;
-            height: 30px;
-            border-radius: 10%;
-            display: inline-block;
-            background: rgba(160, 160, 160, 0.3);
-        }
-        .history span.up { background: #22c55e; }
-        .history span.down { background: #ef4444; }
-        .history span.unknown { background: rgba(160, 160, 160, 0.35); opacity: 0.65; }
-        .muted { color: #a1a1aa; font-size: 0.8rem; }
-        .actions { display: flex; gap: 0.75rem; align-items: center; }
-        
-        /* Page header styles */
-        .page-header { 
-            margin-top: 1rem; 
-            margin-bottom: 1rem; 
-        }
-        .page-header-with-actions { 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            gap: 1rem; 
-            margin-top: 1rem; 
-            margin-bottom: 1rem; 
-        }
-        .page-header h2, .page-header-with-actions h2 { 
-            margin: 0; 
-            line-height: 1.2;
-            min-height: 34.19px;
-        }
-        .page-header-actions { 
-            display: flex; 
-            align-items: center; 
-            gap: 0.5rem; 
-        }
-        
-        /* Group header styles */
-        .group-header-container { 
-            display: flex; 
-            align-items: flex-start; 
-            justify-content: space-between; 
-            gap: 0.75rem; 
-            margin: 0 0 0.5rem 0; 
-        }
-        .group-header-left { 
-            display: flex; 
-            align-items: center; 
-            gap: 0.5rem; 
-        }
-        .group-header-left h3 { 
-            margin: 0; 
-            display: flex; 
-            align-items: center; 
-            gap: 0.5rem; 
-        }
-        .group-header-right { 
-            display: flex; 
-            align-items: center; 
-            gap: 0.35rem; 
-        }
-        
-        /* Utility classes */
-        .flex-center { display: flex; align-items: center; gap: 0.5rem; }
-        .flex-1 { flex: 1; }
-        .inline-form { display: inline; }
-        .no-margin { margin: 0; }
-        .margin-top-0 { margin-top: 0; }
-        .margin-bottom-1 { margin-bottom: 1rem; }
-        .no-decoration { text-decoration: none; }
-        
-        /* Table column utilities */
-        .col-actions { width: 1%; white-space: nowrap; }
-        .col-ellipsis { max-width: 480px; overflow: hidden; text-overflow: ellipsis; }
-        
-        /* Form builder utilities */
-        .shoutrrr-builder { flex: 1; min-width: 300px; }
-        .builder-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.5rem; }
-        
-        /* Role badge colors */
-        .badge-admin { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
-        .badge-write { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-        .badge-readonly { background: rgba(156, 163, 175, 0.15); color: #9ca3af; }
-        
-        /* Spacing utilities */
-        .margin-bottom-1-5 { margin-bottom: 1.5rem; }
-        .margin-top-1 { margin-top: 1rem; }
-        
-        /* Text utilities */
-        .text-center { text-align: center; }
-        .text-muted { color: #a1a1aa; }
-        .text-muted-dark { color: #6b7280; }
-        .font-size-09 { font-size: 0.9rem; }
-        
-        /* Padding utilities */
-        .padding-2 { padding: 2rem; }
-        
-        /* Flexbox utilities */
-        .justify-end { justify-content: flex-end; }
-        
-        /* Heading utilities */
-        .h4-small { margin-top: 0; font-size: 0.9rem; color: #a1a1aa; }
-        
-        /* Display utilities */
-        .display-none { display: none; }
-        
-        /* Checkbox row layout */
-        .checkbox-row { display: flex; gap: 1.5rem; align-items: center; }
-        
-        /* Card header utilities */
-        .card-header-flex { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-        .card-subtitle { margin: 0.25rem 0 0 0; font-size: 0.9rem; }
-        
-        /* Empty state */
-        .empty-state { text-align: center; color: #a1a1aa; margin: 2rem 0; }
-        
-        /* Margin utilities */
-        .margin-bottom-05 { margin-bottom: 0.5rem; }
-        .margin-top-025 { margin-top: 0.25rem; }
-        
-        /* Auth page styles */
-        .auth-container { max-width: 560px; margin: 0 auto; padding-top: 5rem; }
-        .auth-logo-container { display: flex; align-items: center; justify-content: center; margin: 0 0 1.25rem; }
-        .auth-logo { max-width: 350px; width: 100%; height: auto; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.45)); }
-        
-        /* Alert styles */
-        .alert-error { background: #fee; border: 1px solid #fcc; color: #c00; padding: 0.75rem; margin: 1rem 0; border-radius: 4px; }
-        
-        /* Form helper text */
-        .form-helper { display: block; margin-top: 0.25rem; color: #666; }
-        .form-error { color: #c00; display: none; }
-        
-        /* Storage options */
-        .storage-options { display: none; margin-left: 1.5rem; padding: 0.75rem; background: #f8f9fa; border-radius: 4px; }
-        label { display: block; font-size: 0.85rem; margin-bottom: 0.35rem; color: #d1d5db; line-height: 1.3; }
-        input[type="text"], input[type="url"], input[type="number"], input[type="password"], select {
-            width: 100%;
-            padding: 0.6rem 0.75rem;
-            border-radius: 8px;
-            border: 1px solid rgba(160, 160, 160, 0.2);
-            background: rgba(24, 24, 24, 0.85);
-            color: inherit;
-            min-width: 0;
-        }
-        /* Consistent vertical spacing for stacked forms (e.g., login, install) */
-        .form .form-group { margin-bottom: 0.5rem; }
-        .form .actions { margin-top: 0.5rem; }
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1rem;
-            align-items: start;
-            margin-bottom: 0.75rem;
-        }
-        /* In modals, use a stable two-column grid to avoid overlap on medium sizes */
-        .modal .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .form-row > div { display: flex; flex-direction: column; min-width: 0; }
-        .modal .form-row > div { min-width: 0; }
-        input[type="text"], input[type="url"], input[type="number"], input[type="password"], select { max-width: 100%; }
-        .modal input[type="text"], .modal input[type="url"], .modal input[type="number"], .modal input[type="password"], .modal select { width: 100%; max-width: 100%; }
-        .modal .form-row > div > * { max-width: 100%; }
-        /* Make single labels (like checkboxes) span full width */
-        .form-row > label { grid-column: 1 / -1; }
+        /* Minimal custom styles for complex interactions */
+        .nav-toggle { display: none; }
         @media (max-width: 900px) {
-            .modal .form-row { grid-template-columns: 1fr; }
-        }
-        /* Prevent long content from causing overflow */
-        .modal label { white-space: normal; }
-        .modal input, .modal select { overflow: hidden; text-overflow: ellipsis; }
-        .modal .form-row > div { overflow: hidden; }
-        /* Style grouped dropdown labels (optgroup) */
-        .modal select optgroup { font-weight: 700; color: #a1a1aa; }
-        .modal select option { font-weight: 400; color: #e2e8f0; }
-        button {
-            background: linear-gradient(135deg, #9ca3af, #6b7280);
-            border: none;
-            color: white;
-            padding: 0.6rem 1.2rem;
-            border-radius: 999px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
-        }
-        button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 12px 22px rgba(107, 114, 128, 0.35);
-        }
-        /* Primary (blue) buttons */
-        button.primary {
-            background: linear-gradient(135deg, #3b82f6, #6366f1);
-        }
-        button.primary:hover {
-            box-shadow: 0 12px 22px rgba(59, 130, 246, 0.35);
-        }
-        button.danger {
-            background: linear-gradient(135deg, #ef4444, #f87171);
-        }
-        .message {
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            margin-top: 1.25rem;
-            margin-bottom: 1.25rem;
-        }
-        .message.success { background: rgba(34, 197, 94, 0.2); color: #bbf7d0; }
-        .message.error { background: rgba(248, 113, 113, 0.2); color: #fecaca; }
-        /* DnD (SortableJS) visual states */
-        .sortable-chosen { outline: 2px dashed rgba(160,160,160,0.35); }
-        .sortable-ghost { opacity: 0.6; }
-        .sortable-drag { cursor: grabbing; }
-        .draggable-table tbody tr.draggable-row { transition: background 0.12s ease, transform 0.12s ease; }
-        .draggable-table tbody tr.draggable-row:hover { background: rgba(160,160,160,0.06); }
-        .draggable-table { table-layout: auto; width: 100%; }
-        .draggable-table th, .draggable-table td { overflow: visible; text-overflow: initial; }
-        /* Column sizing to keep layout tidy */
-        .draggable-table th:nth-child(1), .draggable-table td:nth-child(1) { 
-            
-            overflow: hidden;
-        }
-        .draggable-table td:nth-child(1) strong,
-        .draggable-table td:nth-child(1) .muted {
-            display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .draggable-table th:nth-child(2), .draggable-table td:nth-child(2) { width: 100px; }
-        .draggable-table th:nth-child(3), .draggable-table td:nth-child(3) { width: 100px; }
-        /* Let the last column (Actions) fully show buttons */
-        .draggable-table th:last-child, .draggable-table td:last-child {
-            overflow: visible;
-            white-space: normal;   /* allow wrapping to avoid clipping */
-            width: 97px;          
-            //min-width: 180px;      /* sensible minimum */
-        }
-        /* Fixed column widths for Status page */
-        .status-table th:nth-child(5), .status-table td:nth-child(5) { width: 70px; text-align: right; }
-        .actions { flex-wrap: wrap; gap: 0.4rem; }
-        .draggable-table .actions button { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
-        .draggable-table tbody tr.placeholder { opacity: 0.5; text-align: center; font-style: italic; }
-        /* Avoid horizontal scroll; let content wrap */
-        .group-card .group-body { overflow-x: visible; }
-        /* Admin toolbar */
-        .toolbar { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-bottom: 0.75rem; }
-        .toolbar .spacer { flex: 1; }
-        /* Subtle icon buttons */
-        button.icon { 
-            background: transparent; 
-            /* border: 1px solid rgba(160,160,160,0.2); */ 
-            color: #a1a1aa; padding: .25rem .4rem; 
-            /* border-radius: 6px; */ 
-            line-height: 0; 
-            display: inline-flex; 
-            align-items: center; 
-            justify-content: center; 
-        }
-        button.icon:hover { background: rgba(160,160,160,0.08); }
-        button.icon.edit { color: #ffcc00; border-color: #ffcc0059; }
-        button.icon.edit:hover { background: rgba(96,165,250,0.12); }
-        button.icon.delete { color: #f87171; border-color: #f8717159 }
-        button.icon.delete:hover { background: rgba(248,113,113,0.12); }
-        /* Group header buttons - match h3 height */
-        .group-header button.icon { 
-            line-height: 1; 
-            display: inline-flex; 
-            align-items: center;
-            justify-content: center;
-            padding: 0; 
-            width: 25px;
-            height: 25px;
-            font-size: 0.875rem; 
-            /*border-radius: 4px;
-             border: none; */
-        }
-        /* Modal */
-        .modal-backdrop {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-            display: none; align-items: center; justify-content: center;
-            z-index: 1000;
-        }
-        .modal-backdrop.show { display: flex; }
-        .modal {
-            width: min(720px, 92vw);
-            background: rgba(24, 24, 24, 0.98);
-            border: 1px solid rgba(160, 160, 160, 0.2);
-            border-radius: 12px; padding: 1rem; box-shadow: 0 25px 50px rgba(0,0,0,0.4);
-            max-height: 90vh; overflow: auto;
-        }
-        .modal header { display:flex; align-items:center; justify-content: space-between; margin-bottom: 0.75rem; }
-        .modal header h3 { margin: 0; }
-        .modal .close { background: transparent; border: none; color: #d1d5db; font-size: 1.25rem; padding: 0.25rem 0.5rem; border-radius: 6px; }
-        .modal .close:hover { background: rgba(160,160,160,0.1); }
-        footer {
-            text-align: center;
-            padding: 2rem 0 3rem;
-            color: #a1a1aa;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-        footer .github-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #a1a1aa;
-            text-decoration: none;
-            transition: color 0.2s ease;
-        }
-        footer .github-link:hover {
-            color: #d1d5db;
-        }
-        footer .github-logo {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-        }
-        /* Database Display Styling */
-        #database-display {
-            background: rgba(30, 30, 30, 0.6);
-            border: 1px solid rgba(160, 160, 160, 0.2);
-            border-radius: 6px;
-            padding: 0.4rem 0.8rem;
-            font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
-            font-size: 0.8rem;
-            backdrop-filter: blur(8px);
-            transition: all 0.2s ease;
-            position: fixed; /* stick to viewport */
-            right: 20px;
-            bottom: 20px;
-            z-index: 1000;
-        }
-        #database-display:hover {
-            background: rgba(40, 40, 40, 0.8);
-            border-color: rgba(160, 160, 160, 0.3);
-        }
-        #database-display span {
-            font-weight: 500;
-        }
-        #database-entries, #database-db-status, .database-entries {
-            font-weight: 600;
-            color: #e2e8f0;
-        }
-        
-        /* Tablet breakpoint - push nav left and reveal toggle */
-        @media (max-width: 900px) {
-            header .container { gap: 0.75rem; }
-            nav { justify-content: flex-start; }
-            .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
-            
-            /* Transform nav links to mobile slide-in menu */
-            .nav-links { 
-                display: flex;
+            .nav-toggle { display: inline-flex; }
+            .nav-links {
                 position: fixed;
                 top: 0;
                 right: -100%;
@@ -592,22 +57,10 @@
                 overflow-y: auto;
                 transition: right 0.3s ease;
                 box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
-                flex-direction: column !important; 
-                align-items: stretch !important; 
-                gap: 0 !important;
+                flex-direction: column;
             }
-            
-            body.nav-open .nav-links { 
-                right: 0;
-            }
-            
-            /* Hide button hover effects when menu is open */
-            body.nav-open button:hover {
-                transform: none;
-                box-shadow: none;
-            }
-            
-            /* Mobile menu close button */
+            body.nav-open .nav-links { right: 0; }
+            body.nav-open { overflow: hidden; }
             .nav-links::before {
                 content: '✕';
                 position: absolute;
@@ -622,592 +75,80 @@
                 align-items: center;
                 justify-content: center;
                 border-radius: 6px;
-                transition: background 0.2s ease;
             }
-            .nav-links::before:hover {
-                background: rgba(160, 160, 160, 0.1);
-            }
-            
-            /* Mobile menu items styling */
-            .nav-links > a {
+            .nav-links::before:hover { background: rgba(160, 160, 160, 0.1); }
+            .nav-links > a, .nav-links > .menu { 
                 padding: 1rem 0;
-                margin: 0;
-                border-bottom: 1px solid rgba(160, 160, 160, 0.1);
-                font-size: 1.1rem;
-                display: block;
-                width: 100%;
-            }
-            
-            .nav-links > .menu {
-                padding: 0;
-                margin: 0;
                 border-bottom: 1px solid rgba(160, 160, 160, 0.1);
                 width: 100%;
-                display: block;
             }
-            
-            .nav-links > .menu > a {
-                font-size: 1.1rem;
-                display: block;
-                padding: 1rem 0;
-                margin: 0;
-                width: 100%;
-            }
-            
-            .nav-links > a:hover,
-            .nav-links > .menu > a:hover {
-                background: rgba(160, 160, 160, 0.05);
-                text-decoration: none;
-            }
-            
-            /* Hide main menu items when submenu is active */
             .nav-links.submenu-active > a,
-            .nav-links.submenu-active > .menu:not(.active-submenu) {
-                display: none;
-            }
-            
-            /* Hide the trigger link (Admin ▾) when submenu is active */
-            .nav-links.submenu-active .menu.active-submenu > a[aria-haspopup="true"] {
-                display: none;
-            }
-            
-            .nav-links .submenu {
-                position: static;
-                display: none !important; /* Force hide on mobile */
-                margin: 0;
-                padding: 0;
-                background: transparent;
-                border: none;
-                box-shadow: none;
-                min-width: 0;
-            }
-            
-            /* Show submenu when active (overrides !important) */
-            .nav-links.submenu-active .menu.active-submenu .submenu {
-                display: block !important;
-            }
-            
-            /* Prevent hover from opening submenu on mobile */
-            .nav-links .menu:hover .submenu {
-                display: none !important;
-            }
-            
-            .nav-links .menu.open .submenu {
-                display: none !important;
-            }
-            
-            /* Add back button before submenu */
+            .nav-links.submenu-active > .menu:not(.active-submenu) { display: none; }
+            .nav-links.submenu-active .menu.active-submenu > a[aria-haspopup="true"] { display: none; }
+            .nav-links .submenu { display: none \!important; }
+            .nav-links.submenu-active .menu.active-submenu .submenu { display: block \!important; }
             .nav-links.submenu-active .menu.active-submenu::before {
                 content: '← Zurück';
                 display: block;
                 padding: 0.75rem 0;
                 margin: 0 0 0.5rem 0;
                 border-bottom: 1px solid rgba(160, 160, 160, 0.2);
-                font-size: 1rem;
-                font-weight: 400;
-                font-family: inherit;
                 cursor: pointer;
                 color: #d1d5db;
             }
-            
-            .nav-links.submenu-active .menu.active-submenu::before:hover {
-                background: rgba(160, 160, 160, 0.05);
-            }
-            
             .nav-links .submenu a {
                 padding: 0.75rem 0;
-                margin: 0;
                 border-bottom: 1px solid rgba(160, 160, 160, 0.05);
-                font-size: 1rem;
-            }
-            
-            /* User menu in mobile */
-            .nav-links .user-menu {
-                margin-top: auto;
-                padding-top: 1rem;
-                border-top: 1px solid rgba(160, 160, 160, 0.2);
-            }
-            
-            .nav-links .user-menu .user-avatar {
-                padding: 1rem 0;
-                justify-content: flex-start;
-                gap: 1rem;
-            }
-            
-            .nav-links .user-menu .avatar-circle {
-                width: 48px;
-                height: 48px;
-                font-size: 18px;
-            }
-            
-            .nav-links .user-menu .submenu {
-                padding-left: 1rem;
-            }
-        }
-
-        /* Mobile breakpoint - stack header */
-        @media (max-width: 640px) {
-            header .container { flex-direction: row; align-items: center; gap: 0.75rem; }
-            /* database-display stays fixed in bottom right on mobile too */
-            #database-display { font-size: 0.75rem; padding: 0.3rem 0.6rem; right: 10px; bottom: 10px; }
-        }
-        
-        /* General mobile optimizations */
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 0.75rem;
-            }
-            
-            .card {
-                padding: 1rem;
-                margin-bottom: 1rem;
-            }
-            
-            /* Modal adjustments for mobile */
-            .modal {
-                width: 95vw;
-                max-height: 95vh;
-                padding: 0.75rem;
-            }
-            
-            .modal header h3 {
-                font-size: 1.1rem;
-            }
-            
-            /* Button adjustments */
-            button {
-                padding: 0.5rem 1rem;
-                font-size: 0.9rem;
-            }
-            
-            /* Form adjustments */
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            
-            input[type="text"], 
-            input[type="url"], 
-            input[type="number"], 
-            input[type="password"], 
-            select {
-                font-size: 16px; /* Prevent zoom on iOS */
             }
         }
         
-        @media (max-width: 480px) {
-            .container {
-                padding: 0 0.5rem;
-            }
-            
-            .card {
-                padding: 0.75rem;
-                border-radius: 8px;
-            }
-            
-            h2 {
-                font-size: 1.5rem;
-            }
-            
-            h3 {
-                font-size: 1.2rem;
-            }
-        }
-        
-        /* Status Page Specific Styles */
-        /* Lightweight tooltip styling scoped to status page */
-        #upturtle-tooltip {
-            position: fixed;
-            z-index: 9999;
-            pointer-events: none;
+        /* Submenu hover behavior */
+        nav .submenu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 6px;
             background: rgba(24,24,24,0.95);
-            color: #e2e8f0;
-            border: 1px solid rgba(160,160,160,0.25);
-            padding: .35rem .5rem;
-            border-radius: 6px;
-            font-size: .8rem;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.35);
-            max-width: 420px;
-            white-space: pre-line;
-            line-height: 1.25;
-            overflow: visible;
-            display: none;
-            word-break: break-word;
-        }
-        
-        /* Refresh control dark styling */
-        #refresh-control {
-            background: rgba(24,24,24,0.85);
             border: 1px solid rgba(160,160,160,0.2);
-            color: #d1d5db;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+            border-radius: 10px;
+            box-shadow: 0 14px 28px rgba(0,0,0,0.35);
+            padding: 0.4rem;
+            min-width: 200px;
+            display: none;
+            z-index: 100;
         }
-        #refresh-select {
-            background-color: rgba(40,40,40,0.6);
-            color: #e2e8f0;
-            border: 1px solid rgba(160,160,160,0.3);
-            border-radius: 6px;
-            padding: .32rem 2rem .32rem .6rem;
-            outline: none;
-            cursor: pointer;
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right .5rem center;
-            background-size: 16px 16px;
-        }
-        #refresh-select:hover { border-color: rgba(160,160,160,0.45); }
-        #refresh-select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.25); }
-        #refresh-select option {
-            background: #1f1f23;
-            color: #e2e8f0;
-        }
+        nav .submenu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
+        nav .submenu a { display: block; padding: 0.45rem 0.65rem; border-radius: 8px; }
+        nav .submenu a:hover { background: rgba(160,160,160,0.12); text-decoration: none; }
+        nav .menu:hover .submenu, nav .menu:focus-within .submenu, nav .menu.open .submenu { display: block; }
         
-        /* Chart row styles */
+        /* Chart interactions */
         tr.monitor-row { cursor: pointer; transition: background-color 0.2s ease; }
         tr.monitor-row:hover { background-color: rgba(160, 160, 160, 0.08); }
-        tr.chart-row { border-bottom: none; }
-        .chart-container { background: rgba(30, 30, 30, 0.5); }
-        .chart-loading { text-align: center; color: #a1a1aa; padding: 2rem; }
         
-        /* Responsive Styles for Status and Admin Tables */
-        @media (min-width: 769px) {
-            /* Fixed table layout for precise column control - DESKTOP ONLY */
-            .status-table {
-                table-layout: fixed;
-            }
-            /* Name column - dynamic with ellipsis */
-            .status-table th:nth-child(1),
-            .status-table tr.monitor-row td:nth-child(1) {
-                width: auto;
-                overflow: hidden;
-            }
-            .status-table tr.monitor-row .monitor-name {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                display: block;
-            }
-            /* Status column - 86px */
-            .status-table th:nth-child(2),
-            .status-table tr.monitor-row td:nth-child(2) {
-                width: 86px;
-            }
-            /* Last column - 60px */
-            .status-table th:nth-child(3),
-            .status-table tr.monitor-row td:nth-child(3) {
-                width: 60px;
-            }
-            /* History column - 293px */
-            .status-table th:nth-child(4),
-            .status-table tr.monitor-row td:nth-child(4) {
-                width: 293px;
-            }
-            /* Uptime column - 68px */
-            .status-table th:nth-child(5),
-            .status-table tr.monitor-row td:nth-child(5) {
-                width: 68px;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            /* Admin page header adjustments */
-            .page-header-with-actions {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 0.75rem;
-            }
-            
-            .page-header-actions {
-                flex-direction: row;
-                justify-content: stretch;
-                width: 100%;
-            }
-            
-            .page-header-actions button {
-                flex: 1;
-            }
-            
-            /* Group header adjustments */
-            .group-header-container {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 0.5rem;
-            }
-            
-            .group-header-left h3 {
-                flex-wrap: wrap;
-                font-size: 1.1rem;
-            }
-            
-            .group-header-right {
-                justify-content: flex-end;
-            }
-            
-            /* Transform admin draggable table to card layout */
-            .draggable-table {
-                display: block;
-                overflow-x: visible;
-            }
-            
-            .draggable-table thead {
-                display: none;
-            }
-            
-            .draggable-table tbody {
-                display: block;
-            }
-            
-            .draggable-table tbody tr {
-                display: grid;
-                grid-template-columns: auto auto 1fr;
-                grid-template-rows: auto auto auto;
-                gap: 0.5rem;
-                padding: 1rem;
-                margin-bottom: 0.75rem;
-                background: rgba(30, 30, 30, 0.5);
-                border-radius: 8px;
-                border: 1px solid rgba(160, 160, 160, 0.15);
-                border-bottom: 1px solid rgba(160, 160, 160, 0.15) !important;
-            }
-            
-            .draggable-table tbody tr:hover {
-                background: rgba(40, 40, 40, 0.6);
-            }
-            
-            .draggable-table tbody td {
-                padding: 0;
-                border: none;
-            }
-            
-            /* Name column - first row, full width */
-            .draggable-table tbody td:nth-child(1) {
-                grid-column: 1 / -1;
-                grid-row: 1;
-                overflow: hidden;
-                min-width: 0;
-            }
-            
-            .draggable-table tbody td:nth-child(1) strong,
-            .draggable-table tbody td:nth-child(1) .muted {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            
-            /* Second row - Type and Status side by side */
-            .draggable-table tbody td:nth-child(2) {
-                grid-column: 1;
-                grid-row: 2;
-            }
-            
-            .draggable-table tbody td:nth-child(2)::before {
-                content: 'Type: ';
-                font-weight: 600;
-                color: #a1a1aa;
-                font-size: 0.85rem;
-                margin-right: 0.5rem;
-            }
-            
-            .draggable-table tbody td:nth-child(3) {
-                grid-column: 2;
-                grid-row: 2;
-            }
-            
-            .draggable-table tbody td:nth-child(3)::before {
-                content: 'Status: ';
-                font-weight: 600;
-                color: #a1a1aa;
-                font-size: 0.85rem;
-                margin-right: 0.5rem;
-            }
-            
-            /* Third row - Actions */
-            .draggable-table tbody td:nth-child(4) {
-                grid-column: 1 / -1;
-                grid-row: 3;
-                margin-top: 0.5rem;
-                padding-top: 0.5rem;
-                border-top: 1px solid rgba(160, 160, 160, 0.1);
-            }
-            
-            .draggable-table tbody td:nth-child(4) .actions {
-                justify-content: flex-start;
-                gap: 0.5rem;
-            }
-            
-            .draggable-table tbody td:nth-child(4) button.icon {
-                padding: 0.5rem;
-                font-size: 1rem;
-            }
-            
-            /* Disable drag on mobile */
-            .draggable-table tbody tr[draggable] {
-                cursor: default;
-            }
-            
-            /* Status table responsive layout */
-            .status-table {
-                display: block;
-                overflow-x: visible;
-            }
-            
-            .status-table thead {
-                display: none;
-            }
-            
-            .status-table tbody {
-                display: block;
-            }
-            
-            .status-table tbody tr.monitor-row {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) auto;
-                grid-template-rows: auto auto auto;
-                gap: 0.75rem;
-                padding: 1rem;
-                margin-bottom: 0.75rem;
-                background: rgba(30, 30, 30, 0.5);
-                border-radius: 8px;
-                border: 1px solid rgba(160, 160, 160, 0.15);
-                border-bottom: 1px solid rgba(160, 160, 160, 0.15) !important;
-            }
-            
-            .status-table tbody tr.monitor-row:hover {
-                background: rgba(40, 40, 40, 0.6);
-            }
-            
-            /* Name and ID - top left */
-            .status-table tbody tr.monitor-row td:nth-child(1) {
-                grid-column: 1;
-                grid-row: 1;
-                padding: 0;
-                border: none;
-                overflow: hidden;
-                min-width: 0;
-            }
-            
-            /* Truncate monitor name in mobile view too */
-            .status-table tbody tr.monitor-row .monitor-name {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            
-            /* Status badge - top right */
-            .status-table tbody tr.monitor-row td:nth-child(2) {
-                grid-column: 2;
-                grid-row: 1;
-                padding: 0;
-                border: none;
-                text-align: right;
-            }
-            
-            /* Last check - bottom left */
-            .status-table tbody tr.monitor-row td:nth-child(3) {
-                grid-column: 1;
-                grid-row: 2;
-                padding: 0;
-                border: none;
-            }
-            
-            /* Uptime - bottom right */
-            .status-table tbody tr.monitor-row td:nth-child(5) {
-                grid-column: 2;
-                grid-row: 2;
-                padding: 0;
-                border: none;
-                text-align: right;
-                font-size: 0.9rem;
-            }
-            
-            /* History - full width at bottom */
-            .status-table tbody tr.monitor-row td:nth-child(4) {
-                grid-column: 1 / -1;
-                grid-row: 3;
-                padding: 0;
-                border: none;
-            }
-            
-            /* Chart row - full width */
-            .status-table tbody tr.chart-row {
-                display: block;
-                margin-bottom: 0.75rem;
-            }
-            
-            .status-table tbody tr.chart-row td {
-                display: block;
-                padding: 0;
-            }
-            
-            /* Adjust history bar height for mobile */
-            .history span {
-                height: 24px;
-            }
-            
-            /* Adjust refresh control position for mobile */
-            #refresh-control {
-                left: 10px;
-                bottom: 10px;
-                font-size: 0.85rem;
-                padding: 0.4rem 0.6rem;
-            }
-            
-            #refresh-select {
-                font-size: 0.85rem;
-                padding: 0.25rem 1.75rem 0.25rem 0.5rem;
-            }
-        }
-        
-        /* Extra small screens - additional adjustments */
-        @media (max-width: 480px) {
-            /* Admin table adjustments */
-            .draggable-table tbody tr {
-                padding: 0.75rem;
-            }
-            
-            .group-header-left h3 {
-                font-size: 1rem;
-            }
-            
-            /* Status table adjustments */
-            .status-table tbody tr.monitor-row {
-                padding: 0.75rem;
-                gap: 0.5rem;
-            }
-            
-            .history {
-                gap: 2px;
-            }
-            
-            .history span {
-                width: 8px;
-                height: 20px;
-            }
-        }
+        /* Sortable/Draggable */
+        .sortable-chosen { outline: 2px dashed rgba(160,160,160,0.35); }
+        .sortable-ghost { opacity: 0.6; }
     </style>
 </head>
-<body>
+<body class="min-h-screen text-gray-200">
 {{if not .HideHeader}}
-<header>
-    <div class="container">
-        <h1 class="brand">
-            <a href="/" style="display:flex; align-items:center; gap:.6rem; text-decoration:none;">
-                <picture>
-                    <img src="/static/logo.png" alt="Upturtle" height="28" />
-                </picture>
+<header class="sticky top-0 z-50 backdrop-blur-lg bg-[rgba(24,24,24,0.8)] border-b border-[rgba(160,160,160,0.2)]">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold m-0">
+            <a href="/" class="flex items-center gap-2.5 no-underline hover:no-underline">
+                <img src="/static/logo.png" alt="Upturtle" class="h-7 w-auto" />
                 <span>Upturtle</span>
             </a>
         </h1>
-        <nav aria-label="Primary navigation">
-            <button class="nav-toggle" aria-label="Toggle navigation" aria-controls="primary-links" aria-expanded="false">☰</button>
-            <div id="primary-links" class="nav-links">
-                <a href="/">Status</a>
+        <nav aria-label="Primary navigation" class="flex items-center gap-2">
+            <button class="nav-toggle p-2 text-gray-300 hover:text-white transition-colors text-2xl leading-none bg-transparent border-none cursor-pointer" aria-label="Toggle navigation" aria-controls="primary-links" aria-expanded="false">☰</button>
+            <div id="primary-links" class="nav-links flex items-center gap-1">
+                <a href="/" class="ml-4 font-medium hover:text-white transition-colors">Status</a>
                 {{if .CurrentUser}}
                     {{if ne .CurrentUser.Role "readonly"}}
-                    <div class="menu">
-                        <a href="/admin" aria-haspopup="true" aria-expanded="false">Admin ▾</a>
+                    <div class="menu relative inline-flex items-center ml-4">
+                        <a href="/admin" aria-haspopup="true" aria-expanded="false" class="inline-flex items-center gap-1.5 font-medium hover:text-white transition-colors">Admin ▾</a>
                         <div class="submenu" role="menu" aria-label="Admin submenu">
                             <a href="/admin" role="menuitem">Monitors</a>
                             <a href="/admin/notifications" role="menuitem">Notifications</a>
@@ -1219,16 +160,16 @@
                         </div>
                     </div>
                     {{end}}
-                    <div class="menu user-menu">
-                        <a href="#" class="user-avatar" aria-haspopup="true" aria-expanded="false" title="{{.CurrentUser.Username}}">
-                            <span class="avatar-circle">{{slice .CurrentUser.Username 0 1}}</span>
+                    <div class="menu user-menu relative inline-flex items-center ml-4">
+                        <a href="#" class="user-avatar flex items-center p-0 no-underline hover:no-underline" aria-haspopup="true" aria-expanded="false" title="{{.CurrentUser.Username}}">
+                            <span class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-semibold text-sm uppercase cursor-pointer transition-all hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/40">{{slice .CurrentUser.Username 0 1}}</span>
                         </a>
                         <div class="submenu" role="menu" aria-label="User menu">
-                            <div class="user-info">
-                                <strong>{{.CurrentUser.Username}}</strong>
-                                <span class="muted">{{.CurrentUser.Role}}</span>
+                            <div class="flex flex-col px-2.5 py-2.5 gap-1">
+                                <strong class="text-sm">{{.CurrentUser.Username}}</strong>
+                                <span class="text-xs text-zinc-400 capitalize">{{.CurrentUser.Role}}</span>
                             </div>
-                            <hr>
+                            <hr class="border-none border-t border-[rgba(160,160,160,0.2)] my-2">
                             <a href="/admin/users/settings" role="menuitem">Settings</a>
                             <a href="/logout" role="menuitem">Logout</a>
                         </div>
@@ -1239,56 +180,53 @@
     </div>
 </header>
 {{end}}
-<main class="container">
+<main class="max-w-6xl mx-auto px-4 py-6">
     {{if .ContentTemplate}}
         {{render .ContentTemplate .}}
     {{else}}
-        <p>No content</p>
+        <p class="text-center text-zinc-400 py-8">No content</p>
     {{end}}
 </main>
-<footer>
+<footer class="text-center py-8 pb-12 text-zinc-400 flex items-center justify-center gap-4 flex-wrap">
     <span>Upturtle · {{currentYear}}</span>
-    <a href="https://github.com/Z3nto/upturtle" target="_blank" rel="noopener noreferrer" class="github-link" title="View on GitHub">
-        <svg class="github-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <a href="https://github.com/Z3nto/upturtle" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-zinc-400 no-underline hover:text-gray-300 transition-colors">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 0.297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
         </svg>
         GitHub
     </a>
 </footer>
 {{if .ShowDatabaseDisplay}}
-<div id="database-display" style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:#a1a1aa;">
+<div id="database-display" class="fixed right-5 bottom-5 z-[1000] flex items-center gap-2 text-sm text-zinc-400 bg-[rgba(30,30,30,0.6)] border border-[rgba(160,160,160,0.2)] rounded-md px-3 py-1.5 backdrop-blur-sm transition-all hover:bg-[rgba(40,40,40,0.8)] hover:border-[rgba(160,160,160,0.3)] font-mono">
     <span id="database-label">Memory:</span>
-    <span id="database-entries">-</span>
-    <span class="database-entries" id="database-entries-label" style="margin-right:0.5rem;">entries</span>
+    <span id="database-entries" class="font-semibold text-gray-200">-</span>
+    <span id="database-entries-label" class="mr-2">entries</span>
     <span>DB:</span>
-    <span id="database-db-status">-</span>
+    <span id="database-db-status" class="font-semibold text-gray-200">-</span>
 </div>
 {{end}}
 <script>
 (function(){
   try{
-    // Burger menu toggle
     const toggle = document.querySelector('.nav-toggle');
     const links = document.querySelector('.nav-links');
     const body = document.body;
     
     function openNav() {
-      if (!links) return;
+      if (\!links) return;
       body.classList.add('nav-open');
       toggle?.setAttribute('aria-expanded', 'true');
-      body.style.overflow = 'hidden'; // Prevent background scrolling
+      body.style.overflow = 'hidden';
     }
     
     function closeNav() {
-      if (!links) return;
+      if (\!links) return;
       body.classList.remove('nav-open');
       toggle?.setAttribute('aria-expanded', 'false');
       body.style.overflow = '';
-      // Close all open submenus
       document.querySelectorAll('.nav-links .menu.open').forEach(m => m.classList.remove('open'));
     }
     
-    // Toggle button click
     if (toggle) {
       toggle.addEventListener('click', function(e){
         e.preventDefault();
@@ -1300,7 +238,6 @@
       });
     }
     
-    // Close button (pseudo-element) click handler
     links?.addEventListener('click', function(e) {
       const rect = links.getBoundingClientRect();
       const closeButtonArea = {
@@ -1316,24 +253,19 @@
       }
     });
     
-    // ESC key to close
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' && body.classList.contains('nav-open')) {
         closeNav();
       }
     });
     
-    // Close menu when clicking outside of it
     document.addEventListener('click', function(e) {
-      if (!body.classList.contains('nav-open')) return;
-      
-      // Check if click is outside the nav menu and toggle button
-      if (!links.contains(e.target) && !toggle?.contains(e.target)) {
+      if (\!body.classList.contains('nav-open')) return;
+      if (\!links.contains(e.target) && \!toggle?.contains(e.target)) {
         closeNav();
       }
     });
 
-    // Menu behavior (hover on desktop, slide on mobile)
     const menus = document.querySelectorAll('.nav-links .menu');
     const isMobile = () => window.innerWidth <= 900;
     
@@ -1351,49 +283,43 @@
         if(trigger) trigger.setAttribute('aria-expanded','false'); 
       }
       
-      // Desktop hover behavior
       menu.addEventListener('mouseenter', function(){ 
-        if (!isMobile()) {
+        if (\!isMobile()) {
           if(closeTimer){ clearTimeout(closeTimer); } 
           openMenu(); 
         }
       });
       menu.addEventListener('mouseleave', function(){ 
-        if (!isMobile()) {
+        if (\!isMobile()) {
           closeTimer = setTimeout(closeMenu, 150); 
         }
       });
       submenu?.addEventListener('mouseenter', function(){ 
-        if (!isMobile()) {
+        if (\!isMobile()) {
           if(closeTimer){ clearTimeout(closeTimer); } 
           openMenu(); 
         }
       });
       submenu?.addEventListener('mouseleave', function(){ 
-        if (!isMobile()) {
+        if (\!isMobile()) {
           closeTimer = setTimeout(closeMenu, 150); 
         }
       });
       
-      // Mobile: slide to submenu
       trigger?.addEventListener('click', function(e){
         if (isMobile()) {
           e.preventDefault();
-          // Hide main menu items and show submenu
           links.classList.add('submenu-active');
           menu.classList.add('active-submenu');
         }
       });
       
-      // Back button click handler (on the ::before pseudo-element)
       menu.addEventListener('click', function(e) {
         if (isMobile() && menu.classList.contains('active-submenu')) {
           const rect = menu.getBoundingClientRect();
-          // Check if click is in the back button area (top of menu)
           if (e.clientY >= rect.top && e.clientY <= rect.top + 60) {
             e.preventDefault();
             e.stopPropagation();
-            // Go back to main menu
             links.classList.remove('submenu-active');
             menu.classList.remove('active-submenu');
           }
@@ -1401,7 +327,6 @@
       });
     });
     
-    // Close mobile nav on link click (except submenu toggles)
     links?.querySelectorAll('a:not([aria-haspopup="true"])').forEach(a => {
       a.addEventListener('click', () => {
         if (body.classList.contains('nav-open')) {
@@ -1412,7 +337,6 @@
   }catch(err){ console.error('Nav error:', err); }
 })();
 
-// Database Display Auto-Refresh
 {{if .ShowDatabaseDisplay}}
 (function(){
   const databaseEntriesEl = document.getElementById('database-entries');
@@ -1420,45 +344,38 @@
   const databaseLabelEl = document.getElementById('database-label');
   const databaseEntriesLabelEl = document.getElementById('database-entries-label');
   
-  if (!databaseEntriesEl || !databaseDbStatusEl) return;
+  if (\!databaseEntriesEl || \!databaseDbStatusEl) return;
   
   async function updateDatabaseDisplay() {
     try {
       const response = await fetch('/api/memory');
-      if (!response.ok) throw new Error('Failed to fetch memory data');
+      if (\!response.ok) throw new Error('Failed to fetch memory data');
       
       const data = await response.json();
       
-      // Update database status
       if (data.database_integration) {
         databaseDbStatusEl.textContent = 'SQLite';
-        databaseDbStatusEl.style.color = '#10b981'; // green
-        // Hide memory entries when using database
+        databaseDbStatusEl.style.color = '#10b981';
         if (databaseLabelEl) databaseLabelEl.style.display = 'none';
         if (databaseEntriesEl) databaseEntriesEl.style.display = 'none';
         if (databaseEntriesLabelEl) databaseEntriesLabelEl.style.display = 'none';
       } else {
         databaseDbStatusEl.textContent = 'Memory';
-        databaseDbStatusEl.style.color = '#f59e0b'; // amber
-        // Show memory entries when using in-memory mode
+        databaseDbStatusEl.style.color = '#f59e0b';
         if (databaseLabelEl) databaseLabelEl.style.display = '';
         if (databaseEntriesEl) databaseEntriesEl.style.display = '';
         if (databaseEntriesLabelEl) databaseEntriesLabelEl.style.display = '';
-        // Update memory entries count
         databaseEntriesEl.textContent = data.total_history_entries || 0;
       }
     } catch (error) {
       console.warn('Failed to update database display:', error);
       databaseEntriesEl.textContent = 'Error';
       databaseDbStatusEl.textContent = 'Error';
-      databaseDbStatusEl.style.color = '#ef4444'; // red
+      databaseDbStatusEl.style.color = '#ef4444';
     }
   }
   
-  // Initial load
   updateDatabaseDisplay();
-  
-  // Auto-refresh every 60 seconds
   setInterval(updateDatabaseDisplay, 60000);
 })();
 {{end}}

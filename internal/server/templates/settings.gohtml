@@ -4,31 +4,46 @@
 
 {{define "settings.content"}}
 <div>
-  <div class="page-header">
-    <h2>Settings</h2>
+  <div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-100 m-0">Settings</h2>
   </div>
-  <div id="settings-message" class="message display-none"></div>
+  <div id="settings-message" class="hidden mb-4"></div>
 
   <form id="settings-form">
-    <div class="card">
-      <h3>Debug logging</h3>
-      <div class="form-row checkbox-row">
-        <label><input type="checkbox" id="monitor_debug" {{if .MonitorDebug}}checked{{end}}> Monitor Debug</label>
-        <label><input type="checkbox" id="notification_debug" {{if .NotificationDebug}}checked{{end}}> Notification Debug</label>
-        <label><input type="checkbox" id="api_debug" {{if .ApiDebug}}checked{{end}}> REST API Debug</label>
-        <label><input type="checkbox" id="auth_debug" {{if .AuthDebug}}checked{{end}}> Authentication Debug</label>
+    <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
+      <h3 class="text-lg font-semibold text-gray-100 mb-4">Debug logging</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
+          <input type="checkbox" id="monitor_debug" {{if .MonitorDebug}}checked{{end}} class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
+          <span>Monitor Debug</span>
+        </label>
+        <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
+          <input type="checkbox" id="notification_debug" {{if .NotificationDebug}}checked{{end}} class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
+          <span>Notification Debug</span>
+        </label>
+        <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
+          <input type="checkbox" id="api_debug" {{if .ApiDebug}}checked{{end}} class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
+          <span>REST API Debug</span>
+        </label>
+        <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
+          <input type="checkbox" id="auth_debug" {{if .AuthDebug}}checked{{end}} class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
+          <span>Authentication Debug</span>
+        </label>
       </div>
     </div>
 
-    <div class="card">
-      <h3>UI Settings</h3>
-      <div class="form-row checkbox-row">
-        <label><input type="checkbox" id="show_database_display" {{if .ShowDatabaseDisplay}}checked{{end}}> Show Database Display</label>
+    <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
+      <h3 class="text-lg font-semibold text-gray-100 mb-4">UI Settings</h3>
+      <div class="grid grid-cols-1 gap-3">
+        <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
+          <input type="checkbox" id="show_database_display" {{if .ShowDatabaseDisplay}}checked{{end}} class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
+          <span>Show Database Display</span>
+        </label>
       </div>
     </div>
 
-    <div class="actions">
-      <button type="submit" class="primary">Save Settings</button>
+    <div class="flex justify-end">
+      <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-dark-bg">Save Settings</button>
     </div>
   </form>
 </div>
@@ -61,21 +76,21 @@ document.getElementById('settings-form').addEventListener('submit', async functi
     });
     
     if (response.ok) {
-      messageEl.className = 'message success';
+      messageEl.className = 'mb-4 p-4 bg-green-900/30 border border-green-700/50 text-green-300 rounded-lg';
       messageEl.textContent = 'Settings updated successfully';
-      messageEl.style.display = 'block';
+      messageEl.classList.remove('hidden');
       // Hide message after 3 seconds
       setTimeout(() => {
-        messageEl.style.display = 'none';
+        messageEl.classList.add('hidden');
       }, 3000);
     } else {
       const errorText = await response.text();
       throw new Error(errorText || 'Failed to save settings');
     }
   } catch (error) {
-    messageEl.className = 'message error';
+    messageEl.className = 'mb-4 p-4 bg-red-900/30 border border-red-700/50 text-red-300 rounded-lg';
     messageEl.textContent = 'Error: ' + error.message;
-    messageEl.style.display = 'block';
+    messageEl.classList.remove('hidden');
   } finally {
     // Re-enable submit button
     submitBtn.disabled = false;

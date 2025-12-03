@@ -4,23 +4,23 @@
 
 {{define "notifications.content"}}
 <div>
-  <div class="page-header">
-    <h2>Notifications</h2>
+  <div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-100 m-0">Notifications</h2>
   </div>
-  {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
-  {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
+  {{if .Success}}<div class="mb-4 p-4 bg-green-900/30 border border-green-700/50 text-green-300 rounded-lg">{{.Success}}</div>{{end}}
+  {{if .Error}}<div class="mb-4 p-4 bg-red-900/30 border border-red-700/50 text-red-300 rounded-lg">{{.Error}}</div>{{end}}
 
-  <div class="card margin-bottom-1">
-    <h3>Create notification</h3>
+  <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
+    <h3 class="text-lg font-semibold text-gray-100 mb-4">Create notification</h3>
     <form id="form-create-notification" method="post" action="#">
-      <div class="form-row">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label>Name</label>
-          <input name="name" type="text" required placeholder="e.g. Discord Alerts">
+          <label class="block text-sm font-medium text-gray-300 mb-2">Name</label>
+          <input name="name" type="text" required placeholder="e.g. Discord Alerts" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
         </div>
         <div>
-          <label>Type</label>
-          <select name="type" class="shoutrrr-type">
+          <label class="block text-sm font-medium text-gray-300 mb-2">Type</label>
+          <select name="type" class="shoutrrr-type w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
             <option value="">(Select)</option>
             <option value="discord">Discord</option>
             <option value="slack">Slack</option>
@@ -44,74 +44,82 @@
             <option value="custom">(Custom URL)</option>
           </select>
         </div>
-        <div class="shoutrrr-builder">
-          <label>Configuration</label>
-          <div class="builder-fields"></div>
-        </div>
-        <div class="flex-1">
-          <label>Notify URL (Shoutrrr)</label>
-          <input name="url" type="text" required class="shoutrrr-url" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
-        </div>
       </div>
-      <div class="actions">
-        <button type="submit" class="primary">Add</button>
+      <div class="shoutrrr-builder mb-4 hidden">
+        <label class="block text-sm font-medium text-gray-300 mb-2">Configuration</label>
+        <div class="builder-fields grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-300 mb-2">Notify URL (Shoutrrr)</label>
+        <input name="url" type="text" required class="shoutrrr-url w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors font-mono text-sm" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Add</button>
       </div>
     </form>
   </div>
 
-  <div class="card">
-    <h3>Existing notifications</h3>
+  <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6">
+    <h3 class="text-lg font-semibold text-gray-100 mb-4">Existing notifications</h3>
     {{if .Notifications}}
-    <table>
-      <thead>
-        <tr>
-          <th class="col-actions">ID</th>
-          <th>Name</th>
-          <th>URL</th>
-          <th class="col-actions">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{range .Notifications}}
-        <tr>
-          <td class="muted">{{.ID}}</td>
-          <td>{{.Name}}</td>
-          <td class="muted col-ellipsis">{{.URL}}</td>
-          <td>
-            <div class="actions">
-              <button class="icon edit" type="button" data-action="edit-notification" data-notification-id="{{.ID}}" title="Edit">✎</button>
-              <button class="icon test" type="button" data-id="{{.ID}}" title="Test">🧪</button>
-              <form class="form-delete-notification inline-form" data-id="{{.ID}}" method="post" action="#">
-                <button class="icon delete" type="submit" title="Delete">🗑️</button>
-              </form>
-            </div>
-          </td>
-        </tr>
-        {{end}}
-      </tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-800/30">
+          <tr>
+            <th class="px-4 py-3 text-left text-sm font-medium text-gray-300 w-20">ID</th>
+            <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Name</th>
+            <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">URL</th>
+            <th class="px-4 py-3 text-right text-sm font-medium text-gray-300 w-32">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800/50">
+          {{range .Notifications}}
+          <tr class="hover:bg-gray-800/30 transition-colors">
+            <td class="px-4 py-3 text-gray-500 text-sm">{{.ID}}</td>
+            <td class="px-4 py-3 text-gray-200">{{.Name}}</td>
+            <td class="px-4 py-3 text-gray-500 text-sm font-mono truncate max-w-xs" title="{{.URL}}">{{.URL}}</td>
+            <td class="px-4 py-3">
+              <div class="flex items-center justify-end gap-1">
+                <button class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" type="button" data-action="edit-notification" data-notification-id="{{.ID}}" title="Edit">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>
+                </button>
+                <button class="p-1.5 text-gray-400 hover:text-yellow-400 hover:bg-yellow-900/20 rounded transition-colors" type="button" data-id="{{.ID}}" title="Test">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v2h1v14a4 4 0 0 0 4 4 4 4 0 0 0 4-4V4h1V2H7zm4 14c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1zm2-4c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1zm1-5h-4V4h4v3z"/></svg>
+                </button>
+                <form class="form-delete-notification inline" data-id="{{.ID}}" method="post" action="#">
+                  <button class="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors" type="submit" title="Delete">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/></svg>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
     {{else}}
-    <p class="muted">No notifications configured yet.</p>
+    <p class="text-gray-400 text-center py-4">No notifications configured yet.</p>
     {{end}}
   </div>
 </div>
 
 <!-- Universal Edit Notification Modal -->
-<div id="modal-edit-notification" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-notification-title">
-    <header>
-      <h3 id="modal-edit-notification-title">Edit notification</h3>
-      <button class="close" type="button" data-close>&times;</button>
-    </header>
-    <form id="form-edit-notification" method="post" action="#">
-      <div class="form-row">
+<div id="modal-edit-notification" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-edit-notification-title">
+    <div class="flex items-center justify-between p-4 border-b border-dark-border">
+      <h3 id="modal-edit-notification-title" class="text-lg font-semibold text-gray-100">Edit notification</h3>
+      <button class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" type="button" data-close>&times;</button>
+    </div>
+    <form id="form-edit-notification" method="post" action="#" class="p-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label>Name</label>
-          <input name="name" type="text" required>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Name</label>
+          <input name="name" type="text" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
         </div>
         <div>
-          <label>Type</label>
-          <select name="type" class="shoutrrr-type">
+          <label class="block text-sm font-medium text-gray-300 mb-2">Type</label>
+          <select name="type" class="shoutrrr-type w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
             <option value="">(Select)</option>
             <option value="discord">Discord</option>
             <option value="slack">Slack</option>
@@ -135,17 +143,18 @@
             <option value="custom">(Custom URL)</option>
           </select>
         </div>
-        <div class="shoutrrr-builder">
-          <label>Configuration</label>
-          <div class="builder-fields"></div>
-        </div>
-        <div class="flex-1">
-          <label>Notify URL (Shoutrrr)</label>
-          <input name="url" type="text" required class="shoutrrr-url" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
-        </div>
       </div>
-      <div class="actions">
-        <button type="submit" class="primary">Save</button>
+      <div class="shoutrrr-builder mb-4 hidden">
+        <label class="block text-sm font-medium text-gray-300 mb-2">Configuration</label>
+        <div class="builder-fields grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-300 mb-2">Notify URL (Shoutrrr)</label>
+        <input name="url" type="text" required class="shoutrrr-url w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors font-mono text-sm" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" data-close class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Save</button>
       </div>
     </form>
   </div>
@@ -153,8 +162,20 @@
 
 <script>
 (function(){
-  function openModal(id){ var el = document.getElementById(id); if(!el) return; el.classList.add('show'); el.setAttribute('aria-hidden','false'); }
-  function closeModal(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); }
+  function openModal(id){ 
+    var el = document.getElementById(id); 
+    if(!el) return; 
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+    el.setAttribute('aria-hidden','false'); 
+  }
+  function closeModal(el){ 
+    if(typeof el === 'string') el = document.getElementById(el);
+    if(!el) return;
+    el.classList.add('hidden');
+    el.classList.remove('flex');
+    el.setAttribute('aria-hidden','true'); 
+  }
   window.openModal = openModal; window.closeModal = closeModal;
   
   // Handle dynamic modal actions
@@ -205,7 +226,9 @@
   
   // Make function globally available
   window.openEditNotificationModal = openEditNotificationModal;
-  document.querySelectorAll('.modal-backdrop').forEach(function(bg){
+  
+  // Modal backdrop click to close
+  document.querySelectorAll('#modal-edit-notification').forEach(function(bg){
     bg.addEventListener('click', function(e){ if(e.target === bg){ closeModal(bg); } });
     bg.querySelectorAll('[data-close]').forEach(function(x){ x.addEventListener('click', function(){ closeModal(bg); }); });
   });
@@ -279,7 +302,7 @@
   });
 
   // Test
-  document.querySelectorAll('button.icon.test').forEach(function(btn){
+  document.querySelectorAll('button[data-id][title="Test"]').forEach(function(btn){
     btn.addEventListener('click', async function(){
       const id = btn.getAttribute('data-id');
       try {
@@ -498,7 +521,7 @@
     return scheme;
   }
   function updateForSelect(select){
-    var wrapper = select.closest('.form-row');
+    var wrapper = select.closest('form');
     var urlInput = wrapper ? wrapper.querySelector('.shoutrrr-url') : null;
     var builder = wrapper ? wrapper.querySelector('.shoutrrr-builder') : null;
     var fieldsContainer = builder ? builder.querySelector('.builder-fields') : null;
@@ -509,7 +532,7 @@
     // Toggle builder visibility and URL readonly based on type
     if (builder && fieldsContainer) {
       if (val && val !== 'custom' && schemas[val]) {
-        builder.style.display = '';
+        builder.classList.remove('hidden');
         urlInput.readOnly = true;
         // render fields
         fieldsContainer.innerHTML = '';
@@ -519,10 +542,12 @@
           var id = 'fld-' + val + '-' + f.key + '-' + Math.random().toString(36).slice(2,7);
           var label = document.createElement('label');
           label.setAttribute('for', id);
+          label.className = 'block text-sm font-medium text-gray-300 mb-2';
           label.textContent = f.label + (f.required ? ' *' : '');
           var input = document.createElement('input');
           input.type = 'text';
           input.id = id;
+          input.className = 'w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors';
           input.dataset.key = f.key;
           input.placeholder = f.placeholder || '';
           if (f.required) input.required = true;
@@ -536,10 +561,10 @@
         var hasExisting = !!(select.getAttribute('data-existing-url') || urlInput.value);
         if (!hasExisting) { buildURL(select); }
       } else if (val === 'custom') {
-        builder.style.display = 'none';
+        builder.classList.add('hidden');
         urlInput.readOnly = false;
       } else {
-        builder.style.display = 'none';
+        builder.classList.add('hidden');
         urlInput.readOnly = true;
         // Do not clear existing URL if one is present (e.g., edit initialization)
         if (!select.getAttribute('data-existing-url') && !urlInput.value) {
@@ -549,7 +574,7 @@
     }
   }
   function buildURL(select){
-    var wrapper = select.closest('.form-row');
+    var wrapper = select.closest('form');
     var urlInput = wrapper ? wrapper.querySelector('.shoutrrr-url') : null;
     var builder = wrapper ? wrapper.querySelector('.shoutrrr-builder') : null;
     var fieldsContainer = builder ? builder.querySelector('.builder-fields') : null;
@@ -592,7 +617,7 @@
   function initShoutrrrSelect(sel){
     if(!sel) return;
     var existing = (sel.getAttribute('data-existing-url') || '').trim();
-    var urlInput = sel.closest('.form-row')?.querySelector('.shoutrrr-url');
+    var urlInput = sel.closest('form')?.querySelector('.shoutrrr-url');
     if(existing){
       var t = detectTypeFromURL(existing);
       if(t && sel.querySelector('option[value="'+t+'"]')){

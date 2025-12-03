@@ -4,31 +4,31 @@
 
 {{define "user-settings.content"}}
 <div>
-  <h2>User Settings</h2>
+  <div class="mb-6">
+    <h2 class="text-2xl font-semibold text-gray-100 m-0">User Settings</h2>
+  </div>
   
-  <div class="card">
-    <h3>Account Information</h3>
-    <div style="margin-top: 1rem;">
-      <p><strong>Username:</strong> {{.CurrentUser.Username}}</p>
-      <p><strong>Role:</strong> <span style="text-transform: capitalize;">{{.CurrentUser.Role}}</span></p>
-      <p><strong>Account Created:</strong> {{.CurrentUser.CreatedAt.Format "Jan 2, 2006"}}</p>
+  <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
+    <h3 class="text-lg font-semibold text-gray-100 mb-4">Account Information</h3>
+    <div class="space-y-2">
+      <p class="text-gray-300"><strong class="text-gray-200">Username:</strong> {{.CurrentUser.Username}}</p>
+      <p class="text-gray-300"><strong class="text-gray-200">Role:</strong> <span class="capitalize">{{.CurrentUser.Role}}</span></p>
+      <p class="text-gray-300"><strong class="text-gray-200">Account Created:</strong> {{.CurrentUser.CreatedAt.Format "Jan 2, 2006"}}</p>
     </div>
   </div>
 
-  <div class="card">
-    <div class="page-header-with-actions">
-      <h3>API Keys</h3>
-      <div class="page-header-actions">
-        <button id="btn-new-apikey" class="primary" type="button" title="Generate new API key">+ New API Key</button>
-      </div>
+  <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-lg font-semibold text-gray-100 m-0">API Keys</h3>
+      <button id="btn-new-apikey" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors" type="button" title="Generate new API key">+ New API Key</button>
     </div>
     
-    <p class="muted" style="margin-top: 0.5rem; margin-bottom: 1.5rem;">
+    <p class="text-gray-400 text-sm mb-6">
       API keys allow you to authenticate API requests. Keep your keys secure and never share them.
     </p>
 
     <div id="apikeys-container">
-      <div id="apikeys-loading" style="text-align: center; padding: 2rem; color: #a1a1aa;">
+      <div id="apikeys-loading" class="text-center py-8 text-gray-400">
         Loading API keys...
       </div>
     </div>
@@ -36,70 +36,70 @@
 </div>
 
 <!-- Create API Key Modal -->
-<div id="modal-create-apikey" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-create-apikey-title">
-    <header>
-      <h3 id="modal-create-apikey-title">Generate New API Key</h3>
-      <button type="button" class="close" aria-label="Close" onclick="closeModal(document.getElementById('modal-create-apikey'))">&times;</button>
-    </header>
-    <form id="form-create-apikey">
-      <div class="form-group">
-        <label for="apikey-name">Name <span style="color: #ef4444;">*</span></label>
-        <input type="text" id="apikey-name" name="name" required placeholder="e.g., Production Server, CI/CD Pipeline">
-        <small class="muted">Give this API key a descriptive name to identify its purpose.</small>
+<div id="modal-create-apikey" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-md mx-4" role="dialog" aria-modal="true" aria-labelledby="modal-create-apikey-title">
+    <div class="flex items-center justify-between p-4 border-b border-dark-border">
+      <h3 id="modal-create-apikey-title" class="text-lg font-semibold text-gray-100">Generate New API Key</h3>
+      <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" aria-label="Close" onclick="closeModal(document.getElementById('modal-create-apikey'))">&times;</button>
+    </div>
+    <form id="form-create-apikey" class="p-4">
+      <div class="mb-4">
+        <label for="apikey-name" class="block text-sm font-medium text-gray-300 mb-2">Name <span class="text-red-400">*</span></label>
+        <input type="text" id="apikey-name" name="name" required placeholder="e.g., Production Server, CI/CD Pipeline" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+        <small class="text-gray-500 text-sm mt-1 block">Give this API key a descriptive name to identify its purpose.</small>
       </div>
-      <div class="form-actions">
-        <button type="button" class="secondary" onclick="closeModal(document.getElementById('modal-create-apikey'))">Cancel</button>
-        <button type="submit" class="primary">Generate Key</button>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors" onclick="closeModal(document.getElementById('modal-create-apikey'))">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Generate Key</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Show API Key Modal -->
-<div id="modal-show-apikey" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-show-apikey-title">
-    <header>
-      <h3 id="modal-show-apikey-title">API Key Generated</h3>
-      <button type="button" class="close" aria-label="Close" onclick="closeModal(document.getElementById('modal-show-apikey'))">&times;</button>
-    </header>
-    <div style="padding: 1rem 0;">
-      <p style="color: #ef4444; margin-bottom: 1rem;">
+<div id="modal-show-apikey" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-lg mx-4" role="dialog" aria-modal="true" aria-labelledby="modal-show-apikey-title">
+    <div class="flex items-center justify-between p-4 border-b border-dark-border">
+      <h3 id="modal-show-apikey-title" class="text-lg font-semibold text-gray-100">API Key Generated</h3>
+      <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" aria-label="Close" onclick="closeModal(document.getElementById('modal-show-apikey'))">&times;</button>
+    </div>
+    <div class="p-4">
+      <p class="text-red-400 mb-4">
         <strong>⚠️ Important:</strong> This API key will only be shown once. Make sure to copy it now and store it securely.
       </p>
-      <div class="form-group">
-        <label for="generated-apikey">Your API Key</label>
-        <div style="display: flex; gap: 0.5rem;">
-          <input type="text" id="generated-apikey" readonly style="font-family: monospace; font-size: 13px;">
-          <button type="button" class="secondary" onclick="copyAPIKey()" style="white-space: nowrap;">Copy</button>
+      <div class="mb-4">
+        <label for="generated-apikey" class="block text-sm font-medium text-gray-300 mb-2">Your API Key</label>
+        <div class="flex gap-2">
+          <input type="text" id="generated-apikey" readonly class="flex-1 px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 font-mono text-sm">
+          <button type="button" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors whitespace-nowrap" onclick="copyAPIKey()">Copy</button>
         </div>
       </div>
-      <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
-        <p style="margin: 0; font-size: 14px;"><strong>Usage Example:</strong></p>
-        <pre style="margin-top: 0.5rem; font-size: 12px; overflow-x: auto;">curl -H "Authorization: Bearer YOUR_API_KEY" \
+      <div class="p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+        <p class="text-sm font-medium text-gray-200 mb-2">Usage Example:</p>
+        <pre class="text-xs text-gray-300 overflow-x-auto">curl -H "Authorization: Bearer YOUR_API_KEY" \
      https://your-server.com/api/status</pre>
       </div>
     </div>
-    <div class="form-actions">
-      <button type="button" class="primary" onclick="closeModal(document.getElementById('modal-show-apikey'))">I've Saved the Key</button>
+    <div class="flex justify-end p-4 border-t border-dark-border">
+      <button type="button" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors" onclick="closeModal(document.getElementById('modal-show-apikey'))">I've Saved the Key</button>
     </div>
   </div>
 </div>
 
 <!-- Delete API Key Modal -->
-<div id="modal-delete-apikey" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-apikey-title">
-    <header>
-      <h3 id="modal-delete-apikey-title">Revoke API Key</h3>
-      <button type="button" class="close" aria-label="Close" onclick="closeModal(document.getElementById('modal-delete-apikey'))">&times;</button>
-    </header>
-    <form id="form-delete-apikey">
+<div id="modal-delete-apikey" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-md mx-4" role="dialog" aria-modal="true" aria-labelledby="modal-delete-apikey-title">
+    <div class="flex items-center justify-between p-4 border-b border-dark-border">
+      <h3 id="modal-delete-apikey-title" class="text-lg font-semibold text-gray-100">Revoke API Key</h3>
+      <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" aria-label="Close" onclick="closeModal(document.getElementById('modal-delete-apikey'))">&times;</button>
+    </div>
+    <form id="form-delete-apikey" class="p-4">
       <input type="hidden" name="id" id="delete-apikey-id">
-      <p>Are you sure you want to revoke the API key "<strong id="delete-apikey-name"></strong>"?</p>
-      <p class="muted">This action cannot be undone. Any applications using this key will no longer be able to authenticate.</p>
-      <div class="form-actions">
-        <button type="button" class="secondary" onclick="closeModal(document.getElementById('modal-delete-apikey'))">Cancel</button>
-        <button type="submit" class="danger">Revoke Key</button>
+      <p class="text-gray-200 mb-2">Are you sure you want to revoke the API key "<strong id="delete-apikey-name" class="text-white"></strong>"?</p>
+      <p class="text-gray-400 text-sm mb-4">This action cannot be undone. Any applications using this key will no longer be able to authenticate.</p>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors" onclick="closeModal(document.getElementById('modal-delete-apikey'))">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Revoke Key</button>
       </div>
     </form>
   </div>
@@ -112,20 +112,22 @@
   // Modal helper functions
   function openModal(modal) {
     if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
     modal.setAttribute('aria-hidden', 'false');
-    modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
   }
 
   function closeModal(modal) {
     if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
     modal.setAttribute('aria-hidden', 'true');
-    modal.style.display = 'none';
     document.body.style.overflow = '';
   }
 
   // Close modal on backdrop click
-  document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+  document.querySelectorAll('#modal-create-apikey, #modal-show-apikey, #modal-delete-apikey').forEach(backdrop => {
     backdrop.addEventListener('click', function(e) {
       if (e.target === this) {
         closeModal(this);
@@ -236,7 +238,7 @@
       
       if (keys.length === 0) {
         container.innerHTML = `
-          <div style="text-align: center; padding: 2rem; color: #a1a1aa;">
+          <div class="text-center py-8 text-gray-400">
             <p>No API keys yet. Create one to get started.</p>
           </div>
         `;
@@ -245,17 +247,18 @@
       
       // Build table
       let html = `
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Selector</th>
-              <th>Last Used</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-800/30">
+              <tr>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Name</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Selector</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Last Used</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Created</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-300">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800/50">
       `;
       
       keys.forEach(key => {
@@ -263,14 +266,14 @@
         const created = new Date(key.created_at).toLocaleDateString();
         
         html += `
-          <tr>
-            <td><strong>${escapeHtml(key.name)}</strong></td>
-            <td><code style="font-size: 12px;">upt_${escapeHtml(key.selector)}</code></td>
-            <td><span class="muted">${lastUsed}</span></td>
-            <td><span class="muted">${created}</span></td>
-            <td>
-              <div class="actions">
-                <button type="button" class="icon delete" data-action="delete-apikey" data-id="${key.id}" data-name="${escapeHtml(key.name)}" title="Revoke key">
+          <tr class="hover:bg-gray-800/30 transition-colors">
+            <td class="px-4 py-3"><strong class="text-gray-200">${escapeHtml(key.name)}</strong></td>
+            <td class="px-4 py-3"><code class="text-xs bg-gray-800/50 px-1.5 py-0.5 rounded text-gray-300">upt_${escapeHtml(key.selector)}</code></td>
+            <td class="px-4 py-3 text-gray-400 text-sm">${lastUsed}</td>
+            <td class="px-4 py-3 text-gray-400 text-sm">${created}</td>
+            <td class="px-4 py-3">
+              <div class="flex justify-end">
+                <button type="button" class="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors" data-action="delete-apikey" data-id="${key.id}" data-name="${escapeHtml(key.name)}" title="Revoke key">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
                   </svg>
@@ -282,8 +285,9 @@
       });
       
       html += `
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       `;
       
       container.innerHTML = html;
@@ -300,7 +304,7 @@
     } catch (error) {
       console.error('Failed to load API keys:', error);
       container.innerHTML = `
-        <div style="text-align: center; padding: 2rem; color: #ef4444;">
+        <div class="text-center py-8 text-red-400">
           <p>Failed to load API keys. Please refresh the page.</p>
         </div>
       `;

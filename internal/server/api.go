@@ -851,26 +851,45 @@ func (s *Server) apiGroupUpdate(r *http.Request) (interface{}, int, error) {
 	
 	mv := strings.ToLower(strings.TrimSpace(body.Move))
 	if mv == "up" || mv == "down" {
-		// find neighbor by Order and swap Order values
-		s.normalizeAndSortGroups()
-		// refresh idx post-sort
-		idx = -1
+		// Build list of default groups only (exclude statuspage groups)
+		defaultIndices := make([]int, 0)
 		for i, g := range s.groups {
-			if g.ID == gid {
-				idx = i
+			if g.Type == "" || g.Type == config.GroupTypeDefault {
+				defaultIndices = append(defaultIndices, i)
+			}
+		}
+		
+		// Sort default groups by Order
+		sort.Slice(defaultIndices, func(a, b int) bool {
+			return s.groups[defaultIndices[a]].Order < s.groups[defaultIndices[b]].Order
+		})
+		
+		// Find position of target group in default groups
+		posInDefaults := -1
+		for pos, globalIdx := range defaultIndices {
+			if s.groups[globalIdx].ID == gid {
+				posInDefaults = pos
+				idx = globalIdx
 				break
 			}
 		}
-		if idx == -1 {
-			return nil, http.StatusNotFound, fmt.Errorf("group not found")
+		
+		if posInDefaults == -1 {
+			return nil, http.StatusNotFound, fmt.Errorf("group not found in default groups")
 		}
-		if mv == "up" && idx > 0 {
-			s.groups[idx].Order, s.groups[idx-1].Order = s.groups[idx-1].Order, s.groups[idx].Order
+		
+		// Swap Order values with neighbor in default groups
+		if mv == "up" && posInDefaults > 0 {
+			prevIdx := defaultIndices[posInDefaults-1]
+			s.groups[idx].Order, s.groups[prevIdx].Order = s.groups[prevIdx].Order, s.groups[idx].Order
+		} else if mv == "down" && posInDefaults < len(defaultIndices)-1 {
+			nextIdx := defaultIndices[posInDefaults+1]
+			s.groups[idx].Order, s.groups[nextIdx].Order = s.groups[nextIdx].Order, s.groups[idx].Order
 		}
-		if mv == "down" && idx < len(s.groups)-1 {
-			s.groups[idx].Order, s.groups[idx+1].Order = s.groups[idx+1].Order, s.groups[idx].Order
-		}
+		
+		// Re-normalize to sort by new Order and reassign sequential values
 		s.normalizeAndSortGroups()
+		
 		if err := s.saveConfig(); err != nil {
 			s.logger.Printf("persist api group move: %v", err)
 		}

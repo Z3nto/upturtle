@@ -4,209 +4,201 @@
 
 {{define "users.content"}}
 <div>
-  <div class="page-header-with-actions">
-    <h2>User Management</h2>
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-semibold text-gray-100 m-0">User Management</h2>
     {{if .UsingDatabaseAuth}}
-    <div class="page-header-actions">
-      <button id="btn-new-user" class="primary" type="button" title="Create new user">+ New User</button>
-    </div>
+    <button id="btn-new-user" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors" type="button" title="Create new user">+ New User</button>
     {{end}}
   </div>
 
   {{if not .UsingDatabaseAuth}}
-  <div class="card">
-    <div class="text-center padding-2">
-      <h3 class="margin-bottom-1 text-muted">User Management Not Available</h3>
-      <p class="text-muted margin-bottom-1-5">
+  <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6">
+    <div class="text-center py-8">
+      <h3 class="text-lg font-semibold text-gray-400 mb-4">User Management Not Available</h3>
+      <p class="text-gray-400 mb-4">
         User management is only available when using database authentication.<br>
         Currently running in memory-only mode with single admin user.
       </p>
-      <p class="text-muted-dark font-size-09">
+      <p class="text-gray-500 text-sm">
         To enable user management, configure a database in your settings and restart the application.
       </p>
     </div>
   </div>
   {{else}}
   
-  <div class="card">
-    <table>
-      <thead>
-        <tr>
-          <th>Username</th>
-          <th>Role</th>
-          <th>Status</th>
-          <th>Created</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{range .Users}}
-        <tr>
-          <td>
-            <strong>{{.Username}}</strong>
-          </td>
-          <td>
-            {{if eq .Role "admin"}}
-              <span class="badge badge-admin">Admin</span>
-            {{else if eq .Role "write"}}
-              <span class="badge badge-write">Write</span>
-            {{else}}
-              <span class="badge badge-readonly">Read Only</span>
-            {{end}}
-          </td>
-          <td>
-            {{if .Enabled}}
-              <span class="badge status-up">Active</span>
-            {{else}}
-              <span class="badge status-disabled">Disabled</span>
-            {{end}}
-          </td>
-          <td>
-            <span class="muted">{{.CreatedAt.Format "Jan 2, 2006"}}</span>
-          </td>
-          <td>
-            <div class="actions">
-              <button type="button" class="icon edit" data-action="edit-user" data-user-id="{{.ID}}" title="Edit user">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
-                </svg>
-              </button>
-              <button type="button" class="icon delete" data-action="delete-user" data-user-id="{{.ID}}" data-username="{{.Username}}" title="Delete user">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
-                </svg>
-              </button>
-            </div>
-          </td>
-        </tr>
-        {{else}}
-        <tr>
-          <td colspan="5" style="text-align: center; color: #a1a1aa; padding: 2rem;">
-            No users found. Create your first user to get started.
-          </td>
-        </tr>
-        {{end}}
-      </tbody>
-    </table>
+  <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-800/30">
+          <tr>
+            <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Username</th>
+            <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Role</th>
+            <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Status</th>
+            <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Created</th>
+            <th class="px-4 py-3 text-right text-sm font-medium text-gray-300">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800/50">
+          {{range .Users}}
+          <tr class="hover:bg-gray-800/30 transition-colors">
+            <td class="px-4 py-3">
+              <strong class="text-gray-200">{{.Username}}</strong>
+            </td>
+            <td class="px-4 py-3">
+              {{if eq .Role "admin"}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-900/50 text-purple-300 border border-purple-700/50">Admin</span>
+              {{else if eq .Role "write"}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/50 text-blue-300 border border-blue-700/50">Write</span>
+              {{else}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50">Read Only</span>
+              {{end}}
+            </td>
+            <td class="px-4 py-3">
+              {{if .Enabled}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50">Active</span>
+              {{else}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">Disabled</span>
+              {{end}}
+            </td>
+            <td class="px-4 py-3">
+              <span class="text-gray-400 text-sm">{{.CreatedAt.Format "Jan 2, 2006"}}</span>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center justify-end gap-1">
+                <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" data-action="edit-user" data-user-id="{{.ID}}" title="Edit user">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+                  </svg>
+                </button>
+                <button type="button" class="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors" data-action="delete-user" data-user-id="{{.ID}}" data-username="{{.Username}}" title="Delete user">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {{else}}
+          <tr>
+            <td colspan="5" class="text-center text-gray-400 py-8">
+              No users found. Create your first user to get started.
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
   </div>
   {{end}}
 </div>
 
 {{if .UsingDatabaseAuth}}
 <!-- Create User Modal -->
-<div id="modal-create-user" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-create-user-title">
-    <header>
-      <h3 id="modal-create-user-title">Create New User</h3>
-      <button type="button" class="close" data-close>&times;</button>
-    </header>
-    <form id="form-create-user">
+<div id="modal-create-user" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-create-user-title">
+    <div class="flex items-center justify-between p-4 border-b border-dark-border">
+      <h3 id="modal-create-user-title" class="text-lg font-semibold text-gray-100">Create New User</h3>
+      <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" data-close>&times;</button>
+    </div>
+    <form id="form-create-user" class="p-4">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <div class="form-row">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label for="create-username">Username</label>
-          <input type="text" id="create-username" name="username" required>
+          <label for="create-username" class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+          <input type="text" id="create-username" name="username" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
         </div>
         <div>
-          <label for="create-role">Role</label>
-          <select id="create-role" name="role" required>
+          <label for="create-role" class="block text-sm font-medium text-gray-300 mb-2">Role</label>
+          <select id="create-role" name="role" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
             <option value="readonly">Read Only - Can only view status pages</option>
             <option value="write">Write - Can manage monitors, notifications, and status pages</option>
             <option value="admin">Admin - Full access including user management</option>
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div>
-          <label for="create-password">Password</label>
-          <input type="password" id="create-password" name="password" required>
-        </div>
+      <div class="mb-4">
+        <label for="create-password" class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+        <input type="password" id="create-password" name="password" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
       </div>
-      <div class="form-row">
-        <div>
-          <label for="create-password-repeat">Repeat Password</label>
-          <input type="password" id="create-password-repeat" name="password_repeat" required>
-        </div>
+      <div class="mb-4">
+        <label for="create-password-repeat" class="block text-sm font-medium text-gray-300 mb-2">Repeat Password</label>
+        <input type="password" id="create-password-repeat" name="password_repeat" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
       </div>
-      <div class="form-row">
-        <label>
-          <input type="checkbox" id="create-enabled" name="enabled" checked>
-          User is active
+      <div class="mb-4">
+        <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
+          <input type="checkbox" id="create-enabled" name="enabled" checked class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
+          <span>User is active</span>
         </label>
       </div>
-      <div class="actions">
-        <button type="button" class="secondary" data-close>Cancel</button>
-        <button type="submit" class="primary">Create User</button>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors" data-close>Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Create User</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Edit User Modal -->
-<div id="modal-edit-user" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-user-title">
-    <header>
-      <h3 id="modal-edit-user-title">Edit User</h3>
-      <button type="button" class="close" data-close>&times;</button>
-    </header>
-    <form id="form-edit-user">
+<div id="modal-edit-user" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-edit-user-title">
+    <div class="flex items-center justify-between p-4 border-b border-dark-border">
+      <h3 id="modal-edit-user-title" class="text-lg font-semibold text-gray-100">Edit User</h3>
+      <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" data-close>&times;</button>
+    </div>
+    <form id="form-edit-user" class="p-4">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <input type="hidden" id="edit-user-id" name="user_id">
-      <div class="form-row">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label for="edit-username">Username</label>
-          <input type="text" id="edit-username" name="username" required>
+          <label for="edit-username" class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+          <input type="text" id="edit-username" name="username" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
         </div>
         <div>
-          <label for="edit-role">Role</label>
-          <select id="edit-role" name="role" required>
+          <label for="edit-role" class="block text-sm font-medium text-gray-300 mb-2">Role</label>
+          <select id="edit-role" name="role" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
             <option value="readonly">Read Only - Can only view status pages</option>
             <option value="write">Write - Can manage monitors, notifications, and status pages</option>
             <option value="admin">Admin - Full access including user management</option>
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div>
-          <label for="edit-password">Password (leave empty to keep current)</label>
-          <input type="password" id="edit-password" name="password">
-        </div>
+      <div class="mb-4">
+        <label for="edit-password" class="block text-sm font-medium text-gray-300 mb-2">Password (leave empty to keep current)</label>
+        <input type="password" id="edit-password" name="password" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
       </div>
-      <div class="form-row">
-        <div>
-          <label for="edit-password-repeat">Repeat Password</label>
-          <input type="password" id="edit-password-repeat" name="password_repeat">
-        </div>
+      <div class="mb-4">
+        <label for="edit-password-repeat" class="block text-sm font-medium text-gray-300 mb-2">Repeat Password</label>
+        <input type="password" id="edit-password-repeat" name="password_repeat" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
       </div>
-      <div class="form-row">
-        <label>
-          <input type="checkbox" id="edit-enabled" name="enabled">
-          User is active
+      <div class="mb-4">
+        <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
+          <input type="checkbox" id="edit-enabled" name="enabled" class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
+          <span>User is active</span>
         </label>
       </div>
-      <div class="actions">
-        <button type="button" class="secondary" data-close>Cancel</button>
-        <button type="submit" class="primary">Update User</button>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors" data-close>Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Update User</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Delete User Modal -->
-<div id="modal-delete-user" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-user-title">
-    <header>
-      <h3 id="modal-delete-user-title">Delete User</h3>
-      <button type="button" class="close" data-close>&times;</button>
-    </header>
-    <form id="form-delete-user">
+<div id="modal-delete-user" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-md mx-4" role="dialog" aria-modal="true" aria-labelledby="modal-delete-user-title">
+    <div class="flex items-center justify-between p-4 border-b border-dark-border">
+      <h3 id="modal-delete-user-title" class="text-lg font-semibold text-gray-100">Delete User</h3>
+      <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" data-close>&times;</button>
+    </div>
+    <form id="form-delete-user" class="p-4">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <input type="hidden" id="delete-user-id" name="user_id">
-      <p>Are you sure you want to delete the user <strong id="delete-username"></strong>?</p>
-      <p style="color: #f87171; font-size: 0.9rem;">This action cannot be undone.</p>
-      <div class="actions">
-        <button type="button" class="secondary" data-close>Cancel</button>
-        <button type="submit" class="danger">Delete User</button>
+      <p class="text-gray-200 mb-2">Are you sure you want to delete the user <strong id="delete-username" class="text-white"></strong>?</p>
+      <p class="text-red-400 text-sm mb-4">This action cannot be undone.</p>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors" data-close>Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Delete User</button>
       </div>
     </form>
   </div>
@@ -220,7 +212,8 @@
   function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
-      modal.style.display = 'flex';
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
       modal.setAttribute('aria-hidden', 'false');
     }
   }
@@ -230,7 +223,8 @@
       modal = document.getElementById(modal);
     }
     if (modal) {
-      modal.style.display = 'none';
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
       modal.setAttribute('aria-hidden', 'true');
     }
   }
@@ -254,8 +248,8 @@
     openModal('modal-create-user');
   });
 
-  // Modal close handlers - match existing pattern
-  document.querySelectorAll('.modal-backdrop').forEach(function(bg) {
+  // Modal close handlers
+  document.querySelectorAll('#modal-create-user, #modal-edit-user, #modal-delete-user').forEach(function(bg) {
     bg.addEventListener('click', function(e) {
       if (e.target === bg) closeModal(bg);
     });
