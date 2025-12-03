@@ -3,70 +3,80 @@
 {{ end }}
 
 {{ define "install.content" }}
-<div class="container auth-container">
-  <div class="auth-logo-container">
-    <img src="/static/logo.png" alt="Upturtle" class="auth-logo" />
-  </div>
-  <h1>Initial Setup</h1>
-  <p>Set up the administrator account and data storage</p>
-
-  {{if .Error}}
-  <div class="alert-error">
-    {{.Error}}
-  </div>
-  {{end}}
-
-  <form method="post" action="/install" class="form">
-    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-    
-    <h3>Administrator Account</h3>
-    <div class="form-group">
-      <input id="username" name="username" type="text" required placeholder="Username" autofocus />
-    </div>
-
-    <div class="form-group">
-      <input id="password" name="password" type="password" required placeholder="Password" autocomplete="new-password" />
-    </div>
-    
-    <div class="form-group">
-      <input id="password_confirm" name="password_confirm" type="password" required placeholder="Repeat Password" autocomplete="new-password" aria-describedby="pw-match-error" />
-      <small id="pw-match-error" role="alert" class="form-error">Passwords do not match</small>
-    </div>
-
-    <h3>Data Storage</h3>
-    <div class="form-group">
-      <label>
-        <input type="radio" name="storage_type" value="memory" checked onchange="toggleStorageOptions()"> 
-        <strong>In-Memory Storage</strong>
-      </label>
-      <small class="form-helper">
-        Measurement data stored in memory. Suitable for basic monitoring (recommended for &lt; 20 monitors).
-      </small>
-    </div>
-
-    <div class="form-group">
-      <label>
-        <input type="radio" name="storage_type" value="sqlite" onchange="toggleStorageOptions()"> 
-        <strong>SQLite Database</strong>
-      </label>
-      <small class="form-helper">
-        Persistent storage with automatic cleanup. Recommended for production use.
-      </small>
-    </div>
-
-    <div id="sqlite-options" class="storage-options">
-      <div class="form-group">
-        <label for="sqlite_path">Database Path:</label>
-        <input id="sqlite_path" name="sqlite_path" type="text" placeholder="/data/upturtle.db" value="/data/upturtle.db" />
-        <small class="form-helper">
-          Path where the SQLite database file will be stored.
-        </small>
+<div class="flex items-center justify-center min-h-[calc(100vh-200px)]">
+  <div class="w-full max-w-2xl">
+    <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-xl shadow-2xl p-8">
+      <div class="flex justify-center mb-6">
+        <img src="/static/logo.png" alt="Upturtle" class="h-12 w-auto" />
       </div>
-    </div>
+      <h1 class="text-3xl font-semibold text-gray-100 text-center mb-2">Initial Setup</h1>
+      <p class="text-gray-400 text-center mb-8">Set up the administrator account and data storage</p>
 
-    <div class="actions">
-      <button type="submit" class="primary">Save and Continue</button>
-    </div>
+      {{if .Error}}
+      <div class="mb-6 p-4 bg-red-900/30 border border-red-700/50 text-red-300 rounded-lg">
+        {{.Error}}
+      </div>
+      {{end}}
+
+      <form method="post" action="/install">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        
+        <h3 class="text-xl font-semibold text-gray-100 mb-4 pb-2 border-b border-dark-border">Administrator Account</h3>
+        <div class="mb-4">
+          <input id="username" name="username" type="text" required placeholder="Username" autofocus 
+            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" />
+        </div>
+
+        <div class="mb-4">
+          <input id="password" name="password" type="password" required placeholder="Password" autocomplete="new-password" 
+            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" />
+        </div>
+        
+        <div class="mb-6">
+          <input id="password_confirm" name="password_confirm" type="password" required placeholder="Repeat Password" autocomplete="new-password" aria-describedby="pw-match-error" 
+            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" />
+          <small id="pw-match-error" role="alert" class="hidden text-red-400 text-sm mt-1">Passwords do not match</small>
+        </div>
+
+        <h3 class="text-xl font-semibold text-gray-100 mb-4 pb-2 border-b border-dark-border">Data Storage</h3>
+        <div class="mb-4 p-4 bg-gray-800/30 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="radio" name="storage_type" value="memory" checked onchange="toggleStorageOptions()" 
+              class="mt-1 w-4 h-4 text-blue-600 border-gray-600 focus:ring-2 focus:ring-blue-500"> 
+            <div class="flex-1">
+              <strong class="text-gray-200 block mb-1">In-Memory Storage</strong>
+              <small class="text-gray-400 text-sm">
+                Measurement data stored in memory. Suitable for basic monitoring (recommended for &lt; 20 monitors).
+              </small>
+            </div>
+          </label>
+        </div>
+
+        <div class="mb-6 p-4 bg-gray-800/30 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="radio" name="storage_type" value="sqlite" onchange="toggleStorageOptions()" 
+              class="mt-1 w-4 h-4 text-blue-600 border-gray-600 focus:ring-2 focus:ring-blue-500"> 
+            <div class="flex-1">
+              <strong class="text-gray-200 block mb-1">SQLite Database</strong>
+              <small class="text-gray-400 text-sm">
+                Persistent storage with automatic cleanup. Recommended for production use.
+              </small>
+            </div>
+          </label>
+        </div>
+
+        <div id="sqlite-options" class="hidden mb-6 p-4 bg-gray-800/20 border border-gray-700 rounded-lg">
+          <label for="sqlite_path" class="block text-sm font-medium text-gray-300 mb-2">Database Path:</label>
+          <input id="sqlite_path" name="sqlite_path" type="text" placeholder="/data/upturtle.db" value="/data/upturtle.db" 
+            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" />
+          <small class="text-gray-400 text-sm mt-2 block">
+            Path where the SQLite database file will be stored.
+          </small>
+        </div>
+
+        <button type="submit" class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-dark-bg">
+          Save and Continue
+        </button>
     
     <script>
       // Toggle storage options visibility
@@ -88,11 +98,11 @@
         function validate() {
           // Clear any previous custom error first
           p2.setCustomValidity('');
-          if (err) err.style.display = 'none';
+          if (err) err.classList.add('hidden');
           // Only validate when both fields have a value; otherwise let required attribute handle it
           if (p1.value && p2.value && p1.value !== p2.value) {
             p2.setCustomValidity('Passwords do not match');
-            if (err) err.style.display = 'inline';
+            if (err) err.classList.remove('hidden');
             // Do not call reportValidity() here to avoid stealing focus while typing
           }
         }

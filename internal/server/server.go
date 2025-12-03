@@ -562,15 +562,46 @@ func (s *Server) normalizeAndSortGroups() {
 	if len(s.groups) == 0 {
 		return
 	}
-	// Start fresh: assume all groups have a valid, explicit Order in config.
-	sort.SliceStable(s.groups, func(i, j int) bool {
-		if s.groups[i].Order == s.groups[j].Order {
-			return s.groups[i].Name < s.groups[j].Name
+	
+	// Separate groups by type
+	var defaultGroups, statuspageGroups []int
+	for i, g := range s.groups {
+		if g.Type == "" || g.Type == config.GroupTypeDefault {
+			defaultGroups = append(defaultGroups, i)
+		} else {
+			statuspageGroups = append(statuspageGroups, i)
 		}
-		oi := s.groups[i].Order
-		oj := s.groups[j].Order
-		return oi < oj
-	})
+	}
+	
+	// Sort each type by Order, then by Name
+	sortByOrder := func(indices []int) {
+		sort.SliceStable(indices, func(a, b int) bool {
+			if s.groups[indices[a]].Order == s.groups[indices[b]].Order {
+				return s.groups[indices[a]].Name < s.groups[indices[b]].Name
+			}
+			return s.groups[indices[a]].Order < s.groups[indices[b]].Order
+		})
+	}
+	sortByOrder(defaultGroups)
+	sortByOrder(statuspageGroups)
+	
+	// Normalize Order values independently for each type (starting from 1)
+	for pos, idx := range defaultGroups {
+		s.groups[idx].Order = pos + 1
+	}
+	for pos, idx := range statuspageGroups {
+		s.groups[idx].Order = pos + 1
+	}
+	
+	// Rebuild groups slice: default groups first, then statuspage groups
+	newGroups := make([]config.GroupConfig, 0, len(s.groups))
+	for _, idx := range defaultGroups {
+		newGroups = append(newGroups, s.groups[idx])
+	}
+	for _, idx := range statuspageGroups {
+		newGroups = append(newGroups, s.groups[idx])
+	}
+	s.groups = newGroups
 }
 
 // ---- Notifications management ----
@@ -613,7 +644,7 @@ func (s *Server) newNotificationID() int {
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Apply security headers to all responses
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")

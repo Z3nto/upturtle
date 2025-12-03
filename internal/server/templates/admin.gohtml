@@ -4,89 +4,121 @@
 
 {{define "admin.content"}}
 <div>
-  <div class="page-header-with-actions">
-    <h2>Monitors</h2>
-    <div class="page-header-actions">
-      <button id="btn-add-group" class="primary" type="button" title="Create new group">Add Group</button>
-      <button id="btn-new" class="primary" type="button" title="Create new monitor">+ New</button>
+  <!-- Page Header -->
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-semibold text-gray-100 m-0">Monitors</h2>
+    <div class="flex items-center gap-2">
+      <button id="btn-add-group" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors" type="button" title="Create new group">Add Group</button>
+      <button id="btn-new" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors" type="button" title="Create new monitor">+ New</button>
     </div>
   </div>
-  {{if .Success}}<div class="message success">{{.Success}}</div>{{end}}
-  {{if .Error}}<div class="message error">{{.Error}}</div>{{end}}
 
+  <!-- Messages -->
+  {{if .Success}}
+  <div class="mb-4 p-4 bg-green-900/30 border border-green-700/50 text-green-300 rounded-lg">
+    {{.Success}}
+  </div>
+  {{end}}
+  {{if .Error}}
+  <div class="mb-4 p-4 bg-red-900/30 border border-red-700/50 text-red-300 rounded-lg">
+    {{.Error}}
+  </div>
+  {{end}}
+
+  <!-- Groups -->
   {{if .Groups}}
     {{range .Groups}}
-      <div class="card group-card">
-        <div class="group-header group-header-container">
-          <div class="group-header-left">
-            <h3>
+      <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg mb-4 overflow-hidden">
+        <!-- Group Header -->
+        <div class="flex items-center justify-between p-4 border-b border-dark-border">
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-semibold text-gray-100 m-0">
               {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}
-              {{if .Name}}
-                <button type="button" class="icon edit" data-action="rename-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Rename group">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
-                  </svg>
-                </button>
-                <button type="button" class="icon delete" data-action="delete-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Delete group" aria-label="Delete group">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
-                  </svg>
-                </button>
-                <button type="button" class="icon add-to-group" data-action="add-monitor-to-group" data-group-id="{{.ID}}" title="Add monitor to this group" aria-label="Add monitor to group" style="color: #4caeff;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                  </svg>
-                </button>
-              {{end}}
             </h3>
+            {{if .Name}}
+              <button type="button" class="p-1.5 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-900/20 rounded transition-colors" data-action="rename-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Rename group">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+                </svg>
+              </button>
+              <button type="button" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded transition-colors" data-action="delete-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Delete group">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
+                </svg>
+              </button>
+              <button type="button" class="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded transition-colors" data-action="add-monitor-to-group" data-group-id="{{.ID}}" title="Add monitor to this group">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+              </button>
+            {{end}}
           </div>
           {{if .Name}}
-          <div class="group-header-right">
-            <form class="btn-group-move inline-form" data-group-id="{{.ID}}" data-move="up" action="#" method="post">
-              <button type="submit" title="Move group up" class="icon">▲</button>
+          <div class="flex items-center gap-1">
+            <form class="inline-block btn-group-move" data-group-id="{{.ID}}" data-move="up" action="#" method="post">
+              <button type="submit" title="Move group up" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors">▲</button>
             </form>
-            <form class="btn-group-move inline-form" data-group-id="{{.ID}}" data-move="down" action="#" method="post">
-              <button type="submit" title="Move group down" class="icon">▼</button>
+            <form class="inline-block btn-group-move" data-group-id="{{.ID}}" data-move="down" action="#" method="post">
+              <button type="submit" title="Move group down" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors">▼</button>
             </form>
           </div>
           {{end}}
         </div>
-        <div class="group-body">
-          <table data-group-id="{{.ID}}" class="draggable-table">
-            <thead>
+
+        <!-- Monitors Table -->
+        <div class="overflow-x-auto">
+          <table data-group-id="{{.ID}}" class="draggable-table w-full">
+            <thead class="bg-gray-800/30">
               <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th class="col-actions">Actions</th>
+                <th class="w-10 px-2 py-3"></th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Name</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Type</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Status</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-300">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody class="divide-y divide-gray-800/50">
               {{if .Monitors}}
               {{range .Monitors}}
-              <tr class="draggable-row" draggable="true" data-id="{{.ID}}">
-                <td><strong>{{.Name}}</strong><div class="muted">{{.Target}}</div></td>
-                <td>{{.Type}}</td>
-                <td>
+              <tr class="draggable-row hover:bg-gray-800/30 transition-colors cursor-grab" draggable="true" data-id="{{.ID}}">
+                <td class="w-10 px-2 py-3 text-gray-500">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                    <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                    <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                  </svg>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="font-medium text-gray-200">{{.Name}}</div>
+                  <div class="text-sm text-gray-400">{{.Target}}</div>
+                </td>
+                <td class="px-4 py-3 text-gray-300">{{.Type}}</td>
+                <td class="px-4 py-3">
                   {{if not .Enabled}}
-                    <span class="badge status-disabled">Disabled</span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">Disabled</span>
                   {{else}}
                     {{if .MasterDown}}
-                      <span class="badge status-unknown" title="Master monitor is down">Master down</span>
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" title="Master monitor is down">Master down</span>
                     {{else}}
-                      <span class="badge {{statusClass .Status}}">{{.Status}}</span>
+                      {{if eq .Status "up"}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50">Up</span>
+                      {{else if eq .Status "down"}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/50 text-red-300 border border-red-700/50">Down</span>
+                      {{else}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50">Unknown</span>
+                      {{end}}
                     {{end}}
                   {{end}}
                 </td>
-                <td>
-                  <div class="actions">
-                    <button type="button" class="icon edit" data-action="edit-monitor" data-monitor-id="{{.ID}}" title="Edit">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <td class="px-4 py-3">
+                  <div class="flex items-center justify-end gap-1">
+                    <button type="button" class="p-1.5 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-900/20 rounded transition-colors" data-action="edit-monitor" data-monitor-id="{{.ID}}" title="Edit">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
                       </svg>
                     </button>
-                    <button type="button" class="icon delete" data-action="delete-monitor" data-monitor-id="{{.ID}}" data-monitor-name="{{.Name}}" title="Delete">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <button type="button" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded transition-colors" data-action="delete-monitor" data-monitor-id="{{.ID}}" data-monitor-name="{{.Name}}" title="Delete">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
                       </svg>
                     </button>
@@ -94,6 +126,10 @@
                 </td>
               </tr>
               {{end}}
+              {{else}}
+              <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-400">No monitors in this group</td>
+              </tr>
               {{end}}
             </tbody>
           </table>
@@ -101,15 +137,83 @@
       </div>
     {{end}}
   {{else}}
-    <p class="muted">No monitors configured yet.</p>
+    <p class="text-gray-400 text-center py-8">No monitors configured yet.</p>
   {{end}}
 </div>
 
-<!-- Create modal -->
+<!-- Modals -->
+<style>
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem; }
+.modal-backdrop.show { display: flex; }
+.modal { background: rgba(24,24,24,0.95); border: 1px solid rgba(160,160,160,0.2); border-radius: 12px; max-width: 42rem; width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid rgba(160,160,160,0.2); }
+.modal header h3 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #f3f4f6; }
+.modal header .close { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 1.75rem; line-height: 1; padding: 0.25rem; transition: color 0.2s; }
+.modal header .close:hover { color: #fff; }
+.modal form { padding: 1.5rem; }
+.modal .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.modal .form-row > div { display: flex; flex-direction: column; }
+.modal label { font-size: 0.875rem; font-weight: 500; color: #d1d5db; margin-bottom: 0.375rem; }
+.modal input[type="text"], .modal input[type="number"], .modal select, .modal textarea {
+  padding: 0.5rem 0.75rem;
+  background: rgba(31,41,55,0.5);
+  border: 1px solid rgba(107,114,128,0.5);
+  border-radius: 0.5rem;
+  color: #e5e7eb;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+.modal input:focus, .modal select:focus, .modal textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.modal input[type="checkbox"] { width: 1rem; height: 1rem; }
+.modal .checkbox-row label { display: flex; align-items: center; gap: 0.5rem; }
+.modal .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(160,160,160,0.2); }
+.modal button[type="submit"], .modal button.primary {
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.modal button[type="submit"]:hover, .modal button.primary:hover { background: #2563eb; }
+.modal button.danger {
+  padding: 0.5rem 1rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.modal button.danger:hover { background: #b91c1c; }
+.modal button[type="button"]:not(.close):not(.danger):not(.primary) {
+  padding: 0.5rem 1rem;
+  background: rgba(107,114,128,0.3);
+  color: #d1d5db;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.modal button[type="button"]:not(.close):not(.danger):not(.primary):hover {
+  background: rgba(107,114,128,0.5);
+}
+.muted { color: #9ca3af; }
+</style>
+
+<!-- Create Modal -->
 <div id="modal-new" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-new-title">
+  <div class="modal" role="dialog" aria-modal="true">
     <header>
-      <h3 id="modal-new-title">Create monitor</h3>
+      <h3>Create monitor</h3>
       <button class="close" type="button" data-close>&times;</button>
     </header>
     <form id="form-create-monitor" action="#" method="post">
@@ -127,15 +231,15 @@
       <div class="form-row">
         <div>
           <label for="new-name">Name</label>
-          <input id="new-name" name="name" type="text" required placeholder="Monitor name (e.g., Google DNS)">
+          <input id="new-name" name="name" type="text" required placeholder="Monitor name">
         </div>
         <div>
           <label for="new-target">Target</label>
           <input id="new-target" name="target" type="text" placeholder="URL / Host / IP" required>
         </div>
       </div>
-      <div class="form-row">
-        <div id="new-cert-validation-div" style="display: none;">
+      <div id="new-cert-validation-div" class="form-row" style="display: none;">
+        <div>
           <label for="new-cert-validation">Certificate Validation</label>
           <select id="new-cert-validation" name="cert_validation">
             <option value="full" selected>Valid (Full validation)</option>
@@ -193,7 +297,7 @@
           <input id="new-fail-threshold" name="fail_threshold" type="number" min="1" value="3">
         </div>
       </div>
-      <div class="form-row">
+      <div class="form-row checkbox-row">
         <label><input type="checkbox" name="enabled" value="true" checked> Enabled</label>
       </div>
       <div class="actions">
@@ -201,13 +305,13 @@
       </div>
     </form>
   </div>
-  </div>
+</div>
 
-<!-- Universal Edit Monitor Modal -->
+<!-- Edit Monitor Modal -->
 <div id="modal-edit-monitor" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-monitor-title">
+  <div class="modal" role="dialog" aria-modal="true">
     <header>
-      <h3 id="modal-edit-monitor-title">Edit monitor</h3>
+      <h3>Edit monitor</h3>
       <button class="close" type="button" data-close>&times;</button>
     </header>
     <form id="form-edit-monitor" action="#" method="post">
@@ -232,8 +336,8 @@
           <input name="target" type="text" required>
         </div>
       </div>
-      <div class="form-row">
-        <div class="cert-validation-div" style="display: none;">
+      <div class="form-row cert-validation-div" style="display: none;">
+        <div>
           <label>Certificate Validation</label>
           <select name="cert_validation">
             <option value="full">Valid (Full validation)</option>
@@ -258,9 +362,7 @@
           <select name="group_id">
             <option value="0">Ungrouped</option>
             {{range .Groups}}
-              {{if .Name}}
-                <option value="{{.ID}}">{{.Name}}</option>
-              {{end}}
+              {{if .Name}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
             {{end}}
           </select>
         </div>
@@ -291,7 +393,7 @@
           <input name="fail_threshold" type="number" min="1">
         </div>
       </div>
-      <div class="form-row">
+      <div class="form-row checkbox-row">
         <label><input type="checkbox" name="enabled" value="true"> Enabled</label>
       </div>
       <div class="actions">
@@ -301,16 +403,16 @@
   </div>
 </div>
 
-<!-- Universal Delete Monitor Modal -->
+<!-- Delete Monitor Modal -->
 <div id="modal-delete-monitor" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-monitor-title">
+  <div class="modal" role="dialog" aria-modal="true">
     <header>
-      <h3 id="modal-delete-monitor-title">Delete monitor</h3>
+      <h3>Delete monitor</h3>
       <button class="close" type="button" data-close>&times;</button>
     </header>
     <form id="form-delete-monitor" action="#" method="post">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <p id="delete-monitor-message">Are you sure you want to delete this monitor? This action cannot be undone.</p>
+      <p id="delete-monitor-message">Are you sure?</p>
       <div class="actions">
         <button type="button" data-close>Cancel</button>
         <button type="submit" class="danger">Delete</button>
@@ -321,9 +423,9 @@
 
 <!-- Create Group Modal -->
 <div id="modal-new-group" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-new-group-title">
+  <div class="modal" role="dialog" aria-modal="true">
     <header>
-      <h3 id="modal-new-group-title">Create group</h3>
+      <h3>Create group</h3>
       <button class="close" type="button" data-close>&times;</button>
     </header>
     <form id="form-create-group" method="post" action="#">
@@ -331,7 +433,7 @@
       <div class="form-row">
         <div>
           <label>Group name</label>
-          <input name="name" type="text" required placeholder="Group name (e.g., Google)">
+          <input name="name" type="text" required placeholder="Group name">
         </div>
       </div>
       <div class="actions">
@@ -339,13 +441,13 @@
       </div>
     </form>
   </div>
-  </div>
+</div>
 
-<!-- Universal Rename Group Modal -->
+<!-- Rename Group Modal -->
 <div id="modal-rename-group" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-rename-group-title">
+  <div class="modal" role="dialog" aria-modal="true">
     <header>
-      <h3 id="modal-rename-group-title">Rename group</h3>
+      <h3>Rename group</h3>
       <button class="close" type="button" data-close>&times;</button>
     </header>
     <form id="form-rename-group" method="post" action="#">
@@ -363,17 +465,17 @@
   </div>
 </div>
 
-<!-- Universal Delete Group Modal -->
+<!-- Delete Group Modal -->
 <div id="modal-delete-group" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-delete-group-title">
+  <div class="modal" role="dialog" aria-modal="true">
     <header>
-      <h3 id="modal-delete-group-title">Delete group</h3>
+      <h3>Delete group</h3>
       <button class="close" type="button" data-close>&times;</button>
     </header>
     <form id="form-delete-group" method="post" action="#">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <p id="delete-group-message">Delete this group?</p>
-      <div class="form-row">
+      <div class="form-row checkbox-row">
         <label><input type="checkbox" name="delete_monitors"> Also delete monitors in this group</label>
       </div>
       <p class="muted">If unchecked, monitors will be moved to Ungrouped.</p>
@@ -384,7 +486,6 @@
     </form>
   </div>
 </div>
-
 <script>
 (function(){
   // Import SortableJS
@@ -405,7 +506,7 @@
             placeholder = document.createElement('tr');
             placeholder.className = 'placeholder';
             const td = document.createElement('td');
-            td.colSpan = 5;
+            td.colSpan = 6;
             td.textContent = 'Drop monitors here';
             placeholder.appendChild(td);
             tbody.appendChild(placeholder);
@@ -814,7 +915,7 @@
       const move = f.getAttribute('data-move');
       const res = await api('/api/groups/'+id, { method:'PUT', body: JSON.stringify({move}) });
       if(!res.ok) throw new Error('move failed');
-      window.location.reload();
+      window.location.href = window.location.pathname + '?t=' + Date.now();
     }catch(err){ alert('Failed to reorder group'); }});
   });
 
