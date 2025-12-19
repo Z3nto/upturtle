@@ -1,9 +1,10 @@
 services:
   upturtle:
-    build: .
+    image: ghcr.io/z3nto/upturtle:main
     container_name: upturtle
     ports:
       - "8080:8080"
+    user: 1002:10001
     environment:
       LISTEN_ADDR: ":8080"
       UPTURTLE_CONFIG_PATH: "/conf/config.json"
