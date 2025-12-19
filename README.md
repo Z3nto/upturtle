@@ -1,355 +1,316 @@
+# Upturtle
 
-<div align="center" width="100%">
-    <img src="./internal/server/static/logo.png" width="200" alt="" />
-</div>
+A lightweight, self-hosted uptime monitoring solution written in Go. Monitor your services with HTTP, ICMP (ping), and Docker container health checks, receive notifications via multiple channels, and view status through a web interface.
 
-# 🐢 Upturtle
+## Features
 
-A lightweight, easy-to-use self-hosted monitoring solution written in Go that keeps track of your services and infrastructure with real-time status updates and flexible notification options.
+- **ICMP**, **HTTP/S**, **Docker** monitoring
+- **Master/Dependency Monitoring**: Suppress notifications when a master service is down
+- **Status Pages**: Create public status pages with selected monitors
+- **Flexible Grouping**: Organize monitors into custom groups
+- **Multi-channel Notifications**: Integration with Discord, Slack, Telegram, and more via [Shoutrrr](https://containrrr.dev/shoutrrr/)
+- **User Management**: Multi-user support with role-based access control (admin, write, readonly)
+- **API Access**: RESTful API with API key authentication
 
-## ✨ Features
 
-### Core Monitoring
-- **Multi-Protocol Monitoring**: HTTP/HTTPS and ICMP (ping) monitoring
-- **Real-time Dashboard**: Clean web interface with automatic status updates
-- **Flexible Certificate Validation**: Choose between full validation or expiry-only checks for HTTPS monitors
-- **Master-Slave Dependencies**: Configure monitor dependencies to avoid alert storms
-- **Configurable Thresholds**: Set custom failure thresholds before notifications are sent
-- **Drag & Drop Reordering**: Easily reorder monitors within groups via drag-and-drop
+## Quick Start
 
-### Public Status Pages
-- **Custom Status Pages**: Create multiple public status pages for different audiences
-- **Slug-based URLs**: Clean, shareable URLs like `/status/your-service`
-- **Monitor Selection**: Choose which monitors to display on each status page
-- **Custom Grouping**: Organize monitors into custom groups per status page
-- **Active/Inactive Control**: Enable or disable status pages without deleting them
-- **Auto-refresh**: Public pages refresh every 30 seconds automatically
-- **No Authentication Required**: Public pages are accessible without login
+### Using Docker Compose
 
-### Notifications
-- **70+ Notification Services**: Integration via [Shoutrrr](https://github.com/containrrr/shoutrrr)
-- **Visual URL Builder**: Easy-to-use form-based notification configuration
-- **Service Templates**: Pre-configured templates for popular services (Discord, Slack, Telegram, etc.)
-
-### Data & Storage
-- **Normalized Database Schema**: Efficient SQLite storage with proper relational tables
-- **Flexible Installation**: Choose between In-Memory Storage and Database Storage
-- **Automatic Cleanup**: Intelligent data retention with configurable cleanup schedules
-
-
-### Administration
-- **Grouping & Organization**: Organize monitors into logical groups with custom ordering
-- **Configurable Debug Logging**: Toggle authentication debug logs via settings page
-- **Secure by Design**: Session-based authentication with bcrypt password hashing
-- **Docker Ready**: Containerized deployment with Docker Compose
-- **Graceful Shutdown**: Proper signal handling for clean shutdowns
-
-## 🚀 Quick Start
-
-### Using Docker Compose (Recommended)
-
-1. Clone the repository:
-```bash
-git clone https://github.com/z3nto/upturtle.git
-cd upturtle
-```
-
-2. Start the application:
-```bash
-docker compose up -d
-```
-
-3. Open your browser and navigate to `http://localhost:8080`
-
-
-### Manual Installation
-
-#### Prerequisites
-- Go 1.24.3 or later
-- `ping` command available (for ICMP monitoring)
-
-#### Build and Run
-```bash
-# Clone the repository
-git clone https://github.com/z3nto/upturtle.git
-cd upturtle
-
-# Build the application
-go build -o upturtle ./cmd/upturtle
-
-# Run the application
-./upturtle
-```
-
-## 📖 Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LISTEN_ADDR` | `:8080` | Address and port to listen on |
-| `UPTURTLE_CONFIG_PATH` | `/conf/config.json` | Path to the configuration file |
-
-### Database Configuration
-
-Upturtle supports two storage modes:
-
-#### In-Memory Storage (Default)
-By default, Upturtle stores measurement data in memory. This is suitable for basic monitoring setups.
-
-#### Database Storage
-For persistent storage and larger deployments, you can configure a database backend. Currently supported:
-
-- **SQLite** - Lightweight, file-based database (recommended for most users)
-- **MySQL** - Full-featured database server (planned for future release)
-
-You can choose the deployment type at the installation page.
-
-
-#### Database Features
-
-When database storage is enabled:
-
-- **Persistent Data**: Measurement data survives application restarts
-- **Per-Day Tables**: Data is organized in daily tables for efficient cleanup
-- **Automatic Cleanup**: Old measurement data is automatically removed (default: 1 day retention)
-- **Live Queries**: Data is read directly from the database (no in-memory cache for less overhead)
-- **Health Monitoring**: Database connectivity is monitored and displayed in the web interface
-- **Configuration Storage**: Admin credentials and settings are stored in the database
-
-#### Database Schema
-
-Upturtle uses a normalized relational database schema for efficient storage:
-
-**Tables:**
-- `monitors` - Monitor configurations with foreign keys to groups and notifications
-- `groups` - Group definitions with support for default and status page groups
-- `notifications` - Notification channel configurations
-- `settings` - Key-value store for application settings
-- `status_pages` - Public status page configurations
-- `status_page_monitors` - Many-to-many relationship between status pages and monitors
-- `history_YYYYMMDD` - Daily tables for time-series data (auto-created and cleaned up)
-
-#### Data Retention
-
-- **Default**: 1 day 
-- **Cleanup Schedule**: Daily at 00:01 AM
-- **Method**: Old daily tables are dropped entirely for efficient cleanup
-
-#### When to Use Database Storage
-
-**Use In-Memory Storage when:**
-- Running a small number of monitors (< 20)
-- Short-term monitoring needs
-- Minimal disk usage is priority
-- Simple deployment requirements
-
-**Use Database Storage when:**
-- Need persistent historical data
-- Running many monitors or high-frequency checks
-- Require data analysis or reporting
-- Planning for horizontal scaling
-- Want to survive application restarts without data loss
-
-### Monitor Types
-
-#### HTTP/HTTPS Monitoring
-- Monitors web services and APIs
-- Supports custom timeouts and intervals
-- Validates response codes and measures latency
-- **Certificate Validation Modes**:
-  - **Full Validation** (default): Validates certificate chain, hostname, expiry, and trust
-  - **Expiry Only**: Skips certificate validation but warns if certificate expires within 30 days
-
-#### ICMP (Ping) Monitoring  
-- Tests network connectivity to hosts
-- Measures round-trip time
-- Validates against command injection attacks
-
-### Notification Services
-
-Upturtle supports 70+ notification services through Shoutrrr, including:
-
-- **Chat**: Discord, Slack, Microsoft Teams, Telegram, Matrix
-- **Email**: SMTP, Gmail, Outlook
-- **Push**: Pushover, Pushbullet, Gotify
-- **Webhooks**: Generic HTTP webhooks
-- **And many more...**
-
-#### Easy Configuration with Visual Builder
-
-Instead of manually crafting Shoutrrr URLs, Upturtle provides a user-friendly form-based interface:
-
-1. Select your notification service from the dropdown
-2. Fill in the required fields (tokens, channels, recipients, etc.)
-3. The URL is automatically generated in the correct format
-4. Test your notification before saving
-
-Example notification URLs:
-```
-discord://token@channel
-slack://token:token@channel
-telegram://token@chatid
-smtp://user:password@host:port/?to=recipient@example.com
-```
-
-## 🏗️ Architecture
-
-```
-upturtle/
-├── cmd/upturtle/          # Application entry point
-├── internal/
-│   ├── config/           # Configuration management
-│   ├── database/         # Database interface and SQLite implementation
-│   ├── monitor/          # Monitoring logic and types
-│   ├── notifier/         # Notification handling
-│   └── server/           # Web server and API
-│       ├── static/       # Static web assets
-│       └── templates/    # HTML templates
-├── docker-compose.yml    # Docker Compose configuration
-├── Dockerfile           # Container build instructions
-└── go.mod              # Go module definition
-```
-
-## 🔌 API Endpoints
-
-Upturtle provides a RESTful API for programmatic access:
-
-### Monitors
-- `GET /api/monitors` - List all monitors
-- `GET /api/monitors/{id}` - Get monitor details
-- `POST /api/monitors` - Create new monitor
-- `PUT /api/monitors/{id}` - Update monitor
-- `DELETE /api/monitors/{id}` - Delete monitor
-- `POST /api/monitors/reorder` - Reorder monitors via drag-and-drop
-
-### Groups
-- `GET /api/groups` - List all groups
-- `POST /api/groups` - Create new group
-- `PUT /api/groups/{id}` - Update group
-- `DELETE /api/groups/{id}` - Delete group
-
-### Notifications
-- `GET /api/notifications` - List all notification channels
-- `GET /api/notifications/{id}` - Get notification details
-- `POST /api/notifications` - Create notification channel
-- `PUT /api/notifications/{id}` - Update notification channel
-- `DELETE /api/notifications/{id}` - Delete notification channel
-
-### Status Pages
-- `GET /api/statuspages` - List all status pages
-- `GET /api/statuspages/{id}` - Get status page details
-- `POST /api/statuspages` - Create status page
-- `PUT /api/statuspages/{id}` - Update status page
-- `DELETE /api/statuspages/{id}` - Delete status page
-
-### Settings
-- `GET /api/settings` - Get application settings
-- `POST /api/settings` - Update settings
-
-All API endpoints require authentication via session cookies and include CSRF protection.
-
-
-## ⚙️ Administration Features
-
-### Settings Management
-
-Access settings via **Admin → Settings**:
-
-- **Data Retention**: Configure how long measurement data is kept (default: 1 day)
-- **Authentication Debug**: Toggle detailed authentication logging for troubleshooting login issues
-- **Database Health**: View database connectivity status and error information
-
-### Monitor Management
-
-- **Drag & Drop Reordering**: Click and drag monitors to reorder them within groups
-
-### Group Management
-
-- **Default Groups**: Standard groups for organizing monitors in the admin interface
-- **Status Page Groups**: Separate groups specific to each public status page
-- **Custom Ordering**: Control the display order of groups and monitors
-
-## 🔒 Security Considerations
-
-Upturtle implements several security measures:
-
-- **Session-based Authentication**: Secure session management with bcrypt password hashing
-- **CSRF Protection**: Cross-site request forgery tokens on all state-changing operations
-- **Input Validation**: Strict validation for ICMP targets to prevent command injection
-- **Non-root Container**: Docker container runs as non-privileged user (UID 10001)
-- **Atomic Configuration Updates**: Configuration changes are written atomically
-- **Timeout Protection**: All network operations have configurable timeouts
-- **Configurable Debug Logging**: Authentication debug logs can be disabled in production
-
-### Security Notes
-- Ensure you're running the latest version
-- Use strong admin passwords
-- Consider running behind a reverse proxy with HTTPS
-- Regularly review your notification configurations
-- Monitor the application logs for suspicious activity
-- Disable authentication debug logging in production environments
-
-## 🐳 Docker Configuration
-
-The included `docker-compose.yml` provides a complete setup:
+1. Create a `docker-compose.yml` file:
 
 ```yaml
 services:
   upturtle:
-    build: .
+    image: ghcr.io/z3nto/upturtle:main
     container_name: upturtle
     ports:
       - "8080:8080"
+    user: 1001:10001 # only if you use bind mounts
     environment:
       LISTEN_ADDR: ":8080"
       UPTURTLE_CONFIG_PATH: "/conf/config.json"
     volumes:
       - upturtle_conf:/conf
-      - upturtle_data:/data  # For SQLite database storage
+      - upturtle_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro # only if you want to monitor docker containers
     restart: unless-stopped
 
 volumes:
   upturtle_conf:
-  upturtle_data:  # Persistent storage for database
+  upturtle_data:
 ```
 
-## 📊 Monitoring Best Practices
+2. Start the service:
 
-1. **Group Related Services**: Use groups to organize monitors logically
-2. **Set Appropriate Intervals**: Balance between responsiveness and resource usage
-3. **Configure Failure Thresholds**: Avoid false alarms with reasonable thresholds (default: 3)
-4. **Use Master-Slave Dependencies**: Prevent notification storms during network outages
-5. **Test Notifications**: Verify your notification channels are working
-6. **Monitor the Monitor**: Keep an eye on Upturtle's own resource usage
-7. **Use Public Status Pages**: Create dedicated status pages for customers or teams
-8. **Certificate Validation**: Use "expiry_only" mode for self-signed certificates while still tracking expiry dates
+```bash
+docker-compose up -d
+```
 
-## 🌐 Public Status Pages
+3. Access the web interface at `http://localhost:8080`
 
-Upturtle allows you to create multiple public status pages that can be shared with customers, teams, or stakeholders without requiring authentication.
+4. Complete the installation wizard to set up your admin credentials
 
-c
+> **Note on Bind Mounts**: If you use bind mounts instead of named volumes (e.g., `-v /path/on/host:/conf`), you must create the directories beforehand and set the correct permissions. The application runs as user `1001`, so ensure this user has read/write access:
+> ```bash
+> mkdir -p /path/to/conf /path/to/data
+> chown -R 1001:1001 /path/to/conf /path/to/data
+> ```
+
+### Using Docker
+
+```bash
+docker run -d \
+  --name upturtle \
+  -p 8080:8080 \
+  -v upturtle_conf:/conf \
+  -v upturtle_data:/data \
+  -e LISTEN_ADDR=":8080" \
+  -e UPTURTLE_CONFIG_PATH="/conf/config.json" \
+  ghcr.io/z3nto/upturtle:main
+```
+
+### Building from Source
+
+Requirements:
+- Go 1.24.3 or later
+- GCC (for SQLite support)
+
+```bash
+# Clone the repository
+git clone https://github.com/Z3nto/upturtle.git
+cd upturtle
+
+# Build the binary
+CGO_ENABLED=1 go build -o upturtle ./cmd/upturtle
+
+# Run the application
+./upturtle
+```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LISTEN_ADDR` | `:8080` | HTTP server listen address |
+| `UPTURTLE_CONFIG_PATH` | `/conf/config.json` | Path to configuration file |
+### Configuration File
+
+The configuration file (`config.json`) stores different data depending on the mode:
+
+#### In-Memory Mode (without database)
+- Admin credentials (bcrypt hashed password)
+- Monitor definitions
+- Groups and their ordering
+- Notification targets
+- Status page definitions
+- Debug flags
+
+#### SQLite Mode (with database configured)
+- Database configuration
+
+When database is enabled, the following are loaded from the database instead of the config file:
+- Monitor definitions
+- Groups and their ordering
+- Notification targets
+- Status page definitions
+- User accounts
+
+Example configuration:
+
+```json
+{
+  "admin_user": "admin",
+  "admin_password_hash": "$2a$10$...",
+  "database": {
+    "type": "sqlite",
+    "path": "/data/upturtle.db"
+  },
+  "groups": [
+    {
+      "id": 1,
+      "name": "Web Services",
+      "type": "default",
+      "order": 1
+    }
+  ],
+  "notifications": [
+    {
+      "id": 1,
+      "name": "Discord Alerts",
+      "url": "discord://token@id"
+    }
+  ],
+  "monitors": [
+    {
+      "id": "1",
+      "name": "Example Website",
+      "type": "http",
+      "target": "https://example.com",
+      "interval_seconds": 60,
+      "timeout_seconds": 10,
+      "notification_id": 1,
+      "enabled": true,
+      "group_id": 1,
+      "fail_threshold": 3,
+      "cert_validation": "full"
+    }
+  ],
+  "status_pages": [
+    {
+      "id": 1,
+      "name": "Public Status",
+      "slug": "status",
+      "active": true,
+      "monitors": [
+        {
+          "monitor_id": "1",
+          "group_id": 1,
+          "order": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Monitor Types
+
+### HTTP/HTTPS Monitor
+
+```json
+{
+  "type": "http",
+  "target": "https://example.com",
+  "timeout_seconds": 10,
+  "cert_validation": "full"
+}
+```
+
+Certificate validation modes:
+- `full`: Complete certificate validation (default)
+- `expiry`: Only check certificate expiration
+- `ignore`: Skip all certificate validation
+
+### ICMP Monitor
+
+```json
+{
+  "type": "icmp",
+  "target": "8.8.8.8",
+  "timeout_seconds": 5
+}
+```
+
+### Docker Monitor
+
+```json
+{
+  "type": "docker",
+  "target": "container_name_or_id",
+  "timeout_seconds": 5
+}
+```
+
+Note: Docker monitoring requires access to the Docker socket. Mount `/var/run/docker.sock` when running in Docker.
+
+## Notifications
+
+Upturtle uses [Shoutrrr](https://containrrr.dev/shoutrrr/) for notifications, supporting:
+
+- Discord
+- Slack
+- Telegram
+- Email (SMTP)
+- Gotify
+- Pushover
+- And many more...
+
+### Example Notification URLs
+
+**Discord:**
+```
+discord://token@id
+```
+
+**Slack:**
+```
+slack://token@channel
+```
+
+**Telegram:**
+```
+telegram://token@telegram?chats=@chat_id
+```
+
+See the [Shoutrrr documentation](https://containrrr.dev/shoutrrr/v0.8/services/overview/) for all supported services.
+
+## User Management
+
+When database is configured, Upturtle supports multi-user access with three roles:
+
+- **Admin**: Full access including user management
+- **Write**: Can manage monitors, notifications, and status pages
+- **Readonly**: Can only view the main status page
+
+Users can be managed through the admin interface at `/admin/users`.
+
+## API Access
+
+### Authentication
+
+API endpoints require authentication via:
+1. Session cookie (for web interface)
+2. API key in `X-API-Key` header
+
+### Creating API Keys
+
+1. Log in to the admin interface
+2. Navigate to Settings → API Keys
+3. Create a new API key
+4. Use the key in the `X-API-Key` header
+
+### Example API Requests
+
+**List all monitors:**
+```bash
+curl -H "X-API-Key: your-api-key" http://localhost:8080/api/monitors
+```
+
+**Get monitor details:**
+```bash
+curl -H "X-API-Key: your-api-key" http://localhost:8080/api/monitors/1
+```
+
+**Create a monitor:**
+```bash
+curl -X POST -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Monitor",
+    "type": "http",
+    "target": "https://example.com",
+    "interval_seconds": 60,
+    "timeout_seconds": 10,
+    "enabled": true
+  }' \
+  http://localhost:8080/api/monitors
+```
 
 
-## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## License
 
-## 🙏 Acknowledgments
+See [LICENSE](LICENSE) file for details.
 
-- [Shoutrrr](https://github.com/containrrr/shoutrrr) for the excellent notification library
-- [Logrus](https://github.com/sirupsen/logrus) for structured logging
-- The Go community for the amazing ecosystem
+## Support
 
-## 📞 Support
+For issues, questions, or feature requests, please open an issue on GitHub.
 
-If you encounter any issues or have questions:
+## Acknowledgments
 
-1. Check the [Issues](https://github.com/z3nto/upturtle/issues) page
-2. Create a new issue with detailed information about your problem
-3. Include logs, configuration (sanitized), and steps to reproduce
-
----
-
-**Made with ❤️ and Go**
+- [Shoutrrr](https://containrrr.dev/shoutrrr/) for notification delivery
+- [Docker SDK](https://github.com/docker/docker) for container monitoring
+- Go community for excellent tooling and libraries
