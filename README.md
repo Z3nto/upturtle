@@ -1,6 +1,10 @@
-# Upturtle
+<div align="center" width="100%">
+    <img src="./internal/server/static/logo.png" width="200" alt="" />
+</div>
 
-A lightweight, self-hosted uptime monitoring solution written in Go. Monitor your services with HTTP, ICMP (ping), and Docker container health checks, receive notifications via multiple channels, and view status through a web interface.
+# 🐢 Upturtle
+
+A lightweight, easy-to-use self-hosted monitoring solution written in Go that keeps track of your services and infrastructure with real-time status updates and flexible notification options.
 
 ## Features
 
