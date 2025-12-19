@@ -156,8 +156,8 @@
 .modal label { font-size: 0.875rem; font-weight: 500; color: #d1d5db; margin-bottom: 0.375rem; }
 .modal input[type="text"], .modal input[type="number"], .modal select, .modal textarea {
   padding: 0.5rem 0.75rem;
-  background: rgba(31,41,55,0.5);
-  border: 1px solid rgba(107,114,128,0.5);
+  background: rgba(31,31,35,0.8);
+  border: 1px solid rgba(160,160,160,0.25);
   border-radius: 0.5rem;
   color: #e5e7eb;
   font-size: 0.875rem;
@@ -165,8 +165,9 @@
 }
 .modal input:focus, .modal select:focus, .modal textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+  border-color: rgba(99,102,241,0.6);
+  background: rgba(31,31,35,0.95);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
 }
 .modal input[type="checkbox"] { width: 1rem; height: 1rem; }
 .modal .checkbox-row label { display: flex; align-items: center; gap: 0.5rem; }
@@ -225,6 +226,7 @@
           <select id="new-type" name="type">
             <option value="http">HTTP(S)</option>
             <option value="icmp" selected>ICMP</option>
+            <option value="docker">Docker Container</option>
           </select>
         </div>
       </div>
@@ -236,6 +238,9 @@
         <div>
           <label for="new-target">Target</label>
           <input id="new-target" name="target" type="text" placeholder="URL / Host / IP" required>
+          <select id="new-target-docker" name="target_docker" style="display: none;" disabled>
+            <option value="">Loading containers...</option>
+          </select>
         </div>
       </div>
       <div id="new-cert-validation-div" class="form-row" style="display: none;">
@@ -323,6 +328,7 @@
           <select name="type">
             <option value="http">HTTP(S)</option>
             <option value="icmp">ICMP</option>
+            <option value="docker">Docker Container</option>
           </select>
         </div>
       </div>
@@ -334,6 +340,9 @@
         <div>
           <label>Target</label>
           <input name="target" type="text" required>
+          <select name="target_docker" style="display: none;" disabled>
+            <option value="">Loading containers...</option>
+          </select>
         </div>
       </div>
       <div class="form-row cert-validation-div" style="display: none;">
@@ -592,15 +601,94 @@
     }
   }
   
-  function toggleTargetValidation(typeSelect, targetInput) {
-    if (typeSelect && targetInput) {
+  // Cache for Docker containers to avoid repeated API calls
+  let dockerContainersCache = null;
+  let dockerContainersLoading = false;
+  
+  async function loadDockerContainers() {
+    if (dockerContainersCache) return dockerContainersCache;
+    if (dockerContainersLoading) return null;
+    
+    dockerContainersLoading = true;
+    try {
+      const res = await (window.apiFetch || fetch)('/api/docker/containers', { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('Failed to load containers');
+      dockerContainersCache = await res.json();
+      return dockerContainersCache;
+    } catch (err) {
+      console.error('Failed to load Docker containers:', err);
+      return [];
+    } finally {
+      dockerContainersLoading = false;
+    }
+  }
+  
+  function populateDockerSelect(selectEl, currentValue) {
+    if (!selectEl) return;
+    
+    loadDockerContainers().then(function(containers) {
+      selectEl.innerHTML = '';
+      
+      if (!containers || containers.length === 0) {
+        selectEl.innerHTML = '<option value="">No containers found</option>';
+        return;
+      }
+      
+      // Add placeholder option
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a container...';
+      selectEl.appendChild(placeholder);
+      
+      // Add containers
+      containers.forEach(function(c) {
+        const opt = document.createElement('option');
+        opt.value = c.name || c.id;
+        opt.textContent = c.name + ' (' + c.state + ')';
+        if (currentValue && (c.name === currentValue || c.id === currentValue)) {
+          opt.selected = true;
+        }
+        selectEl.appendChild(opt);
+      });
+    });
+  }
+  
+  function toggleTargetValidation(typeSelect, targetInput, targetDockerSelect) {
+    if (!typeSelect || !targetInput) return;
+    
+    const isDocker = typeSelect.value === 'docker';
+    
+    if (isDocker) {
+      // Show Docker dropdown, hide text input
+      targetInput.style.display = 'none';
+      targetInput.disabled = true;
+      targetInput.removeAttribute('required');
+      
+      if (targetDockerSelect) {
+        targetDockerSelect.style.display = 'block';
+        targetDockerSelect.disabled = false;
+        targetDockerSelect.setAttribute('required', 'required');
+        populateDockerSelect(targetDockerSelect, targetInput.value);
+      }
+    } else {
+      // Show text input, hide Docker dropdown
+      targetInput.style.display = 'block';
+      targetInput.disabled = false;
+      targetInput.setAttribute('required', 'required');
+      
+      if (targetDockerSelect) {
+        targetDockerSelect.style.display = 'none';
+        targetDockerSelect.disabled = true;
+        targetDockerSelect.removeAttribute('required');
+      }
+      
+      // Set validation for non-Docker types
       if (typeSelect.value === 'icmp') {
-        // For ICMP monitors, prevent URLs with schema
         targetInput.setAttribute('pattern', '^(?!.*:\/\/).*$');
         targetInput.setAttribute('title', 'For ICMP monitors, enter hostname or IP address without http:// or https://');
         targetInput.placeholder = 'Host / IP';
       } else {
-        // For HTTP monitors, allow URLs
+        // HTTP monitors
         targetInput.setAttribute('pattern', '^(https?:\/\/).+$');
         targetInput.setAttribute('title', 'Enter full URL for HTTP monitors');
         targetInput.placeholder = 'https://example.com';
@@ -633,17 +721,18 @@
   const newTypeSelect = document.getElementById('new-type');
   const newCertDiv = document.getElementById('new-cert-validation-div');
   const newTargetInput = document.getElementById('new-target');
+  const newTargetDockerSelect = document.getElementById('new-target-docker');
   if (newTypeSelect && newCertDiv) {
     newTypeSelect.addEventListener('change', function() {
       toggleCertValidation(newTypeSelect, newCertDiv);
       if (newTargetInput) {
-        toggleTargetValidation(newTypeSelect, newTargetInput);
+        toggleTargetValidation(newTypeSelect, newTargetInput, newTargetDockerSelect);
       }
     });
     // Set initial state
     toggleCertValidation(newTypeSelect, newCertDiv);
     if (newTargetInput) {
-      toggleTargetValidation(newTypeSelect, newTargetInput);
+      toggleTargetValidation(newTypeSelect, newTargetInput, newTargetDockerSelect);
     }
   }
   
@@ -662,11 +751,12 @@
     const typeSelect = editForm.querySelector('select[name="type"]');
     const certDiv = editForm.querySelector('.cert-validation-div');
     const targetInput = editForm.querySelector('input[name="target"]');
+    const targetDockerSelect = editForm.querySelector('select[name="target_docker"]');
     if (typeSelect && certDiv) {
       typeSelect.addEventListener('change', function() {
         toggleCertValidation(typeSelect, certDiv);
         if (targetInput) {
-          toggleTargetValidation(typeSelect, targetInput);
+          toggleTargetValidation(typeSelect, targetInput, targetDockerSelect);
         }
       });
     }
@@ -748,8 +838,9 @@
       const typeSelect = form.querySelector('select[name="type"]');
       const certDiv = form.querySelector('.cert-validation-div');
       const targetInput = form.querySelector('input[name="target"]');
+      const targetDockerSelect = form.querySelector('select[name="target_docker"]');
       toggleCertValidation(typeSelect, certDiv);
-      toggleTargetValidation(typeSelect, targetInput);
+      toggleTargetValidation(typeSelect, targetInput, targetDockerSelect);
       
       // Remove self from master monitor options
       const masterSelect = form.querySelector('select[name="master_id"]');
@@ -846,6 +937,17 @@
   // Create monitor
   const fmNew = document.getElementById('form-create-monitor');
   if(fmNew){ fmNew.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    // Copy Docker select value to target input if Docker type is selected
+    const typeVal = fmNew.querySelector('select[name="type"]').value;
+    if (typeVal === 'docker') {
+      const dockerSelect = fmNew.querySelector('select[name="target_docker"]');
+      const targetInput = fmNew.querySelector('input[name="target"]');
+      if (dockerSelect && targetInput && dockerSelect.value) {
+        targetInput.value = dockerSelect.value;
+        // Temporarily enable the input so it's included in FormData
+        targetInput.disabled = false;
+      }
+    }
     const fd = new FormData(fmNew);
     const payload = {
       name: fd.get('name')||'',
@@ -868,6 +970,17 @@
   // Edit monitor (universal form)
   const editMonitorForm = document.getElementById('form-edit-monitor');
   if(editMonitorForm){ editMonitorForm.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    // Copy Docker select value to target input if Docker type is selected
+    const typeVal = editMonitorForm.querySelector('select[name="type"]').value;
+    if (typeVal === 'docker') {
+      const dockerSelect = editMonitorForm.querySelector('select[name="target_docker"]');
+      const targetInput = editMonitorForm.querySelector('input[name="target"]');
+      if (dockerSelect && targetInput && dockerSelect.value) {
+        targetInput.value = dockerSelect.value;
+        // Temporarily enable the input so it's included in FormData
+        targetInput.disabled = false;
+      }
+    }
     const fd = new FormData(editMonitorForm);
     const id = editMonitorForm.getAttribute('data-monitor-id');
     const payload = {

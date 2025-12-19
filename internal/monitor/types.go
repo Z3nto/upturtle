@@ -17,6 +17,8 @@ const (
 	TypeHTTP Type = "http"
 	// TypeICMP checks hosts using ICMP echo requests.
 	TypeICMP Type = "icmp"
+	// TypeDocker checks Docker container status via /var/run/docker.sock.
+	TypeDocker Type = "docker"
 )
 
 // Status is the runtime state of a monitor.
@@ -95,6 +97,27 @@ type Notifier interface {
 	Notify(Notification) error
 }
 
+// validateDockerTarget validates Docker container name/ID
+func validateDockerTarget(target string) error {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return errors.New("target is required")
+	}
+	
+	// Docker container names/IDs can contain alphanumeric, underscore, period, hyphen
+	// Container names must start with alphanumeric
+	validPattern := `^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`
+	if matched, _ := regexp.MatchString(validPattern, target); !matched {
+		return errors.New("docker target contains invalid characters - only alphanumeric, underscore, period, and hyphen allowed")
+	}
+	
+	if len(target) > 255 {
+		return errors.New("docker target too long - maximum 255 characters")
+	}
+	
+	return nil
+}
+
 // validateICMPTarget validates ICMP target to prevent command injection
 func validateICMPTarget(target string) error {
 	target = strings.TrimSpace(target)
@@ -150,6 +173,13 @@ func (c *MonitorConfig) Validate() error {
 		}
 	case TypeICMP:
 		if err := validateICMPTarget(c.Target); err != nil {
+			return err
+		}
+	case TypeDocker:
+		if c.Target == "" {
+			return errors.New("target is required for docker monitor (container name or ID)")
+		}
+		if err := validateDockerTarget(c.Target); err != nil {
 			return err
 		}
 	default:

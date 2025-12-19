@@ -110,6 +110,8 @@ func (s *Server) routeAPIEndpoint(path, method string) (exists bool, handler API
 		return s.routeStatusEndpoint(subPath, method)
 	case "memory":
 		return s.routeMemoryEndpoint(subPath, method)
+	case "docker":
+		return s.routeDockerEndpoint(subPath, method)
 	default:
 		return false, nil, true
 	}
@@ -2127,4 +2129,31 @@ func (s *Server) routeMemoryEndpoint(subPath, method string) (exists bool, handl
 func (s *Server) apiMemory(r *http.Request) (interface{}, int, error) {
 	memoryUsage := s.manager.GetMemoryUsage()
 	return memoryUsage, http.StatusOK, nil
+}
+
+// ==== API: Docker Routing ====================================================
+
+// routeDockerEndpoint routes /api/docker/* endpoints
+func (s *Server) routeDockerEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
+	requireAuth = true // Require auth for Docker API
+	
+	if subPath == "containers" && method == http.MethodGet {
+		exists = true
+		handler = s.apiDockerContainers
+	} else {
+		return false, nil, true
+	}
+	
+	return exists, handler, requireAuth
+}
+
+// ==== API: Docker Handler Functions ==========================================
+
+// apiDockerContainers returns a list of Docker containers
+func (s *Server) apiDockerContainers(r *http.Request) (interface{}, int, error) {
+	containers, err := listDockerContainers()
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to list Docker containers: %w", err)
+	}
+	return containers, http.StatusOK, nil
 }

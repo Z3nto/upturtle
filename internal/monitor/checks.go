@@ -211,3 +211,7 @@ func pingHost(target string, timeout time.Duration) (time.Duration, error) {
 
 	return 0, errors.New("failed to parse ping latency from output")
 }
+
+func checkDocker(cfg MonitorConfig) CheckResult {
+	return checkDockerContainer(cfg.Target, cfg.Timeout)
+}

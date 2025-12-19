@@ -537,6 +537,8 @@ func (m *Manager) execute(entry *monitorEntry) {
 		result = checkHTTP(cfg)
 	case TypeICMP:
 		result = checkICMP(cfg)
+	case TypeDocker:
+		result = checkDocker(cfg)
 	default:
 		result = CheckResult{
 			Timestamp: time.Now(),

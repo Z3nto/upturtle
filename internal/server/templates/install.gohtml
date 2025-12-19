@@ -30,6 +30,15 @@
         <div class="mb-4">
           <input id="password" name="password" type="password" required placeholder="Password" autocomplete="new-password" 
             class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" />
+          <div id="pw-rules" class="mt-2 text-sm text-gray-400">
+            <div class="font-medium text-gray-300 mb-1">Password requirements:</div>
+            <ul class="space-y-1">
+              <li id="pw-rule-len" class="text-gray-400">At least 8 characters</li>
+              <li id="pw-rule-upper" class="text-gray-400">At least 1 uppercase letter (A-Z)</li>
+              <li id="pw-rule-lower" class="text-gray-400">At least 1 lowercase letter (a-z)</li>
+              <li id="pw-rule-digit" class="text-gray-400">At least 1 digit (0-9)</li>
+            </ul>
+          </div>
         </div>
         
         <div class="mb-6">
@@ -74,7 +83,7 @@
           </small>
         </div>
 
-        <button type="submit" class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-dark-bg">
+        <button id="install-submit" type="submit" class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-dark-bg" disabled>
           Save and Continue
         </button>
     
@@ -94,16 +103,63 @@
         const p1 = form.querySelector('#password');
         const p2 = form.querySelector('#password_confirm');
         const err = form.querySelector('#pw-match-error');
+        const submit = form.querySelector('#install-submit');
+
+        const ruleLen = form.querySelector('#pw-rule-len');
+        const ruleUpper = form.querySelector('#pw-rule-upper');
+        const ruleLower = form.querySelector('#pw-rule-lower');
+        const ruleDigit = form.querySelector('#pw-rule-digit');
+
+        function passwordChecks(password) {
+          const checks = {
+            len: password.length >= 8,
+            upper: /[A-Z]/.test(password),
+            lower: /[a-z]/.test(password),
+            digit: /[0-9]/.test(password)
+          };
+          checks.ok = checks.len && checks.upper && checks.lower && checks.digit;
+          return checks;
+        }
+
+        function setRuleState(el, ok) {
+          if (!el) return;
+          el.classList.toggle('text-green-400', ok);
+          el.classList.toggle('text-gray-400', !ok);
+        }
         
         function validate() {
           // Clear any previous custom error first
+          p1.setCustomValidity('');
           p2.setCustomValidity('');
           if (err) err.classList.add('hidden');
+
+          const checks = passwordChecks(p1.value || '');
+          setRuleState(ruleLen, checks.len);
+          setRuleState(ruleUpper, checks.upper);
+          setRuleState(ruleLower, checks.lower);
+          setRuleState(ruleDigit, checks.digit);
+
+          if (p1.value && !checks.ok) {
+            if (!checks.len) {
+              p1.setCustomValidity('Password must be at least 8 characters long');
+            } else if (!checks.upper) {
+              p1.setCustomValidity('Password must contain at least one uppercase letter');
+            } else if (!checks.lower) {
+              p1.setCustomValidity('Password must contain at least one lowercase letter');
+            } else if (!checks.digit) {
+              p1.setCustomValidity('Password must contain at least one digit');
+            }
+          }
+
           // Only validate when both fields have a value; otherwise let required attribute handle it
           if (p1.value && p2.value && p1.value !== p2.value) {
             p2.setCustomValidity('Passwords do not match');
             if (err) err.classList.remove('hidden');
             // Do not call reportValidity() here to avoid stealing focus while typing
+          }
+
+          if (submit) {
+            submit.disabled = !form.checkValidity();
           }
         }
 
@@ -115,7 +171,11 @@
           if (!form.checkValidity()) {
             e.preventDefault();
             // Surface the validation message to the user
-            p2.reportValidity();
+            if (!p1.checkValidity()) {
+              p1.reportValidity();
+            } else {
+              p2.reportValidity();
+            }
           }
         });
 
