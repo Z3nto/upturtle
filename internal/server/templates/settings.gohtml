@@ -32,16 +32,6 @@
       </div>
     </div>
 
-    <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
-      <h3 class="text-lg font-semibold text-gray-100 mb-4">UI Settings</h3>
-      <div class="grid grid-cols-1 gap-3">
-        <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
-          <input type="checkbox" id="show_database_display" {{if .ShowDatabaseDisplay}}checked{{end}} class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
-          <span>Show Database Display</span>
-        </label>
-      </div>
-    </div>
-
     <div class="flex justify-end">
       <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-dark-bg">Save Settings</button>
     </div>
@@ -70,7 +60,6 @@ document.getElementById('settings-form').addEventListener('submit', async functi
         notification_debug: document.getElementById('notification_debug').checked,
         api_debug: document.getElementById('api_debug').checked,
         auth_debug: document.getElementById('auth_debug').checked,
-        show_database_display: document.getElementById('show_database_display').checked,
         csrf_token: '{{.CSRFToken}}'
       })
     });

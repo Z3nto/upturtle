@@ -261,8 +261,6 @@ type Server struct {
 	notificationDebug bool
 	apiDebug          bool
 	authDebug         bool
-	// UI settings
-	showDatabaseDisplay bool
 	// database configuration
 	databaseConfig *database.Config
 	// persistent database connection (only for config storage)
@@ -292,8 +290,6 @@ type Config struct {
 	NotificationDebug bool
 	ApiDebug          bool
 	AuthDebug         bool
-	// UI settings
-	ShowDatabaseDisplay bool
 	// Database configuration
 	DatabaseConfig *database.Config
 }
@@ -330,7 +326,6 @@ func New(cfg Config) (*Server, error) {
 		notificationDebug: cfg.NotificationDebug,
 		apiDebug:          cfg.ApiDebug,
 		authDebug:         cfg.AuthDebug,
-		showDatabaseDisplay: cfg.ShowDatabaseDisplay,
 		databaseConfig:    cfg.DatabaseConfig,
 	}
 
@@ -528,7 +523,6 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		NotificationDebug bool
 		ApiDebug          bool
 		AuthDebug         bool
-		ShowDatabaseDisplay bool
 		Error             string
 		Success           string
 	}{
@@ -537,7 +531,6 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		NotificationDebug: s.notificationDebug,
 		ApiDebug:          s.apiDebug,
 		AuthDebug:         s.authDebug,
-		ShowDatabaseDisplay: s.showDatabaseDisplay,
 		Error:             r.URL.Query().Get("error"),
 		Success:           r.URL.Query().Get("success"),
 	}
@@ -1883,8 +1876,6 @@ type BasePageData struct {
 	DatabaseEnabled bool
 	DatabaseHealthy bool
 	DatabaseError   string
-	// UI settings
-	ShowDatabaseDisplay bool
 	// Current user information for menu rendering
 	CurrentUser *database.UserData
 }
@@ -1896,7 +1887,6 @@ func (s *Server) createBasePageData(r *http.Request, title, contentTemplate stri
 		ContentTemplate:   contentTemplate,
 		CSRFToken:         s.getCSRFToken(r),
 		DatabaseEnabled:   s.configDB != nil,
-		ShowDatabaseDisplay: s.showDatabaseDisplay,
 		CurrentUser:       s.getCurrentUser(r),
 	}
 }
@@ -2193,13 +2183,6 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// Save UI setting (ShowDatabaseDisplay) to database under 'settings'
-			if s.showDatabaseDisplay {
-				if err := db.SaveSetting("show_database_display", "true"); err != nil {
-					s.logger.Printf("Warning: Failed to save UI settings to database during install: %v", err)
-				}
-			}
-
 			// Store monitors to database as well
 			configs := s.manager.GetAllConfigs()
 			for _, mc := range configs {
@@ -2352,13 +2335,6 @@ func (s *Server) saveConfig() error {
 			}
 		}
 
-		// Save UI setting (ShowDatabaseDisplay) in the database for DB mode; keep debug flags out of DB
-		if s.showDatabaseDisplay {
-			if err := s.configDB.SaveSetting("show_database_display", "true"); err != nil {
-				s.logger.Printf("Warning: Failed to save UI settings to database: %v", err)
-			}
-		}
-
 		// Save monitors to database as well
 		configs := s.manager.GetAllConfigs()
 		for _, mc := range configs {
@@ -2456,7 +2432,6 @@ func (s *Server) saveConfig() error {
 	cfg.NotificationDebug = s.notificationDebug
 	cfg.ApiDebug = s.apiDebug
 	cfg.AuthDebug = s.authDebug
-	cfg.ShowDatabaseDisplay = s.showDatabaseDisplay
 	configs := s.manager.GetAllConfigs()
 	cfg.Monitors = make([]config.PersistedMonitorConfig, 0, len(configs))
 	for _, mc := range configs {
@@ -2577,7 +2552,6 @@ func (s *Server) handleAdminStatusPagesConfig(w http.ResponseWriter, r *http.Req
 			Title:             "Configure Status Page: " + statusPage.Name,
 			ContentTemplate:   "statuspage_config.content",
 			CSRFToken:         s.getCSRFToken(r),
-			ShowDatabaseDisplay: s.showDatabaseDisplay,
 		},
 		StatusPage:       *statusPage,
 		AllMonitors:      make([]APISnapshot, 0, len(snapshots)),

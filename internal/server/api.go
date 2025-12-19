@@ -1014,12 +1014,11 @@ func (s *Server) routeSettingsEndpoint(subPath, method string) (exists bool, han
 // apiSettingsUpdate updates application settings
 func (s *Server) apiSettingsUpdate(r *http.Request) (interface{}, int, error) {
 	var body struct {
-		MonitorDebug        bool   `json:"monitor_debug"`
-		NotificationDebug   bool   `json:"notification_debug"`
-		ApiDebug            bool   `json:"api_debug"`
-		AuthDebug           bool   `json:"auth_debug"`
-		ShowDatabaseDisplay bool   `json:"show_database_display"`
-		CSRFToken           string `json:"csrf_token"`
+		MonitorDebug      bool   `json:"monitor_debug"`
+		NotificationDebug bool   `json:"notification_debug"`
+		ApiDebug          bool   `json:"api_debug"`
+		AuthDebug         bool   `json:"auth_debug"`
+		CSRFToken         string `json:"csrf_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		return nil, http.StatusBadRequest, err
@@ -1034,7 +1033,6 @@ func (s *Server) apiSettingsUpdate(r *http.Request) (interface{}, int, error) {
 	s.notificationDebug = body.NotificationDebug
 	s.apiDebug = body.ApiDebug
 	s.authDebug = body.AuthDebug
-	s.showDatabaseDisplay = body.ShowDatabaseDisplay
 
 	if s.manager != nil {
 		s.manager.SetMonitorDebug(body.MonitorDebug)

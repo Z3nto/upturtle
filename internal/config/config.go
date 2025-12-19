@@ -31,8 +31,6 @@ type AppConfig struct {
 	NotificationDebug bool `json:"notification_debug,omitempty"`
 	ApiDebug          bool `json:"api_debug,omitempty"`
 	AuthDebug         bool `json:"auth_debug,omitempty"`
-	// UI settings
-	ShowDatabaseDisplay bool `json:"show_database_display,omitempty"`
 	// Status pages configuration
 	StatusPages []StatusPageConfig `json:"status_pages,omitempty"`
 }

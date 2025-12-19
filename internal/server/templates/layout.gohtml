@@ -197,15 +197,6 @@
         GitHub
     </a>
 </footer>
-{{if .ShowDatabaseDisplay}}
-<div id="database-display" class="fixed right-5 bottom-5 z-[1000] flex items-center gap-2 text-sm text-zinc-400 bg-[rgba(30,30,30,0.6)] border border-[rgba(160,160,160,0.2)] rounded-md px-3 py-1.5 backdrop-blur-sm transition-all hover:bg-[rgba(40,40,40,0.8)] hover:border-[rgba(160,160,160,0.3)] font-mono">
-    <span id="database-label">Memory:</span>
-    <span id="database-entries" class="font-semibold text-gray-200">-</span>
-    <span id="database-entries-label" class="mr-2">entries</span>
-    <span>DB:</span>
-    <span id="database-db-status" class="font-semibold text-gray-200">-</span>
-</div>
-{{end}}
 <script>
 (function(){
   try{
@@ -337,49 +328,6 @@
     });
   }catch(err){ console.error('Nav error:', err); }
 })();
-
-{{if .ShowDatabaseDisplay}}
-(function(){
-  const databaseEntriesEl = document.getElementById('database-entries');
-  const databaseDbStatusEl = document.getElementById('database-db-status');
-  const databaseLabelEl = document.getElementById('database-label');
-  const databaseEntriesLabelEl = document.getElementById('database-entries-label');
-  
-  if (\!databaseEntriesEl || \!databaseDbStatusEl) return;
-  
-  async function updateDatabaseDisplay() {
-    try {
-      const response = await fetch('/api/memory');
-      if (\!response.ok) throw new Error('Failed to fetch memory data');
-      
-      const data = await response.json();
-      
-      if (data.database_integration) {
-        databaseDbStatusEl.textContent = 'SQLite';
-        databaseDbStatusEl.style.color = '#10b981';
-        if (databaseLabelEl) databaseLabelEl.style.display = 'none';
-        if (databaseEntriesEl) databaseEntriesEl.style.display = 'none';
-        if (databaseEntriesLabelEl) databaseEntriesLabelEl.style.display = 'none';
-      } else {
-        databaseDbStatusEl.textContent = 'Memory';
-        databaseDbStatusEl.style.color = '#f59e0b';
-        if (databaseLabelEl) databaseLabelEl.style.display = '';
-        if (databaseEntriesEl) databaseEntriesEl.style.display = '';
-        if (databaseEntriesLabelEl) databaseEntriesLabelEl.style.display = '';
-        databaseEntriesEl.textContent = data.total_history_entries || 0;
-      }
-    } catch (error) {
-      console.warn('Failed to update database display:', error);
-      databaseEntriesEl.textContent = 'Error';
-      databaseDbStatusEl.textContent = 'Error';
-      databaseDbStatusEl.style.color = '#ef4444';
-    }
-  }
-  
-  updateDatabaseDisplay();
-  setInterval(updateDatabaseDisplay, 60000);
-})();
-{{end}}
 </script>
 </body>
 </html>
