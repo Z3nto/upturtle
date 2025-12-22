@@ -85,8 +85,8 @@
             .nav-links.submenu-active > a,
             .nav-links.submenu-active > .menu:not(.active-submenu) { display: none; }
             .nav-links.submenu-active .menu.active-submenu > a[aria-haspopup="true"] { display: none; }
-            .nav-links .submenu { display: none \!important; }
-            .nav-links.submenu-active .menu.active-submenu .submenu { display: block \!important; }
+            .nav-links .submenu { display: none !important; }
+            .nav-links.submenu-active .menu.active-submenu .submenu { display: block !important; }
             .nav-links.submenu-active .menu.active-submenu::before {
                 content: '← Zurück';
                 display: block;
@@ -233,14 +233,14 @@
     const body = document.body;
     
     function openNav() {
-      if (\!links) return;
+      if (!links) return;
       body.classList.add('nav-open');
       toggle?.setAttribute('aria-expanded', 'true');
       body.style.overflow = 'hidden';
     }
     
     function closeNav() {
-      if (\!links) return;
+      if (!links) return;
       body.classList.remove('nav-open');
       toggle?.setAttribute('aria-expanded', 'false');
       body.style.overflow = '';
@@ -280,8 +280,8 @@
     });
     
     document.addEventListener('click', function(e) {
-      if (\!body.classList.contains('nav-open')) return;
-      if (\!links.contains(e.target) && \!toggle?.contains(e.target)) {
+      if (!body.classList.contains('nav-open')) return;
+      if (!links.contains(e.target) && !toggle?.contains(e.target)) {
         closeNav();
       }
     });
@@ -304,24 +304,24 @@
       }
       
       menu.addEventListener('mouseenter', function(){ 
-        if (\!isMobile()) {
+        if (!isMobile()) {
           if(closeTimer){ clearTimeout(closeTimer); } 
           openMenu(); 
         }
       });
       menu.addEventListener('mouseleave', function(){ 
-        if (\!isMobile()) {
+        if (!isMobile()) {
           closeTimer = setTimeout(closeMenu, 150); 
         }
       });
       submenu?.addEventListener('mouseenter', function(){ 
-        if (\!isMobile()) {
+        if (!isMobile()) {
           if(closeTimer){ clearTimeout(closeTimer); } 
           openMenu(); 
         }
       });
       submenu?.addEventListener('mouseleave', function(){ 
-        if (\!isMobile()) {
+        if (!isMobile()) {
           closeTimer = setTimeout(closeMenu, 150); 
         }
       });
