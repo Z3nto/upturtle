@@ -17,6 +17,29 @@
     </div>
   </div>
 
+  <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
+    <h3 class="text-lg font-semibold text-gray-100 mb-4">Change Password</h3>
+    <form id="form-change-password" class="space-y-4">
+      <div>
+        <label for="current-password" class="block text-sm font-medium text-gray-300 mb-2">Current Password <span class="text-red-400">*</span></label>
+        <input type="password" id="current-password" name="current_password" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+      </div>
+      <div>
+        <label for="new-password" class="block text-sm font-medium text-gray-300 mb-2">New Password <span class="text-red-400">*</span></label>
+        <input type="password" id="new-password" name="new_password" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+        <small class="text-gray-500 text-sm mt-1 block">Must be at least 8 characters with uppercase, lowercase, and digit.</small>
+      </div>
+      <div>
+        <label for="confirm-password" class="block text-sm font-medium text-gray-300 mb-2">Confirm New Password <span class="text-red-400">*</span></label>
+        <input type="password" id="confirm-password" name="confirm_password" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+      </div>
+      <div id="password-change-message" class="hidden"></div>
+      <div>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Change Password</button>
+      </div>
+    </form>
+  </div>
+
   <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6">
     <div class="flex items-center justify-between mb-2">
       <h3 class="text-lg font-semibold text-gray-100 m-0">API Keys</h3>
@@ -146,6 +169,69 @@
 
   // Load API keys on page load
   loadAPIKeys();
+
+  // Change password form
+  document.getElementById('form-change-password')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const messageDiv = document.getElementById('password-change-message');
+    const formData = new FormData(this);
+    const currentPassword = formData.get('current_password');
+    const newPassword = formData.get('new_password');
+    const confirmPassword = formData.get('confirm_password');
+    
+    // Client-side validation
+    if (newPassword !== confirmPassword) {
+      messageDiv.textContent = 'New passwords do not match.';
+      messageDiv.className = 'p-3 bg-red-900/20 border border-red-700/30 rounded-lg text-red-400 text-sm';
+      messageDiv.classList.remove('hidden');
+      return;
+    }
+    
+    if (newPassword.length < 8) {
+      messageDiv.textContent = 'Password must be at least 8 characters long.';
+      messageDiv.className = 'p-3 bg-red-900/20 border border-red-700/30 rounded-lg text-red-400 text-sm';
+      messageDiv.classList.remove('hidden');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/users/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+      
+      // Success
+      messageDiv.textContent = 'Password changed successfully!';
+      messageDiv.className = 'p-3 bg-green-900/20 border border-green-700/30 rounded-lg text-green-400 text-sm';
+      messageDiv.classList.remove('hidden');
+      
+      // Reset form
+      this.reset();
+      
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        messageDiv.classList.add('hidden');
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      messageDiv.textContent = 'Failed to change password: ' + error.message;
+      messageDiv.className = 'p-3 bg-red-900/20 border border-red-700/30 rounded-lg text-red-400 text-sm';
+      messageDiv.classList.remove('hidden');
+    }
+  });
 
   // New API key button
   document.getElementById('btn-new-apikey')?.addEventListener('click', function() {

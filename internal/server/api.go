@@ -1354,6 +1354,17 @@ func (s *Server) routeUsersEndpoint(subPath, method string) (exists bool, handle
 		return s.routeUserAPIKeysEndpoint(subPath, method)
 	}
 	
+	// Check for change-password endpoint
+	if subPath == "change-password" {
+		exists = true
+		if method == http.MethodPost {
+			handler = s.apiUserChangePassword
+		} else {
+			return false, nil, true
+		}
+		return exists, handler, requireAuth
+	}
+	
 	if subPath == "" {
 		// /api/users - collection operations
 		exists = true
@@ -1713,6 +1724,70 @@ func (s *Server) apiUserDelete(r *http.Request) (interface{}, int, error) {
 	if err := s.configDB.DeleteUser(userID); err != nil {
 		s.logger.Printf("Failed to delete user: %v", err)
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to delete user")
+	}
+
+	return map[string]bool{"success": true}, http.StatusOK, nil
+}
+
+// apiUserChangePassword allows a user to change their own password
+func (s *Server) apiUserChangePassword(r *http.Request) (interface{}, int, error) {
+	// Only allow access if using database authentication
+	if !s.isUsingDatabaseAuth() {
+		return nil, http.StatusBadRequest, fmt.Errorf("password change only available with database authentication")
+	}
+
+	// Get current user
+	currentUser := s.getCurrentUser(r)
+	if currentUser == nil {
+		return nil, http.StatusUnauthorized, fmt.Errorf("authentication required")
+	}
+
+	var req struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("invalid request body")
+	}
+
+	// Validate input
+	if req.CurrentPassword == "" {
+		return nil, http.StatusBadRequest, fmt.Errorf("current password is required")
+	}
+	if req.NewPassword == "" {
+		return nil, http.StatusBadRequest, fmt.Errorf("new password is required")
+	}
+
+	// Get user from database to verify current password
+	user, err := s.configDB.GetUser(currentUser.ID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to get user")
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		return nil, http.StatusUnauthorized, fmt.Errorf("current password is incorrect")
+	}
+
+	// Validate new password complexity
+	if err := validatePassword(req.NewPassword); err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+
+	// Hash new password
+	newPasswordHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.Printf("Failed to hash new password: %v", err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to process new password")
+	}
+
+	// Update password in database
+	user.PasswordHash = string(newPasswordHash)
+	_, err = s.configDB.SaveUser(*user)
+	if err != nil {
+		s.logger.Printf("Failed to update password: %v", err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to update password")
 	}
 
 	return map[string]bool{"success": true}, http.StatusOK, nil
