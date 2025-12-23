@@ -2,14 +2,15 @@
 
 FROM golang:1.24.3 AS builder
 WORKDIR /src
-# Install build dependencies for SQLite
+
 RUN apt-get update && apt-get install -y gcc libc6-dev && rm -rf /var/lib/apt/lists/*
 COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 COPY . .
-# Enable CGO for SQLite support
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o /out/upturtle ./cmd/upturtle
+
+ARG TARGETARCH
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=GOARCH=${TARGETARCH} go build -ldflags "-s -w" -o /out/upturtle ./cmd/upturtle
 
 FROM debian:bookworm-slim
 RUN apt-get update \
