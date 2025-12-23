@@ -10,7 +10,7 @@ RUN go mod download
 COPY . .
 
 ARG TARGETARCH
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=GOARCH=${TARGETARCH} go build -ldflags "-s -w" -o /out/upturtle ./cmd/upturtle
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags "-s -w" -o /out/upturtle ./cmd/upturtle
 
 FROM debian:bookworm-slim
 RUN apt-get update \
