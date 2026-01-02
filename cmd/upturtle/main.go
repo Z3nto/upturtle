@@ -37,7 +37,7 @@ func main() {
 	// Load persisted configuration (admin + monitors)
 	configPath := os.Getenv("UPTURTLE_CONFIG_PATH")
 	if configPath == "" {
-		configPath = "/conf/config.json"
+		configPath = "/data/conf/config.json"
 	}
 
 	persisted, exists, err := config.Load(configPath)

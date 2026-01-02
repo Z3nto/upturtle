@@ -7,10 +7,9 @@ services:
     user: 1001:10001 # only if you use bind mounts
     environment:
       LISTEN_ADDR: ":8080"
-      UPTURTLE_CONFIG_PATH: "/conf/config.json"
+      #UPTURTLE_CONFIG_PATH: "/data/conf/config.json"
     volumes:
-      - upturtle_conf:/conf
-      - upturtle_data:/data
+      - upturtle:/data
       - /var/run/docker.sock:/var/run/docker.sock:ro # only if you want to monitor docker containers
     restart: unless-stopped
 

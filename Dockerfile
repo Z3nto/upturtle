@@ -22,7 +22,7 @@ RUN useradd -m -u 10001 appuser
 WORKDIR /app
 COPY --from=builder /out/upturtle /app/upturtle
 # Create writable directories for the non-root user
-RUN mkdir -p /conf /data && chown -R 10001:10001 /conf /data
+RUN mkdir -p /data/conf /data/db && chown -R 10001:10001 /data
 EXPOSE 8080
 USER 10001
 ENTRYPOINT ["/app/upturtle"]

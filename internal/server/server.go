@@ -2094,7 +2094,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		var dbConfig *database.Config
 		if storageType == "sqlite" {
 			if sqlitePath == "" {
-				sqlitePath = "/data/upturtle.db" // Default path
+				sqlitePath = "/data/db/upturtle.db" // Default path
 			}
 			dbConfig = &database.Config{
 				Type: database.DatabaseTypeSQLite,

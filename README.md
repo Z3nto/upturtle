@@ -35,7 +35,7 @@ services:
     user: 1001:10001 # only if you use bind mounts
     environment:
       LISTEN_ADDR: ":8080"
-      UPTURTLE_CONFIG_PATH: "/conf/config.json"
+      UPTURTLE_CONFIG_PATH: "/data/conf/config.json"
     volumes:
       - upturtle_conf:/conf
       - upturtle_data:/data
@@ -72,7 +72,7 @@ docker run -d \
   -v upturtle_conf:/conf \
   -v upturtle_data:/data \
   -e LISTEN_ADDR=":8080" \
-  -e UPTURTLE_CONFIG_PATH="/conf/config.json" \
+  -e UPTURTLE_CONFIG_PATH="/data/conf/config.json" \
   ghcr.io/z3nto/upturtle:main
 ```
 
@@ -101,7 +101,7 @@ CGO_ENABLED=1 go build -o upturtle ./cmd/upturtle
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `LISTEN_ADDR` | `:8080` | HTTP server listen address |
-| `UPTURTLE_CONFIG_PATH` | `/conf/config.json` | Path to configuration file |
+| `UPTURTLE_CONFIG_PATH` | `/data/conf/config.json` | Path to configuration file |
 ### Configuration File
 
 The configuration file (`config.json`) stores different data depending on the mode:
@@ -132,7 +132,7 @@ Example configuration:
   "admin_password_hash": "$2a$10$...",
   "database": {
     "type": "sqlite",
-    "path": "/data/upturtle.db"
+    "path": "/data/db/upturtle.db"
   },
   "groups": [
     {
