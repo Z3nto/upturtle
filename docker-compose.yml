@@ -4,9 +4,6 @@ services:
     container_name: upturtle
     ports:
       - "8080:8080"
-    environment:
-      LISTEN_ADDR: ":8080"
-      #UPTURTLE_CONFIG_PATH: "/data/conf/config.json"
     volumes:
       - /opt/data/upturtle:/data
       - /var/run/docker.sock:/var/run/docker.sock:ro # only if you want to monitor docker containers
