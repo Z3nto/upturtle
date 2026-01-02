@@ -24,5 +24,6 @@ COPY --from=builder /out/upturtle /app/upturtle
 # Create writable directories for the non-root user
 RUN mkdir -p /data/conf /data/db && chown -R 10001:10001 /data
 EXPOSE 8080
-USER 10001
-ENTRYPOINT ["/app/upturtle"]
+
+#ENTRYPOINT ["/app/upturtle"]
+ENTRYPOINT ["sh", "-c", "chown -R 10001:10001 /data 2>/dev/null || true && mkdir -p /data/conf /data/db && chown -R 10001:10001 /data && exec su -s /bin/sh appuser -c '/app/upturtle'"]

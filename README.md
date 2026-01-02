@@ -32,19 +32,10 @@ services:
     container_name: upturtle
     ports:
       - "8080:8080"
-    user: 1001:10001 # only if you use bind mounts
-    environment:
-      LISTEN_ADDR: ":8080"
-      UPTURTLE_CONFIG_PATH: "/data/conf/config.json"
     volumes:
-      - upturtle_conf:/conf
-      - upturtle_data:/data
+      - /opt/data/upturtle:/data
       - /var/run/docker.sock:/var/run/docker.sock:ro # only if you want to monitor docker containers
     restart: unless-stopped
-
-volumes:
-  upturtle_conf:
-  upturtle_data:
 ```
 
 2. Start the service:
@@ -57,22 +48,14 @@ docker-compose up -d
 
 4. Complete the installation wizard to set up your admin credentials
 
-> **Note on Bind Mounts**: If you use bind mounts instead of named volumes (e.g., `-v /path/on/host:/conf`), you must create the directories beforehand and set the correct permissions. The application runs as user `1001`, so ensure this user has read/write access:
-> ```bash
-> mkdir -p /path/to/conf /path/to/data
-> chown -R 1001:1001 /path/to/conf /path/to/data
-> ```
-
 ### Using Docker
 
 ```bash
 docker run -d \
   --name upturtle \
   -p 8080:8080 \
-  -v upturtle_conf:/conf \
-  -v upturtle_data:/data \
-  -e LISTEN_ADDR=":8080" \
-  -e UPTURTLE_CONFIG_PATH="/data/conf/config.json" \
+  -v /opt/data/upturtle:/conf \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \  # only if you want to monitor docker containers 
   ghcr.io/z3nto/upturtle:main
 ```
 
