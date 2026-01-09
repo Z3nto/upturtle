@@ -188,6 +188,19 @@ For issues, questions, or feature requests, please open an issue on GitHub.
 
 ## Acknowledgments
 
-- [Shoutrrr](https://containrrr.dev/shoutrrr/) for notification delivery
-- [Docker SDK](https://github.com/docker/docker) for container monitoring
-- Go community for excellent tooling and libraries
+Upturtle is built with the following open source projects:
+
+### Backend
+- [Shoutrrr](https://github.com/containrrr/shoutrrr) - Notification delivery system (MIT)
+- [Docker SDK](https://github.com/docker/docker) - Docker container monitoring (Apache 2.0)
+- [go-sqlite3](https://github.com/mattn/go-sqlite3) - SQLite database driver (MIT)
+- [Logrus](https://github.com/sirupsen/logrus) - Structured logging (MIT)
+- [Go Crypto](https://golang.org/x/crypto) - Password hashing with bcrypt (BSD-3-Clause)
+- [Go Time](https://golang.org/x/time) - Rate limiting (BSD-3-Clause)
+
+### Frontend
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework (MIT)
+- [Chart.js](https://www.chartjs.org/) - JavaScript charting library (MIT)
+- [Inter Font](https://fonts.google.com/specimen/Inter) - Typography (OFL)
+
+Special thanks to the Go community for excellent tooling and libraries.
