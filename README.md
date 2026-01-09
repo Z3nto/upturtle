@@ -10,15 +10,20 @@ _Vibe coded with Claude._
 
 > **⚠️ Note**: This project is still under active development. Features and APIs may change.
 
+<img src="https://raw.githubusercontent.com/z3nto/upturtle/master/.github/images/screenshot1.png" width="700" alt="Upturtle Status Page" />
+
 ## Features
 
 - **ICMP**, **HTTP/S**, **Docker** monitoring
-- **Master/Dependency Monitoring**: Suppress notifications when a master service is down
+- **Charts**: Charts for monitor history
+- **Master/Dependency**: Suppress notifications when a master service is down
 - **Status Pages**: Create public status pages with selected monitors
 - **Flexible Grouping**: Organize monitors into custom groups
 - **Multi-channel Notifications**: Integration with Discord, Slack, Telegram, and more via [Shoutrrr](https://containrrr.dev/shoutrrr/)
 - **User Management**: Multi-user support with role-based access control (admin, write, readonly)
 - **API Access**: RESTful API with API key authentication
+
+<img src="https://raw.githubusercontent.com/z3nto/upturtle/master/.github/images/screenshot2.png" width="700" alt="Upturtle Charts" />
 
 
 ## Quick Start
