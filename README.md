@@ -134,50 +134,6 @@ When database is configured, Upturtle supports multi-user access with three role
 
 Users can be managed through the admin interface at `/admin/users`.
 
-## API Access
-
-### Authentication
-
-API endpoints require authentication via:
-1. Session cookie (for web interface)
-2. API key in `X-API-Key` header
-
-### Creating API Keys
-
-1. Log in to the admin interface
-2. Navigate to Settings → API Keys
-3. Create a new API key
-4. Use the key in the `X-API-Key` header
-
-### Example API Requests
-
-**List all monitors:**
-```bash
-curl -H "X-API-Key: your-api-key" http://localhost:8080/api/monitors
-```
-
-**Get monitor details:**
-```bash
-curl -H "X-API-Key: your-api-key" http://localhost:8080/api/monitors/1
-```
-
-**Create a monitor:**
-```bash
-curl -X POST -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "New Monitor",
-    "type": "http",
-    "target": "https://example.com",
-    "interval_seconds": 60,
-    "timeout_seconds": 10,
-    "enabled": true
-  }' \
-  http://localhost:8080/api/monitors
-```
-
-
-
 ## License
 
 See [LICENSE](LICENSE) file for details.
