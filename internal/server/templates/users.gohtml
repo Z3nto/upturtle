@@ -248,11 +248,8 @@
     openModal('modal-create-user');
   });
 
-  // Modal close handlers
+  // Modal close buttons
   document.querySelectorAll('#modal-create-user, #modal-edit-user, #modal-delete-user').forEach(function(bg) {
-    bg.addEventListener('click', function(e) {
-      if (e.target === bg) closeModal(bg);
-    });
     bg.querySelectorAll('[data-close]').forEach(function(x) {
       x.addEventListener('click', function() {
         closeModal(bg);

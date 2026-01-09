@@ -227,9 +227,8 @@
   // Make function globally available
   window.openEditNotificationModal = openEditNotificationModal;
   
-  // Modal backdrop click to close
+  // Modal close buttons
   document.querySelectorAll('#modal-edit-notification').forEach(function(bg){
-    bg.addEventListener('click', function(e){ if(e.target === bg){ closeModal(bg); } });
     bg.querySelectorAll('[data-close]').forEach(function(x){ x.addEventListener('click', function(){ closeModal(bg); }); });
   });
 

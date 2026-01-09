@@ -145,11 +145,8 @@
     openModal('modal-create-statuspage');
   });
 
-  // Modal backdrop click to close
+  // Modal close buttons
   document.querySelectorAll('#modal-create-statuspage, #modal-delete-statuspage').forEach(function(bg) {
-    bg.addEventListener('click', function(e) {
-      if (e.target === bg) closeModal(bg);
-    });
     bg.querySelectorAll('[data-close]').forEach(function(btn) {
       btn.addEventListener('click', function() { closeModal(bg); });
     });

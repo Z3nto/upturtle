@@ -797,7 +797,6 @@
     openModal(t.getAttribute('data-open'));
   }, true);
   document.querySelectorAll('.modal-backdrop').forEach(function(bg){
-    bg.addEventListener('click', function(e){ if(e.target === bg){ closeModal(bg); } });
     bg.querySelectorAll('[data-close]').forEach(function(x){ x.addEventListener('click', function(){ closeModal(bg); }); });
   });
   // No row-level click-to-open to avoid conflicts with dragging
