@@ -35,7 +35,7 @@ _Vibe coded with Claude._
 ```yaml
 services:
   upturtle:
-    image: ghcr.io/z3nto/upturtle:main
+    image: ghcr.io/z3nto/upturtle:master
     container_name: upturtle
     ports:
       - "8080:8080"
@@ -63,7 +63,7 @@ docker run -d \
   -p 8080:8080 \
   -v /opt/data/upturtle:/conf \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \  # only if you want to monitor docker containers 
-  ghcr.io/z3nto/upturtle:main
+  ghcr.io/z3nto/upturtle:master
 ```
 
 ### Building from Source
