@@ -38,6 +38,13 @@ import (
 //go:embed static/*
 var staticFS embed.FS
 
+// Version information - can be overridden at build time using ldflags
+var (
+	Version   = "1.0.0"
+	BuildDate = "2026"
+	GoVersion = "1.21+"
+)
+
 // Context key for storing the current user in request context
 type contextKey string
 
@@ -540,6 +547,30 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ---- About page ----
+// handleAdminAbout renders the about page (GET only).
+func (s *Server) handleAdminAbout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	data := struct {
+		BasePageData
+		Version   string
+		BuildDate string
+		GoVersion string
+	}{
+		BasePageData: s.createBasePageData(r, "About", "about.content"),
+		Version:      Version,
+		BuildDate:    BuildDate,
+		GoVersion:    GoVersion,
+	}
+	if err := s.templates.ExecuteTemplate(w, "about.gohtml", data); err != nil {
+		s.logger.Printf("about template error: %v", err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
 // ==== API: Settings ===========================================================
 // Settings API handlers have been moved to api.go
 
@@ -583,6 +614,8 @@ func (s *Server) routes() {
 	// Settings
 	s.mux.HandleFunc("/admin/settings", s.ensureInstalled(s.handleAdminSettings))
 	s.mux.HandleFunc("/admin/users/settings", s.ensureInstalled(s.handleUserSettings))
+	// About page
+	s.mux.HandleFunc("/admin/about", s.ensureInstalled(s.handleAdminAbout))
 	// Status pages management
 	s.mux.HandleFunc("/admin/statuspages", s.ensureInstalled(s.handleAdminStatusPages))
 	s.mux.HandleFunc("/admin/statuspages/", s.ensureInstalled(s.handleAdminStatusPages))
