@@ -25,7 +25,6 @@ _Vibe coded with Claude._
 
 <img src="https://raw.githubusercontent.com/z3nto/upturtle/master/.github/images/screenshot2.png" width="700" alt="Upturtle Charts" />
 
-
 ## Quick Start
 
 ### Using Docker Compose
