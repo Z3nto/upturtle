@@ -1092,10 +1092,26 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 
 	s.sessionsMu.Lock()
-	// Clean up any temporary CSRF token for this client
-	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-	delete(s.csrfTokens, tempKey)
+	// Clean up any temporary CSRF token for this client (cookie-based)
+	if tempCookie, err := r.Cookie("upturtle_csrf_temp"); err == nil && tempCookie.Value != "" {
+		tempKey := "temp_" + tempCookie.Value
+		delete(s.csrfTokens, tempKey)
+	}
+	s.sessionsMu.Unlock()
 
+	// Clear temporary CSRF cookie
+	clearCookie := &http.Cookie{
+		Name:     "upturtle_csrf_temp",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isHTTPS,
+	}
+	http.SetCookie(w, clearCookie)
+
+	s.sessionsMu.Lock()
 	if rememberMe {
 		// For remember-me, create a session without expiry (browser session)
 		s.sessions[sessionID] = time.Now().Add(24 * time.Hour) // Still track in memory
@@ -1154,9 +1170,11 @@ func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 		delete(s.userSessions, c.Value)
 		delete(s.csrfTokens, c.Value)
 	}
-	// Clean up any temporary CSRF tokens for this client
-	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-	delete(s.csrfTokens, tempKey)
+	// Clean up any temporary CSRF tokens for this client (cookie-based)
+	if tempCookie, err := r.Cookie("upturtle_csrf_temp"); err == nil && tempCookie.Value != "" {
+		tempKey := "temp_" + tempCookie.Value
+		delete(s.csrfTokens, tempKey)
+	}
 	s.sessionsMu.Unlock()
 
 	// Also destroy remember-me token if present
@@ -1190,6 +1208,18 @@ func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 		Secure:   isHTTPS,
 	}
 	http.SetCookie(w, rememberCookie)
+	
+	// Clear temporary CSRF cookie
+	csrfCookie := &http.Cookie{
+		Name:     "upturtle_csrf_temp",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isHTTPS,
+	}
+	http.SetCookie(w, csrfCookie)
 }
 
 // createRememberMeToken creates a persistent remember-me token
@@ -1410,6 +1440,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		
 		s.authDebugf("Login GET request from %s, User-Agent: %s", r.RemoteAddr, r.UserAgent())
 		csrfToken := s.getCSRFToken(r)
+		s.setCSRFCookie(w, r, csrfToken)
 		s.authDebugf("Generated CSRF token for login form: %s...", csrfToken[:10])
 
 		data := struct {
@@ -1593,19 +1624,69 @@ func (s *Server) getCSRFToken(r *http.Request) string {
 		return token
 	}
 
-	// For unauthenticated requests (login/install), generate a temporary token
-	// Store it with a key based on remote address and user agent
-	tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-
-	if token, exists := s.csrfTokens[tempKey]; exists {
-		s.authDebugf("Returning existing temporary CSRF token")
-		return token
+	// For unauthenticated requests (login/install), use a cookie-based temporary token
+	// This is more reliable than RemoteAddr + UserAgent, especially for Safari on Mac
+	// which can change User-Agent between requests
+	if tempCookie, err := r.Cookie("upturtle_csrf_temp"); err == nil && tempCookie.Value != "" {
+		// Check if we have a token for this temp ID
+		tempKey := "temp_" + tempCookie.Value
+		if token, exists := s.csrfTokens[tempKey]; exists {
+			s.authDebugf("Returning existing temporary CSRF token from cookie")
+			return token
+		}
 	}
 
+	// Generate new temporary token and ID
+	// Note: The cookie will be set by setCSRFCookie which should be called after this
 	token := s.generateCSRFToken()
+	tempID := s.generateCSRFToken() // Use as unique identifier
+	tempKey := "temp_" + tempID
 	s.csrfTokens[tempKey] = token
-	s.authDebugf("Generated new temporary CSRF token")
+	// Store the tempID in a map so we can retrieve it when setting the cookie
+	// We'll use a special key to track the last generated temp ID for this request
+	s.csrfTokens["temp_id_"+token] = tempID
+	s.authDebugf("Generated new temporary CSRF token with ID")
 	return token
+}
+
+// setCSRFCookie sets the temporary CSRF cookie if a new temporary token was generated
+func (s *Server) setCSRFCookie(w http.ResponseWriter, r *http.Request, csrfToken string) {
+	// Only set cookie for unauthenticated requests
+	if s.getSessionID(r) != "" {
+		return
+	}
+
+	// Check if this token has a temp ID associated with it
+	s.sessionsMu.RLock()
+	tempID, exists := s.csrfTokens["temp_id_"+csrfToken]
+	s.sessionsMu.RUnlock()
+
+	if !exists {
+		// Token already has a cookie or is session-based
+		return
+	}
+
+	// Check if request is over HTTPS
+	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+
+	// Set cookie with 1 hour expiry (temporary tokens are short-lived)
+	cookie := &http.Cookie{
+		Name:     "upturtle_csrf_temp",
+		Value:    tempID,
+		Path:     "/",
+		Expires:  time.Now().Add(1 * time.Hour),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isHTTPS,
+	}
+	http.SetCookie(w, cookie)
+
+	// Clean up the temp_id mapping
+	s.sessionsMu.Lock()
+	delete(s.csrfTokens, "temp_id_"+csrfToken)
+	s.sessionsMu.Unlock()
+
+	s.authDebugf("Set temporary CSRF cookie with ID: %s...", tempID[:10])
 }
 
 // getSessionID extracts the session ID from the request
@@ -1639,9 +1720,11 @@ func (s *Server) validateCSRFToken(r *http.Request) bool {
 		tokenKey = sessionID
 		expectedToken, exists = s.csrfTokens[sessionID]
 	} else {
-		// For unauthenticated requests (login/install), use temporary tokens
-		tokenKey = "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-		expectedToken, exists = s.csrfTokens[tokenKey]
+		// For unauthenticated requests (login/install), use cookie-based temporary tokens
+		if tempCookie, err := r.Cookie("upturtle_csrf_temp"); err == nil && tempCookie.Value != "" {
+			tokenKey = "temp_" + tempCookie.Value
+			expectedToken, exists = s.csrfTokens[tokenKey]
+		}
 	}
 	s.sessionsMu.RUnlock()
 
@@ -1687,9 +1770,11 @@ func (s *Server) validateCSRFTokenFromJSON(r *http.Request, jsonToken string) bo
 	if sessionID != "" {
 		expectedToken, exists = s.csrfTokens[sessionID]
 	} else {
-		// For unauthenticated requests (login/install), use temporary tokens
-		tempKey := "temp_" + r.RemoteAddr + "_" + r.UserAgent()
-		expectedToken, exists = s.csrfTokens[tempKey]
+		// For unauthenticated requests (login/install), use cookie-based temporary tokens
+		if tempCookie, err := r.Cookie("upturtle_csrf_temp"); err == nil && tempCookie.Value != "" {
+			tempKey := "temp_" + tempCookie.Value
+			expectedToken, exists = s.csrfTokens[tempKey]
+		}
 	}
 	s.sessionsMu.RUnlock()
 
@@ -1913,12 +1998,20 @@ type BasePageData struct {
 	CurrentUser *database.UserData
 }
 
+// getCSRFTokenAndSetCookie is a helper that gets the CSRF token and sets the cookie if needed
+func (s *Server) getCSRFTokenAndSetCookie(w http.ResponseWriter, r *http.Request) string {
+	csrfToken := s.getCSRFToken(r)
+	s.setCSRFCookie(w, r, csrfToken)
+	return csrfToken
+}
+
 // createBasePageData creates BasePageData with current user information
 func (s *Server) createBasePageData(r *http.Request, title, contentTemplate string) BasePageData {
+	csrfToken := s.getCSRFToken(r)
 	return BasePageData{
 		Title:             title,
 		ContentTemplate:   contentTemplate,
-		CSRFToken:         s.getCSRFToken(r),
+		CSRFToken:         csrfToken,
 		DatabaseEnabled:   s.configDB != nil,
 		CurrentUser:       s.getCurrentUser(r),
 	}
@@ -2074,7 +2167,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 				Title:           "Install Upturtle",
 				ContentTemplate: "install.content",
 				HideHeader:      true,
-				CSRFToken:       s.getCSRFToken(r),
+				CSRFToken:       s.getCSRFTokenAndSetCookie(w, r),
 			},
 			Error: r.URL.Query().Get("error"),
 		}
