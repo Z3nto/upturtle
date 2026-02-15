@@ -116,9 +116,10 @@ func main() {
 					persisted.Notifications = make([]config.NotificationConfig, len(dbNotifications))
 					for i, notification := range dbNotifications {
 						persisted.Notifications[i] = config.NotificationConfig{
-							ID:   notification.ID,
-							Name: notification.Name,
-							URL:  notification.URL,
+							ID:          notification.ID,
+							Name:        notification.Name,
+							URL:         notification.URL,
+							GlobalAlarm: notification.GlobalAlarm,
 						}
 					}
 					log.Printf("Loaded %d notifications from database", len(dbNotifications))
@@ -177,15 +178,36 @@ func main() {
 		}
 
 		// Initialize monitors from file
-		// Resolve NotifyURL from NotificationID if URL is not persisted
+		// Build lookup maps for notification URL resolution
 		idToURL := make(map[int]string, len(persisted.Notifications))
+		var globalAlarmURLs []string
 		for _, n := range persisted.Notifications {
 			idToURL[n.ID] = strings.TrimSpace(n.URL)
+			if n.GlobalAlarm {
+				if u := strings.TrimSpace(n.URL); u != "" {
+					globalAlarmURLs = append(globalAlarmURLs, u)
+				}
+			}
 		}
 		mons := make([]monitor.MonitorConfig, 0, len(persisted.Monitors))
 		for _, pm := range persisted.Monitors {
 			cfg := pm.ToMonitorConfig()
-			if cfg.NotificationID > 0 && strings.TrimSpace(cfg.NotifyURL) == "" {
+			// Resolve NotifyURLs from NotificationIDs + global alarm notifications
+			seen := make(map[string]bool)
+			for _, nid := range cfg.NotificationIDs {
+				if u, ok := idToURL[nid]; ok && u != "" && !seen[u] {
+					cfg.NotifyURLs = append(cfg.NotifyURLs, u)
+					seen[u] = true
+				}
+			}
+			for _, u := range globalAlarmURLs {
+				if !seen[u] {
+					cfg.NotifyURLs = append(cfg.NotifyURLs, u)
+					seen[u] = true
+				}
+			}
+			// Legacy fallback: single NotificationID
+			if cfg.NotificationID > 0 && len(cfg.NotifyURLs) == 0 {
 				if u, ok := idToURL[cfg.NotificationID]; ok {
 					cfg.NotifyURL = u
 				}

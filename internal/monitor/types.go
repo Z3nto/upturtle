@@ -50,8 +50,10 @@ type MonitorConfig struct {
 	Target         string        `json:"target"`
 	Interval       time.Duration `json:"interval"`
 	Timeout        time.Duration `json:"timeout"`
-	NotifyURL      string        `json:"notify_url"`
-	NotificationID int           `json:"notification_id,omitempty"`
+	NotifyURL       string        `json:"notify_url"`
+	NotifyURLs      []string      `json:"notify_urls,omitempty"`
+	NotificationID  int           `json:"notification_id,omitempty"`
+	NotificationIDs []int         `json:"notification_ids,omitempty"`
 	Enabled        bool          `json:"enabled"`
 	// GroupID is a stable identifier for the group (persisted)
 	GroupID int    `json:"group_id,omitempty"`

@@ -194,12 +194,19 @@ func (s *SQLiteDB) createNotificationsTable() error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
 		url TEXT NOT NULL,
+		global_alarm BOOLEAN NOT NULL DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`
 
-	_, err := s.db.Exec(query)
-	return err
+	if _, err := s.db.Exec(query); err != nil {
+		return err
+	}
+
+	// Migration: add global_alarm column if it doesn't exist (for existing databases)
+	s.db.Exec(`ALTER TABLE notifications ADD COLUMN global_alarm BOOLEAN NOT NULL DEFAULT 0`)
+
+	return nil
 }
 
 // createSettingsTable creates the settings table
@@ -759,10 +766,10 @@ func (s *SQLiteDB) SaveNotification(notification NotificationData) (*Notificatio
 	if notification.ID == 0 {
 		// Insert new notification
 		query := `
-		INSERT INTO notifications (name, url, created_at, updated_at)
-		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+		INSERT INTO notifications (name, url, global_alarm, created_at, updated_at)
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
 
-		result, err := s.db.Exec(query, notification.Name, notification.URL)
+		result, err := s.db.Exec(query, notification.Name, notification.URL, notification.GlobalAlarm)
 		if err != nil {
 			return nil, err
 		}
@@ -777,10 +784,10 @@ func (s *SQLiteDB) SaveNotification(notification NotificationData) (*Notificatio
 		// Update existing notification
 		query := `
 		UPDATE notifications 
-		SET name = ?, url = ?, updated_at = CURRENT_TIMESTAMP
+		SET name = ?, url = ?, global_alarm = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`
 
-		_, err := s.db.Exec(query, notification.Name, notification.URL, notification.ID)
+		_, err := s.db.Exec(query, notification.Name, notification.URL, notification.GlobalAlarm, notification.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -793,13 +800,13 @@ func (s *SQLiteDB) SaveNotification(notification NotificationData) (*Notificatio
 // GetNotification retrieves a notification by ID
 func (s *SQLiteDB) GetNotification(id int) (*NotificationData, error) {
 	query := `
-	SELECT id, name, url, created_at, updated_at
+	SELECT id, name, url, global_alarm, created_at, updated_at
 	FROM notifications WHERE id = ?`
 
 	var notification NotificationData
 	err := s.db.QueryRow(query, id).Scan(
 		&notification.ID, &notification.Name, &notification.URL,
-		&notification.CreatedAt, &notification.UpdatedAt)
+		&notification.GlobalAlarm, &notification.CreatedAt, &notification.UpdatedAt)
 
 	if err != nil {
 		return nil, err
@@ -811,7 +818,7 @@ func (s *SQLiteDB) GetNotification(id int) (*NotificationData, error) {
 // GetAllNotifications retrieves all notifications
 func (s *SQLiteDB) GetAllNotifications() ([]NotificationData, error) {
 	query := `
-	SELECT id, name, url, created_at, updated_at
+	SELECT id, name, url, global_alarm, created_at, updated_at
 	FROM notifications ORDER BY name`
 
 	rows, err := s.db.Query(query)
@@ -825,7 +832,7 @@ func (s *SQLiteDB) GetAllNotifications() ([]NotificationData, error) {
 		var notification NotificationData
 		err := rows.Scan(
 			&notification.ID, &notification.Name, &notification.URL,
-			&notification.CreatedAt, &notification.UpdatedAt)
+			&notification.GlobalAlarm, &notification.CreatedAt, &notification.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}

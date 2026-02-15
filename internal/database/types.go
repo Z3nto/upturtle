@@ -79,11 +79,12 @@ type GroupData struct {
 
 // NotificationData represents a notification record in the database
 type NotificationData struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	URL       string    `json:"url"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	URL         string    `json:"url"`
+	GlobalAlarm bool      `json:"global_alarm"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // SettingData represents a setting record in the database

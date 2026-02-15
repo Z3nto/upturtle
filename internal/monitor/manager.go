@@ -330,7 +330,9 @@ func (m *Manager) UpdateMonitor(cfg MonitorConfig) (MonitorConfig, error) {
 	entry.config.Interval = cfg.Interval
 	entry.config.Timeout = cfg.Timeout
 	entry.config.NotifyURL = cfg.NotifyURL
+	entry.config.NotifyURLs = cfg.NotifyURLs
 	entry.config.NotificationID = cfg.NotificationID
+	entry.config.NotificationIDs = cfg.NotificationIDs
 	entry.config.Enabled = cfg.Enabled
 	entry.config.GroupID = cfg.GroupID
 	entry.config.Group = cfg.Group
@@ -648,33 +650,52 @@ func (m *Manager) execute(entry *monitorEntry) {
 	entry.mu.Unlock()
 
 	if shouldNotify && m.notifier != nil {
-		notifyURL := strings.TrimSpace(cfg.NotifyURL)
-		if notifyURL == "" {
+		// Collect all URLs to notify: monitor-specific + global
+		var notifyURLs []string
+		for _, u := range cfg.NotifyURLs {
+			u = strings.TrimSpace(u)
+			if u != "" {
+				notifyURLs = append(notifyURLs, u)
+			}
+		}
+		// Legacy fallback: single NotifyURL
+		if len(notifyURLs) == 0 {
+			if u := strings.TrimSpace(cfg.NotifyURL); u != "" {
+				notifyURLs = append(notifyURLs, u)
+			}
+		}
+		if len(notifyURLs) == 0 {
 			if m.NotificationDebug {
 				log.Printf("[DEBUG][NOTIFY] Skipping notification for %s (%s): no NotifyURL configured", cfg.ID, cfg.Name)
 			}
 			return
 		}
-		if m.NotificationDebug {
-			log.Printf("[DEBUG][NOTIFY] Dispatching notification for %s (%s) -> status=%s url=%s",
-				cfg.ID, cfg.Name, entry.status, notifyURL)
-		}
-		if err := m.notifier.Notify(Notification{
-			MonitorID:   cfg.ID,
-			MonitorName: cfg.Name,
-			Target:      cfg.Target,
-			Type:        cfg.Type,
-			Status:      entry.status,
-			Message:     entry.lastMessage,
-			Latency:     result.Latency,
-			NotifyURL:   notifyURL,
-		}); err != nil {
-			log.Printf("notification error for %s: %v", cfg.ID, err)
-		} else {
+		dispatched := false
+		for _, notifyURL := range notifyURLs {
 			if m.NotificationDebug {
-				log.Printf("[DEBUG][NOTIFY] Notification dispatched for %s (%s)", cfg.ID, cfg.Name)
+				log.Printf("[DEBUG][NOTIFY] Dispatching notification for %s (%s) -> status=%s url=%s",
+					cfg.ID, cfg.Name, entry.status, notifyURL)
 			}
-			// Mark as notified only after a successful dispatch
+			if err := m.notifier.Notify(Notification{
+				MonitorID:   cfg.ID,
+				MonitorName: cfg.Name,
+				Target:      cfg.Target,
+				Type:        cfg.Type,
+				Status:      entry.status,
+				Message:     entry.lastMessage,
+				Latency:     result.Latency,
+				NotifyURL:   notifyURL,
+			}); err != nil {
+				log.Printf("notification error for %s: %v", cfg.ID, err)
+			} else {
+				if m.NotificationDebug {
+					log.Printf("[DEBUG][NOTIFY] Notification dispatched for %s (%s)", cfg.ID, cfg.Name)
+				}
+				dispatched = true
+			}
+		}
+		if dispatched {
+			// Mark as notified only after at least one successful dispatch
 			entry.mu.Lock()
 			entry.lastNotification = entry.status
 			entry.mu.Unlock()

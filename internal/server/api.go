@@ -231,16 +231,16 @@ func (s *Server) apiMonitorsCreate(r *http.Request) (interface{}, int, error) {
 		cfg.Order = s.getNextOrderForGroup(cfg.GroupID)
 	}
 	
-	// Resolve NotifyURL from selected notification, or clear if none selected
-	if cfg.NotificationID > 0 {
+	// Resolve NotifyURLs from selected notifications + global alarm notifications
+	cfg.NotifyURLs = s.resolveNotifyURLs(cfg.NotificationIDs)
+	// Legacy fallback for single NotificationID
+	if cfg.NotificationID > 0 && len(cfg.NotifyURLs) == 0 {
 		for _, n := range s.notifications {
 			if n.ID == cfg.NotificationID {
 				cfg.NotifyURL = strings.TrimSpace(n.URL)
 				break
 			}
 		}
-	} else {
-		cfg.NotifyURL = ""
 	}
 	
 	monitorCfg, err := s.manager.AddMonitor(cfg)
@@ -288,15 +288,16 @@ func (s *Server) apiMonitorUpdate(r *http.Request) (interface{}, int, error) {
 		return nil, http.StatusBadRequest, err
 	}
 	
-	if cfg.NotificationID > 0 {
+	// Resolve NotifyURLs from selected notifications + global alarm notifications
+	cfg.NotifyURLs = s.resolveNotifyURLs(cfg.NotificationIDs)
+	// Legacy fallback for single NotificationID
+	if cfg.NotificationID > 0 && len(cfg.NotifyURLs) == 0 {
 		for _, n := range s.notifications {
 			if n.ID == cfg.NotificationID {
 				cfg.NotifyURL = strings.TrimSpace(n.URL)
 				break
 			}
 		}
-	} else {
-		cfg.NotifyURL = ""
 	}
 	
 	monitorCfg, err := s.manager.UpdateMonitor(cfg)
@@ -489,8 +490,10 @@ func (s *Server) apiNotificationsList(r *http.Request) (interface{}, int, error)
 // apiNotificationsCreate creates a new notification
 func (s *Server) apiNotificationsCreate(r *http.Request) (interface{}, int, error) {
 	var body struct {
-		Name, URL string
-		CSRFToken string `json:"csrf_token"`
+		Name        string `json:"name"`
+		URL         string `json:"url"`
+		GlobalAlarm bool   `json:"global_alarm"`
+		CSRFToken   string `json:"csrf_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		return nil, http.StatusBadRequest, err
@@ -507,8 +510,9 @@ func (s *Server) apiNotificationsCreate(r *http.Request) (interface{}, int, erro
 	// If database is configured, create notification in database first to get proper ID
 	if s.databaseConfig != nil && s.configDB != nil {
 		notificationData := database.NotificationData{
-			Name: name,
-			URL:  urlStr,
+			Name:        name,
+			URL:         urlStr,
+			GlobalAlarm: body.GlobalAlarm,
 		}
 		savedNotification, dbErr := s.configDB.SaveNotification(notificationData)
 		if dbErr != nil {
@@ -521,7 +525,7 @@ func (s *Server) apiNotificationsCreate(r *http.Request) (interface{}, int, erro
 		id = s.newNotificationID()
 	}
 
-	n := config.NotificationConfig{ID: id, Name: name, URL: urlStr}
+	n := config.NotificationConfig{ID: id, Name: name, URL: urlStr, GlobalAlarm: body.GlobalAlarm}
 	s.notifications = append(s.notifications, n)
 	if err := s.saveConfig(); err != nil {
 		s.logger.Printf("persist after api notification create: %v", err)
@@ -564,8 +568,10 @@ func (s *Server) apiNotificationUpdate(r *http.Request) (interface{}, int, error
 	}
 	
 	var body struct {
-		Name, URL string
-		CSRFToken string `json:"csrf_token"`
+		Name        string `json:"name"`
+		URL         string `json:"url"`
+		GlobalAlarm bool   `json:"global_alarm"`
+		CSRFToken   string `json:"csrf_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		return nil, http.StatusBadRequest, err
@@ -575,8 +581,17 @@ func (s *Server) apiNotificationUpdate(r *http.Request) (interface{}, int, error
 		if s.notifications[i].ID == nid {
 			s.notifications[i].Name = strings.TrimSpace(body.Name)
 			s.notifications[i].URL = normalizeShoutrrrURL(strings.TrimSpace(body.URL))
+			s.notifications[i].GlobalAlarm = body.GlobalAlarm
 			if err := s.saveConfig(); err != nil {
 				s.logger.Printf("persist after api notification update: %v", err)
+			}
+			// Re-resolve NotifyURLs for all monitors (global alarm status may have changed)
+			cfgs := s.manager.GetAllConfigs()
+			for _, mc := range cfgs {
+				mc.NotifyURLs = s.resolveNotifyURLs(mc.NotificationIDs)
+				if _, err := s.manager.UpdateMonitor(mc); err != nil {
+					s.logger.Printf("re-resolve notify URLs for monitor %s: %v", mc.ID, err)
+				}
 			}
 			return s.notifications[i], http.StatusOK, nil
 		}
@@ -610,12 +625,27 @@ func (s *Server) apiNotificationDelete(r *http.Request) (interface{}, int, error
 	
 	s.notifications = append(s.notifications[:idx], s.notifications[idx+1:]...)
 	
-	// Clear notification references in monitors
+	// Clear notification references in monitors (both legacy NotificationID and new NotificationIDs)
 	cfgs := s.manager.GetAllConfigs()
 	changed := false
 	for i := range cfgs {
+		updated := false
 		if cfgs[i].NotificationID == nid {
 			cfgs[i].NotificationID = 0
+			updated = true
+		}
+		// Remove from NotificationIDs slice
+		var newIDs []int
+		for _, id := range cfgs[i].NotificationIDs {
+			if id != nid {
+				newIDs = append(newIDs, id)
+			} else {
+				updated = true
+			}
+		}
+		if updated {
+			cfgs[i].NotificationIDs = newIDs
+			cfgs[i].NotifyURLs = s.resolveNotifyURLs(newIDs)
 			if _, err := s.manager.UpdateMonitor(cfgs[i]); err != nil {
 				s.logger.Printf("clear notification ref for monitor %s: %v", cfgs[i].ID, err)
 			}

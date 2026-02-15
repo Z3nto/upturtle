@@ -10,53 +10,8 @@
   {{if .Success}}<div class="mb-4 p-4 bg-green-900/30 border border-green-700/50 text-green-300 rounded-lg">{{.Success}}</div>{{end}}
   {{if .Error}}<div class="mb-4 p-4 bg-red-900/30 border border-red-700/50 text-red-300 rounded-lg">{{.Error}}</div>{{end}}
 
-  <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
-    <h3 class="text-lg font-semibold text-gray-100 mb-4">Create notification</h3>
-    <form id="form-create-notification" method="post" action="#">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Name</label>
-          <input name="name" type="text" required placeholder="e.g. Discord Alerts" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Type</label>
-          <select name="type" class="shoutrrr-type w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
-            <option value="">(Select)</option>
-            <option value="discord">Discord</option>
-            <option value="slack">Slack</option>
-            <option value="telegram">Telegram</option>
-            <option value="teams">Microsoft Teams</option>
-            <option value="googlechat">Google Chat</option>
-            <option value="mattermost">Mattermost</option>
-            <option value="rocketchat">Rocket.Chat</option>
-            <option value="matrix">Matrix</option>
-            <option value="gotify">Gotify</option>
-            <option value="pushover">Pushover</option>
-            <option value="pushbullet">Pushbullet</option>
-            <option value="ntfy">ntfy</option>
-            <option value="smtp">SMTP (Email)</option>
-            <option value="sendgrid">SendGrid</option>
-            <option value="generic">Generic Webhook</option>
-            <option value="ifttt">IFTTT</option>
-            <option value="opsgenie">OpsGenie</option>
-            <option value="pagerduty">PagerDuty</option>
-            <option value="alertmanager">Prometheus Alertmanager</option>
-            <option value="custom">(Custom URL)</option>
-          </select>
-        </div>
-      </div>
-      <div class="shoutrrr-builder mb-4 hidden">
-        <label class="block text-sm font-medium text-gray-300 mb-2">Configuration</label>
-        <div class="builder-fields grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-300 mb-2">Notify URL (Shoutrrr)</label>
-        <input name="url" type="text" required class="shoutrrr-url w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors font-mono text-sm" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
-      </div>
-      <div class="flex justify-end">
-        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Add</button>
-      </div>
-    </form>
+  <div class="mb-4 flex justify-end">
+    <button type="button" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors" data-action="open-create-notification">+ New notification</button>
   </div>
 
   <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6">
@@ -69,6 +24,7 @@
             <th class="px-4 py-3 text-left text-sm font-medium text-gray-300 w-20">ID</th>
             <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Name</th>
             <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">URL</th>
+            <th class="px-4 py-3 text-center text-sm font-medium text-gray-300 w-28">Global</th>
             <th class="px-4 py-3 text-right text-sm font-medium text-gray-300 w-32">Actions</th>
           </tr>
         </thead>
@@ -78,6 +34,7 @@
             <td class="px-4 py-3 text-gray-500 text-sm">{{.ID}}</td>
             <td class="px-4 py-3 text-gray-200">{{.Name}}</td>
             <td class="px-4 py-3 text-gray-500 text-sm font-mono truncate max-w-xs" title="{{.URL}}">{{.URL}}</td>
+            <td class="px-4 py-3 text-center">{{if .GlobalAlarm}}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900/40 text-yellow-300 border border-yellow-700/50">All alarms</span>{{else}}<span class="text-gray-600 text-xs">&mdash;</span>{{end}}</td>
             <td class="px-4 py-3">
               <div class="flex items-center justify-end gap-1">
                 <button class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" type="button" data-action="edit-notification" data-notification-id="{{.ID}}" title="Edit">
@@ -104,57 +61,125 @@
   </div>
 </div>
 
-<!-- Universal Edit Notification Modal -->
-<div id="modal-edit-notification" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm" aria-hidden="true">
-  <div class="bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-edit-notification-title">
-    <div class="flex items-center justify-between p-4 border-b border-dark-border">
-      <h3 id="modal-edit-notification-title" class="text-lg font-semibold text-gray-100">Edit notification</h3>
-      <button class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" type="button" data-close>&times;</button>
-    </div>
-    <form id="form-edit-notification" method="post" action="#" class="p-4">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+<!-- Modals -->
+<style>
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem; }
+.modal-backdrop.show { display: flex; }
+.modal { background: rgba(24,24,24,0.95); border: 1px solid rgba(160,160,160,0.2); border-radius: 12px; max-width: 42rem; width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid rgba(160,160,160,0.2); }
+.modal header h3 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #f3f4f6; }
+.modal header .close { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 1.75rem; line-height: 1; padding: 0.25rem; transition: color 0.2s; }
+.modal header .close:hover { color: #fff; }
+.modal form { padding: 1.5rem; }
+.modal .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.modal .form-row > div { display: flex; flex-direction: column; }
+.modal label { font-size: 0.875rem; font-weight: 500; color: #d1d5db; margin-bottom: 0.375rem; }
+.modal input[type="text"], .modal input[type="number"], .modal select, .modal textarea {
+  padding: 0.5rem 0.75rem;
+  background: rgba(31,31,35,0.8);
+  border: 1px solid rgba(160,160,160,0.25);
+  border-radius: 0.5rem;
+  color: #e5e7eb;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+.modal input:focus, .modal select:focus, .modal textarea:focus {
+  outline: none;
+  border-color: rgba(99,102,241,0.6);
+  background: rgba(31,31,35,0.95);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+.modal input[type="checkbox"] { width: 1rem; height: 1rem; }
+.modal .checkbox-row label { display: flex; align-items: center; gap: 0.5rem; }
+.modal .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(160,160,160,0.2); }
+.modal button[type="submit"], .modal button.primary {
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.modal button[type="submit"]:hover, .modal button.primary:hover { background: #2563eb; }
+.modal button[type="button"]:not(.close):not(.primary) {
+  padding: 0.5rem 1rem;
+  background: rgba(107,114,128,0.3);
+  color: #d1d5db;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.modal button[type="button"]:not(.close):not(.primary):hover {
+  background: rgba(107,114,128,0.5);
+}
+.modal .hint { color: #9ca3af; font-size: 0.75rem; margin-top: 0.25rem; }
+.modal .hint a { color: #60a5fa; text-decoration: underline; }
+.modal .hint a:hover { color: #93bbfd; }
+</style>
+
+<!-- Edit Notification Modal -->
+<div id="modal-edit-notification" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <header>
+      <h3>Edit notification</h3>
+      <button class="close" type="button" data-close>&times;</button>
+    </header>
+    <form id="form-edit-notification" action="#" method="post">
+      <div class="form-row">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Name</label>
-          <input name="name" type="text" required class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+          <label>Name</label>
+          <input name="name" type="text" required>
         </div>
+      </div>
+      <div class="form-row">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Type</label>
-          <select name="type" class="shoutrrr-type w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
-            <option value="">(Select)</option>
-            <option value="discord">Discord</option>
-            <option value="slack">Slack</option>
-            <option value="telegram">Telegram</option>
-            <option value="teams">Microsoft Teams</option>
-            <option value="googlechat">Google Chat</option>
-            <option value="mattermost">Mattermost</option>
-            <option value="rocketchat">Rocket.Chat</option>
-            <option value="matrix">Matrix</option>
-            <option value="gotify">Gotify</option>
-            <option value="pushover">Pushover</option>
-            <option value="pushbullet">Pushbullet</option>
-            <option value="ntfy">ntfy</option>
-            <option value="smtp">SMTP (Email)</option>
-            <option value="sendgrid">SendGrid</option>
-            <option value="generic">Generic Webhook</option>
-            <option value="ifttt">IFTTT</option>
-            <option value="opsgenie">OpsGenie</option>
-            <option value="pagerduty">PagerDuty</option>
-            <option value="alertmanager">Prometheus Alertmanager</option>
-            <option value="custom">(Custom URL)</option>
-          </select>
+          <label>Shoutrrr URL</label>
+          <input name="url" type="text" required placeholder="e.g. discord://token@id or gotify://host/token" style="font-family:monospace;font-size:0.8rem">
+          <span class="hint">Enter a valid Shoutrrr URL. See <a href="https://containrrr.dev/shoutrrr/v0.8/services/overview/" target="_blank" rel="noopener noreferrer">Shoutrrr Documentation</a> for supported services and URL formats.</span>
         </div>
       </div>
-      <div class="shoutrrr-builder mb-4 hidden">
-        <label class="block text-sm font-medium text-gray-300 mb-2">Configuration</label>
-        <div class="builder-fields grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      <div class="form-row checkbox-row">
+        <label><input name="global_alarm" type="checkbox" value="true"> Global alarm &mdash; receive notifications for <strong>all</strong> monitor alarms</label>
       </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-300 mb-2">Notify URL (Shoutrrr)</label>
-        <input name="url" type="text" required class="shoutrrr-url w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors font-mono text-sm" placeholder="e.g. discord://token@id/webhook or gotify://..." readonly>
+      <div class="actions">
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="primary">Save</button>
       </div>
-      <div class="flex justify-end gap-2">
-        <button type="button" data-close class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
-        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Save</button>
+    </form>
+  </div>
+</div>
+
+<!-- Create Notification Modal -->
+<div id="modal-create-notification" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <header>
+      <h3>Create notification</h3>
+      <button class="close" type="button" data-close>&times;</button>
+    </header>
+    <form id="form-create-notification" action="#" method="post">
+      <div class="form-row">
+        <div>
+          <label>Name</label>
+          <input name="name" type="text" required placeholder="e.g. Discord Alerts">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Shoutrrr URL</label>
+          <input name="url" type="text" required placeholder="e.g. discord://token@id or gotify://host/token" style="font-family:monospace;font-size:0.8rem">
+          <span class="hint">Enter a valid Shoutrrr URL. See <a href="https://containrrr.dev/shoutrrr/v0.8/services/overview/" target="_blank" rel="noopener noreferrer">Shoutrrr Documentation</a> for supported services and URL formats.</span>
+        </div>
+      </div>
+      <div class="form-row checkbox-row">
+        <label><input name="global_alarm" type="checkbox" value="true"> Global alarm &mdash; receive notifications for <strong>all</strong> monitor alarms</label>
+      </div>
+      <div class="actions">
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="primary">Create</button>
       </div>
     </form>
   </div>
@@ -162,130 +187,114 @@
 
 <script>
 (function(){
-  function openModal(id){ 
-    var el = document.getElementById(id); 
-    if(!el) return; 
-    el.classList.remove('hidden');
-    el.classList.add('flex');
-    el.setAttribute('aria-hidden','false'); 
+  function openModal(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.classList.add('show');
+    el.setAttribute('aria-hidden','false');
   }
-  function closeModal(el){ 
+  function closeModal(el){
     if(typeof el === 'string') el = document.getElementById(el);
     if(!el) return;
-    el.classList.add('hidden');
-    el.classList.remove('flex');
-    el.setAttribute('aria-hidden','true'); 
+    el.classList.remove('show');
+    el.setAttribute('aria-hidden','true');
   }
-  window.openModal = openModal; window.closeModal = closeModal;
-  
-  // Handle dynamic modal actions
+
+  // Close buttons inside modals
+  document.querySelectorAll('.modal-backdrop').forEach(function(bg){
+    bg.querySelectorAll('[data-close]').forEach(function(x){
+      x.addEventListener('click', function(){ closeModal(bg); });
+    });
+  });
+
+  // Handle dynamic actions
   document.addEventListener('click', function(e){
-    const t = e.target.closest('[data-action]');
+    var t = e.target.closest('[data-action]');
     if(!t) return;
     e.preventDefault(); e.stopPropagation();
-    
-    const action = t.getAttribute('data-action');
+
+    var action = t.getAttribute('data-action');
     switch(action) {
       case 'edit-notification':
         openEditNotificationModal(t.getAttribute('data-notification-id'));
         break;
+      case 'open-create-notification':
+        var createForm = document.getElementById('form-create-notification');
+        if (createForm) createForm.reset();
+        openModal('modal-create-notification');
+        break;
     }
   }, true);
-  
-  // Legacy support for data-open attributes
-  document.querySelectorAll('[data-open]').forEach(function(el){ el.addEventListener('click', function(e){ e.preventDefault(); openModal(el.getAttribute('data-open')); }); });
-  
-  // Modal population functions
+
+  // Populate and open edit modal
   async function openEditNotificationModal(notificationId) {
     try {
-      const response = await (window.api || fetch)('/api/notifications/' + encodeURIComponent(notificationId), {
+      var response = await fetch('/api/notifications/' + encodeURIComponent(notificationId), {
         credentials: 'same-origin'
       });
       if (!response.ok) throw new Error('Failed to load notification data');
-      
-      const notification = await response.json();
-      const form = document.getElementById('form-edit-notification');
-      
-      // Populate form fields
+
+      var notification = await response.json();
+      var form = document.getElementById('form-edit-notification');
+
       form.querySelector('input[name="name"]').value = notification.name || '';
       form.querySelector('input[name="url"]').value = notification.url || '';
-      
-      // Set notification ID for form submission
+      form.querySelector('input[name="global_alarm"]').checked = !!notification.global_alarm;
       form.setAttribute('data-id', notificationId);
-      
-      // Initialize shoutrrr select with existing URL
-      const typeSelect = form.querySelector('select.shoutrrr-type');
-      typeSelect.setAttribute('data-existing-url', notification.url || '');
-      initShoutrrrSelect(typeSelect);
-      
+
       openModal('modal-edit-notification');
     } catch (error) {
       alert('Failed to load notification data: ' + error.message);
     }
   }
-  
-  // Make function globally available
-  window.openEditNotificationModal = openEditNotificationModal;
-  
-  // Modal close buttons
-  document.querySelectorAll('#modal-edit-notification').forEach(function(bg){
-    bg.querySelectorAll('[data-close]').forEach(function(x){ x.addEventListener('click', function(){ closeModal(bg); }); });
-  });
 
-// REST API integration for Notifications UI
-(function(){
-  const csrfToken = '{{.CSRFToken}}';
-  async function api(path, options){
+  // REST API helper
+  var csrfToken = '{{.CSRFToken}}';
+  function api(path, options){
     options = options || {};
     options.credentials = 'same-origin';
     options.headers = Object.assign({'Content-Type':'application/json'}, options.headers||{});
-    
-    // Add CSRF token for non-GET requests
     if (options.method && options.method !== 'GET') {
-      // Always add CSRF token header so middleware can validate without parsing body
       options.headers['X-CSRF-Token'] = csrfToken;
       if (options.body && typeof options.body === 'string') {
         try {
-          const bodyObj = JSON.parse(options.body);
+          var bodyObj = JSON.parse(options.body);
           bodyObj.csrf_token = csrfToken;
           options.body = JSON.stringify(bodyObj);
-        } catch (e) {
-          // If body is not JSON, add as form data
-          const formData = new FormData();
-          formData.append('csrf_token', csrfToken);
-          options.body = formData;
-        }
+        } catch (e) {}
       } else {
-        // For requests without body, add as JSON
         options.body = JSON.stringify({ csrf_token: csrfToken });
       }
     }
-    
-    const res = await fetch(path, options);
-    if(res.status === 401 || res.status === 403){ window.location.href = '/login'; throw new Error('unauthorized'); }
-    return res;
+    return fetch(path, options).then(function(res){
+      if(res.status === 401 || res.status === 403){ window.location.href = '/login'; throw new Error('unauthorized'); }
+      return res;
+    });
   }
+
   // Create
-  const fc = document.getElementById('form-create-notification');
+  var fc = document.getElementById('form-create-notification');
   if(fc){ fc.addEventListener('submit', async function(e){ e.preventDefault(); try{
-    const fd = new FormData(fc);
-    const name = (fd.get('name')||'').trim();
-    const url = (fd.get('url')||'').trim();
+    var fd = new FormData(fc);
+    var name = (fd.get('name')||'').trim();
+    var url = (fd.get('url')||'').trim();
+    var global_alarm = !!fd.get('global_alarm');
     if(!name || !url){ alert('Name und URL sind erforderlich'); return; }
-    const res = await api('/api/notifications/', { method:'POST', body: JSON.stringify({ name, url })});
+    var res = await api('/api/notifications/', { method:'POST', body: JSON.stringify({ name:name, url:url, global_alarm:global_alarm })});
     if(!res.ok) throw new Error('create failed');
     window.location.reload();
   }catch(err){ alert('Failed to create notification'); }}); }
 
-  // Edit (universal form)
-  const editNotificationForm = document.getElementById('form-edit-notification');
-  if(editNotificationForm){ editNotificationForm.addEventListener('submit', async function(e){ e.preventDefault(); try{
-    const id = editNotificationForm.getAttribute('data-id');
-    const fd = new FormData(editNotificationForm);
-    const name = (fd.get('name')||'').trim();
-    const url = (fd.get('url')||'').trim();
+  // Edit
+  var editForm = document.getElementById('form-edit-notification');
+  if(editForm){ editForm.addEventListener('submit', async function(e){ e.preventDefault(); try{
+    var id = editForm.getAttribute('data-id');
+    var fd = new FormData(editForm);
+    var name = (fd.get('name')||'').trim();
+    var url = (fd.get('url')||'').trim();
+    var global_alarm = !!fd.get('global_alarm');
     if(!name || !url){ alert('Name und URL sind erforderlich'); return; }
-    const res = await api('/api/notifications/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify({ name, url })});
+    var res = await api('/api/notifications/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify({ name:name, url:url, global_alarm:global_alarm })});
     if(!res.ok) throw new Error('update failed');
     window.location.reload();
   }catch(err){ alert('Failed to update notification'); }}); }
@@ -293,8 +302,8 @@
   // Delete
   document.querySelectorAll('form.form-delete-notification').forEach(function(f){
     f.addEventListener('submit', async function(e){ e.preventDefault(); try{
-      const id = f.getAttribute('data-id');
-      const res = await api('/api/notifications/'+encodeURIComponent(id), { method:'DELETE' });
+      var id = f.getAttribute('data-id');
+      var res = await api('/api/notifications/'+encodeURIComponent(id), { method:'DELETE' });
       if(!res.ok) throw new Error('delete failed');
       window.location.reload();
     }catch(err){ alert('Failed to delete notification'); }});
@@ -303,358 +312,17 @@
   // Test
   document.querySelectorAll('button[data-id][title="Test"]').forEach(function(btn){
     btn.addEventListener('click', async function(){
-      const id = btn.getAttribute('data-id');
+      var id = btn.getAttribute('data-id');
       try {
-        const res = await api('/api/notifications/'+encodeURIComponent(id)+'/test', { method:'POST' });
+        var res = await api('/api/notifications/'+encodeURIComponent(id)+'/test', { method:'POST' });
         if (!res.ok) {
-          const text = await res.text();
+          var text = await res.text();
           throw new Error(text || 'test failed');
         }
         alert('Test notification sent');
       } catch (err) {
         alert('Failed to send test notification');
       }
-    });
-  });
-})();
-
-  // Shoutrrr type helper
-  var examples = {
-    discord: 'https://discord.com/api/webhooks/ID/TOKEN',
-    slack: 'slack://tokenA:tokenB@tokenC/Channel',
-    telegram: 'telegram://token@telegram?chats=chatid',
-    teams: 'teams://tenant@group/channel',
-    googlechat: 'googlechat://key@token/space',
-    mattermost: 'mattermost://user@host/token/channel',
-    rocketchat: 'rocketchat://user@host/token/channel',
-    matrix: 'matrix://user:server@roomid',
-    gotify: 'gotify://host/token?title=Upturtle',
-    pushover: 'pushover://token@user?title=Upturtle',
-    pushbullet: 'pushbullet://token/device',
-    ntfy: 'ntfy://host/topic',
-    smtp: 'smtp://user:pass@host:587/?from=me@example.com&to=you@example.com',
-    sendgrid: 'sendgrid://apikey@sender@example.com?to=you@example.com',
-    generic: 'generic://host/path?title=Upturtle',
-    ifttt: 'ifttt://key/event',
-    opsgenie: 'opsgenie://apikey/priority',
-    pagerduty: 'pagerduty://integration_key',
-    alertmanager: 'alertmanager://user:pass@host:9093'
-  };
-
-  // Field schemas for each type to build the URL
-  var schemas = {
-    discord: {
-      pattern: 'discord://{token}@{id}/',
-      fields: [
-        { key: 'webhook', label: 'Webhook URL', placeholder: 'https://discord.com/api/webhooks/ID/TOKEN', required: true }
-      ]
-    },
-    slack: {
-      pattern: 'slack://{tokenA}:{tokenB}@{tokenC}/{channel}',
-      fields: [
-        { key: 'tokenA', label: 'Token A', required: true, noEncode: true },
-        { key: 'tokenB', label: 'Token B', required: true, noEncode: true },
-        { key: 'tokenC', label: 'Token C', required: true, noEncode: true },
-        { key: 'channel', label: 'Channel', placeholder: 'general', required: true }
-      ]
-    },
-    telegram: {
-      pattern: 'telegram://{token}@telegram?chats={chatid}',
-      fields: [
-        { key: 'token', label: 'Bot token', required: true, noEncode: true },
-        { key: 'chatid', label: 'Chat ID', required: true }
-      ]
-    },
-    teams: {
-      pattern: 'teams://{tenant}@{group}/{channel}',
-      fields: [
-        { key: 'tenant', label: 'Tenant', required: true },
-        { key: 'group', label: 'Group', required: true },
-        { key: 'channel', label: 'Channel', required: true }
-      ]
-    },
-    googlechat: {
-      pattern: 'googlechat://{key}@{token}/{space}',
-      fields: [
-        { key: 'key', label: 'Key', required: true, noEncode: true },
-        { key: 'token', label: 'Token', required: true, noEncode: true },
-        { key: 'space', label: 'Space', required: true }
-      ]
-    },
-    mattermost: {
-      pattern: 'mattermost://{user}@{host}/{token}/{channel}',
-      fields: [
-        { key: 'user', label: 'User', required: true },
-        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
-        { key: 'token', label: 'Token', required: true, noEncode: true },
-        { key: 'channel', label: 'Channel', required: true }
-      ]
-    },
-    rocketchat: {
-      pattern: 'rocketchat://{user}@{host}/{token}/{channel}',
-      fields: [
-        { key: 'user', label: 'User', required: true },
-        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
-        { key: 'token', label: 'Token', required: true, noEncode: true },
-        { key: 'channel', label: 'Channel', required: true }
-      ]
-    },
-    matrix: {
-      pattern: 'matrix://{user}:{server}@{roomid}',
-      fields: [
-        { key: 'user', label: 'User', required: true },
-        { key: 'server', label: 'Server', placeholder: 'matrix.org', required: true },
-        { key: 'roomid', label: 'Room ID', required: true }
-      ]
-    },
-    gotify: {
-      pattern: 'gotify://{host}/{token}',
-      fields: [
-        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
-        { key: 'token', label: 'Token', required: true, noEncode: true }
-      ]
-    },
-    pushover: {
-      pattern: 'pushover://{token}@{user}',
-      fields: [
-        { key: 'token', label: 'App Token', required: true, noEncode: true },
-        { key: 'user', label: 'User/Group Key', required: true, noEncode: true }
-      ]
-    },
-    pushbullet: {
-      pattern: 'pushbullet://{token}/{device}',
-      fields: [
-        { key: 'token', label: 'Access Token', required: true, noEncode: true },
-        { key: 'device', label: 'Device ID (optional)', required: false }
-      ]
-    },
-    ntfy: {
-      pattern: 'ntfy://{host}/{topic}',
-      fields: [
-        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
-        { key: 'topic', label: 'Topic', required: true }
-      ]
-    },
-    smtp: {
-      pattern: 'smtp://{user}:{pass}@{host}:{port}/?from={from}&to={to}',
-      fields: [
-        { key: 'user', label: 'User', required: true, noEncode: true },
-        { key: 'pass', label: 'Password', required: true, noEncode: true },
-        { key: 'host', label: 'Host', required: true },
-        { key: 'port', label: 'Port', placeholder: '587', required: true },
-        { key: 'from', label: 'From', placeholder: 'me@example.com', required: true },
-        { key: 'to', label: 'To', placeholder: 'you@example.com', required: true }
-      ]
-    },
-    sendgrid: {
-      pattern: 'sendgrid://{apikey}@{sender}?to={to}',
-      fields: [
-        { key: 'apikey', label: 'API Key', required: true, noEncode: true },
-        { key: 'sender', label: 'Sender', placeholder: 'sender@example.com', required: true },
-        { key: 'to', label: 'To', placeholder: 'you@example.com', required: true }
-      ]
-    },
-    generic: {
-      pattern: 'generic://{host}/{path}',
-      fields: [
-        { key: 'host', label: 'Host', placeholder: 'host:port', required: true },
-        { key: 'path', label: 'Path', placeholder: 'webhook', required: true }
-      ]
-    },
-    ifttt: {
-      pattern: 'ifttt://{key}/{event}',
-      fields: [
-        { key: 'key', label: 'Key', required: true, noEncode: true },
-        { key: 'event', label: 'Event', required: true }
-      ]
-    },
-    opsgenie: {
-      pattern: 'opsgenie://{apikey}/{priority}',
-      fields: [
-        { key: 'apikey', label: 'API Key', required: true, noEncode: true },
-        { key: 'priority', label: 'Priority', placeholder: 'P3', required: false }
-      ]
-    },
-    pagerduty: {
-      pattern: 'pagerduty://{integration_key}',
-      fields: [
-        { key: 'integration_key', label: 'Integration Key', required: true, noEncode: true }
-      ]
-    },
-    alertmanager: {
-      pattern: 'alertmanager://{user}:{pass}@{host}',
-      fields: [
-        { key: 'user', label: 'User', required: false, noEncode: true },
-        { key: 'pass', label: 'Password', required: false, noEncode: true },
-        { key: 'host', label: 'Host', placeholder: 'host:9093', required: true }
-      ]
-    }
-  };
-  function detectTypeFromURL(url){
-    if(!url) return '';
-    url = (url || '').trim();
-    var m = url.match(/^([a-z0-9+.-]+):\/\//i);
-    var scheme = m ? m[1].toLowerCase() : '';
-    // If it's already a shoutrrr scheme, return it directly
-    if (scheme && scheme !== 'http' && scheme !== 'https') {
-      return scheme;
-    }
-    // Heuristics for common HTTPS webhook URLs to infer type
-    try {
-      var u = new URL(url);
-      var host = (u.host || '').toLowerCase();
-      var path = (u.pathname || '').toLowerCase();
-      // Discord webhook
-      if (/discord\.com$/.test(host) && path.indexOf('/api/webhooks/') === 0) return 'discord';
-      // Slack webhook
-      if (/hooks\.slack\.com$/.test(host) && path.indexOf('/services/') === 0) return 'slack';
-      // Microsoft Teams incoming webhook typically uses office.com or office365.com with /webhook/
-      if ((/office\.com$/.test(host) || /office365\.com$/.test(host) || /office365\.[^/]+$/.test(host)) && path.indexOf('/webhook/') === 0) return 'teams';
-      // Google Chat webhook
-      if (/chat\.googleapis\.com$/.test(host) && path.indexOf('/v1/spaces/') === 0) return 'googlechat';
-      // Mattermost webhook
-      if (path.indexOf('/hooks/') === 0 && (/mattermost\./.test(host) || /mattermost$/.test(host))) return 'mattermost';
-      // Rocket.Chat webhook
-      if (path.indexOf('/hooks/') === 0 && (/rocket\.chat$/.test(host) || /rocketchat/.test(host))) return 'rocketchat';
-    } catch(e){}
-    return scheme;
-  }
-  function updateForSelect(select){
-    var wrapper = select.closest('form');
-    var urlInput = wrapper ? wrapper.querySelector('.shoutrrr-url') : null;
-    var builder = wrapper ? wrapper.querySelector('.shoutrrr-builder') : null;
-    var fieldsContainer = builder ? builder.querySelector('.builder-fields') : null;
-    if(!urlInput) return;
-    var val = select.value;
-    var ex = examples[val] || 'scheme://...';
-    urlInput.placeholder = ex;
-    // Toggle builder visibility and URL readonly based on type
-    if (builder && fieldsContainer) {
-      if (val && val !== 'custom' && schemas[val]) {
-        builder.classList.remove('hidden');
-        urlInput.readOnly = true;
-        // render fields
-        fieldsContainer.innerHTML = '';
-        var schema = schemas[val];
-        schema.fields.forEach(function(f){
-          var div = document.createElement('div');
-          var id = 'fld-' + val + '-' + f.key + '-' + Math.random().toString(36).slice(2,7);
-          var label = document.createElement('label');
-          label.setAttribute('for', id);
-          label.className = 'block text-sm font-medium text-gray-300 mb-2';
-          label.textContent = f.label + (f.required ? ' *' : '');
-          var input = document.createElement('input');
-          input.type = 'text';
-          input.id = id;
-          input.className = 'w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors';
-          input.dataset.key = f.key;
-          input.placeholder = f.placeholder || '';
-          if (f.required) input.required = true;
-          input.addEventListener('input', function(){ buildURL(select); });
-          div.appendChild(label);
-          div.appendChild(input);
-          fieldsContainer.appendChild(div);
-        });
-        // Initialize: if an existing URL is present (edit case), do NOT overwrite it now.
-        // Wait until user starts typing in a field or changes the type.
-        var hasExisting = !!(select.getAttribute('data-existing-url') || urlInput.value);
-        if (!hasExisting) { buildURL(select); }
-      } else if (val === 'custom') {
-        builder.classList.add('hidden');
-        urlInput.readOnly = false;
-      } else {
-        builder.classList.add('hidden');
-        urlInput.readOnly = true;
-        // Do not clear existing URL if one is present (e.g., edit initialization)
-        if (!select.getAttribute('data-existing-url') && !urlInput.value) {
-          urlInput.value = '';
-        }
-      }
-    }
-  }
-  function buildURL(select){
-    var wrapper = select.closest('form');
-    var urlInput = wrapper ? wrapper.querySelector('.shoutrrr-url') : null;
-    var builder = wrapper ? wrapper.querySelector('.shoutrrr-builder') : null;
-    var fieldsContainer = builder ? builder.querySelector('.builder-fields') : null;
-    if(!urlInput || !fieldsContainer) return;
-    var t = select.value;
-    var schema = schemas[t];
-    if(!schema){ return; }
-    var url = schema.pattern;
-    // Special handling for Discord: accept full webhook URL and convert
-    if (t === 'discord') {
-      var inp = fieldsContainer.querySelector('input[data-key="webhook"]');
-      var v = (inp && inp.value || '').trim();
-      if (v) {
-        // Allow either direct shoutrrr format or raw webhook URL
-        var m1 = v.match(/^https?:\/\/(?:ptb\.|canary\.)?discord\.com\/api\/webhooks\/([^\/]+)\/([^\/?#\s]+)/i);
-        if (m1) {
-          var id = encodeURIComponent(m1[1]);
-          var token = encodeURIComponent(m1[2]);
-          url = 'discord://' + token + '@' + id;
-          urlInput.value = url;
-          return;
-        }
-        var m2 = v.match(/^discord:\/\/.+@.+/i);
-        if (m2) {
-          urlInput.value = v;
-          return;
-        }
-      }
-    }
-    fieldsContainer.querySelectorAll('input').forEach(function(inp){
-      var v = (inp.value || '').trim();
-      var key = inp.dataset.key;
-      // Check if this field should not be URL encoded
-      var field = schema.fields.find(function(f) { return f.key === key; });
-      var encodedValue = (field && field.noEncode) ? v : encodeURIComponent(v);
-      url = url.replace(new RegExp('\\{' + key + '\\}', 'g'), encodedValue);
-    });
-    urlInput.value = url;
-  }
-  function initShoutrrrSelect(sel){
-    if(!sel) return;
-    var existing = (sel.getAttribute('data-existing-url') || '').trim();
-    var urlInput = sel.closest('form')?.querySelector('.shoutrrr-url');
-    if(existing){
-      var t = detectTypeFromURL(existing);
-      if(t && sel.querySelector('option[value="'+t+'"]')){
-        sel.value = t;
-      } else if (sel.querySelector('option[value="custom"]')) {
-        sel.value = 'custom';
-      }
-      if (urlInput) {
-        urlInput.placeholder = examples[sel.value] || urlInput.placeholder;
-        urlInput.value = existing;
-      }
-    }
-    // Always ensure UI reflects current selection
-    updateForSelect(sel);
-  }
-
-  // Initialize all selects on page load
-  document.querySelectorAll('select.shoutrrr-type').forEach(function(sel){
-    sel.addEventListener('change', function(){ updateForSelect(sel); });
-    initShoutrrrSelect(sel);
-  });
-
-  // Initialize shoutrrr select for universal edit modal
-  const editModalSelect = document.querySelector('#modal-edit-notification select.shoutrrr-type');
-  if (editModalSelect) {
-    editModalSelect.addEventListener('change', function(){ updateForSelect(editModalSelect); });
-  }
-  
-  // Re-initialize when opening a modal (ensures late-loaded values are respected)
-  document.querySelectorAll('[data-open]').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var target = btn.getAttribute('data-open');
-      var modal = document.getElementById(target);
-      if (!modal) return;
-      // Initialize all selects within this modal (support future multiple)
-      modal.querySelectorAll('select.shoutrrr-type').forEach(function(sel){
-        initShoutrrrSelect(sel);
-      });
     });
   });
 })();

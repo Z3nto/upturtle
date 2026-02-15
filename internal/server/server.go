@@ -131,6 +131,7 @@ type APIMonitorConfig struct {
 	Order           int    `json:"order"`
 	MasterID        string `json:"master_id"`
 	NotificationID  int    `json:"notification_id"`
+	NotificationIDs []int  `json:"notification_ids"`
 	FailThreshold   int    `json:"fail_threshold"`
 	CertValidation  string `json:"cert_validation"`
 }
@@ -169,6 +170,7 @@ func convertSnapshotToAPI(snap monitor.Snapshot) APISnapshot {
 			Order:           snap.Config.Order,
 			MasterID:        snap.Config.MasterID,
 			NotificationID:  snap.Config.NotificationID,
+			NotificationIDs: snap.Config.NotificationIDs,
 			FailThreshold:   snap.Config.FailThreshold,
 			CertValidation:  string(snap.Config.CertValidation),
 		},
@@ -718,6 +720,37 @@ func (s *Server) handleAdminNotifications(w http.ResponseWriter, r *http.Request
 }
 
 // ---- Notification helpers & actions ----
+
+// resolveNotifyURLs resolves a list of notification IDs to their URLs,
+// and appends URLs from all global alarm notifications.
+func (s *Server) resolveNotifyURLs(notificationIDs []int) []string {
+	seen := make(map[string]bool)
+	var urls []string
+	// Add URLs for explicitly selected notifications
+	for _, nid := range notificationIDs {
+		for _, n := range s.notifications {
+			if n.ID == nid {
+				u := strings.TrimSpace(n.URL)
+				if u != "" && !seen[u] {
+					urls = append(urls, u)
+					seen[u] = true
+				}
+				break
+			}
+		}
+	}
+	// Add URLs for all global alarm notifications
+	for _, n := range s.notifications {
+		if n.GlobalAlarm {
+			u := strings.TrimSpace(n.URL)
+			if u != "" && !seen[u] {
+				urls = append(urls, u)
+				seen[u] = true
+			}
+		}
+	}
+	return urls
+}
 
 // newNotificationID returns the next incremental notification ID
 func (s *Server) newNotificationID() int {
@@ -1920,35 +1953,42 @@ func (s *Server) buildStatusData(r *http.Request) StatusPageData {
 }
 
 type monitorRequest struct {
-	Name           string `json:"name"`
-	Type           string `json:"type"`
-	Target         string `json:"target"`
-	Interval       int    `json:"interval_seconds"`
-	Timeout        int    `json:"timeout_seconds"`
-	NotificationID int    `json:"notification_id"`
-	Enabled        *bool  `json:"enabled"`
-	GroupID        int    `json:"group_id"`
-	Group          string `json:"group"`
-	Order          int    `json:"order"`
-	MasterID       string `json:"master_id"`
-	FailThreshold  int    `json:"fail_threshold"`
-	CertValidation string `json:"cert_validation"`
+	Name            string `json:"name"`
+	Type            string `json:"type"`
+	Target          string `json:"target"`
+	Interval        int    `json:"interval_seconds"`
+	Timeout         int    `json:"timeout_seconds"`
+	NotificationID  int    `json:"notification_id"`
+	NotificationIDs []int  `json:"notification_ids"`
+	Enabled         *bool  `json:"enabled"`
+	GroupID         int    `json:"group_id"`
+	Group           string `json:"group"`
+	Order           int    `json:"order"`
+	MasterID        string `json:"master_id"`
+	FailThreshold   int    `json:"fail_threshold"`
+	CertValidation  string `json:"cert_validation"`
 }
 
 func (m monitorRequest) toConfig(id string) (monitor.MonitorConfig, error) {
 	target := strings.TrimSpace(m.Target)
 	monitorType := monitor.Type(strings.TrimSpace(m.Type))
 
+	// Migrate legacy single NotificationID into NotificationIDs
+	nids := m.NotificationIDs
+	if len(nids) == 0 && m.NotificationID > 0 {
+		nids = []int{m.NotificationID}
+	}
 	cfg := monitor.MonitorConfig{
-		ID:             id,
-		Name:           strings.TrimSpace(m.Name),
-		Type:           monitorType,
-		Target:         target,
-		NotificationID: m.NotificationID,
-		Enabled:        true,
-		GroupID:        m.GroupID,
-		Group:          strings.TrimSpace(m.Group),
-		Order:          m.Order,
+		ID:              id,
+		Name:            strings.TrimSpace(m.Name),
+		Type:            monitorType,
+		Target:          target,
+		NotificationID:  m.NotificationID,
+		NotificationIDs: nids,
+		Enabled:         true,
+		GroupID:         m.GroupID,
+		Group:           strings.TrimSpace(m.Group),
+		Order:           m.Order,
 	}
 	if cfg.Type == "" {
 		cfg.Type = monitor.TypeHTTP
@@ -2077,6 +2117,7 @@ type AdminMonitorView struct {
 	NotifyURL       string
 	FailThreshold   int
 	NotificationID  int
+	NotificationIDs []int
 	CertValidation  string
 }
 
@@ -2148,6 +2189,7 @@ func toAdminMonitorView(snap monitor.Snapshot) AdminMonitorView {
 		NotifyURL:         snap.Config.NotifyURL,
 		FailThreshold:     snap.Config.FailThreshold,
 		NotificationID:    snap.Config.NotificationID,
+		NotificationIDs:   snap.Config.NotificationIDs,
 		CertValidation:    string(snap.Config.CertValidation),
 	}
 }
@@ -2299,9 +2341,10 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			if len(s.notifications) > 0 {
 				for _, notification := range s.notifications {
 					notificationData := database.NotificationData{
-						ID:   notification.ID,
-						Name: notification.Name,
-						URL:  notification.URL,
+						ID:          notification.ID,
+						Name:        notification.Name,
+						URL:         notification.URL,
+						GlobalAlarm: notification.GlobalAlarm,
 					}
 					if _, err := db.SaveNotification(notificationData); err != nil {
 						s.logger.Printf("Warning: Failed to save notification %s to database: %v", notification.Name, err)
@@ -2452,9 +2495,10 @@ func (s *Server) saveConfig() error {
 		// Save notifications to database
 		for _, notification := range s.notifications {
 			notificationData := database.NotificationData{
-				ID:   notification.ID,
-				Name: notification.Name,
-				URL:  notification.URL,
+				ID:          notification.ID,
+				Name:        notification.Name,
+				URL:         notification.URL,
+				GlobalAlarm: notification.GlobalAlarm,
 			}
 			if _, err := s.configDB.SaveNotification(notificationData); err != nil {
 				s.logger.Printf("Warning: Failed to save notification %s to database: %v", notification.Name, err)

@@ -289,13 +289,13 @@
       </div>
       <div class="form-row">
         <div>
-          <label for="new-notification">Notification</label>
-          <select id="new-notification" name="notification_id">
-            <option value="0" selected>(none)</option>
+          <label for="new-notification">Notifications</label>
+          <select id="new-notification" name="notification_ids" multiple size="3" style="min-height:60px">
             {{range .Notifications}}
-              <option value="{{.ID}}">{{.Name}}</option>
+              <option value="{{.ID}}">{{.Name}}{{if .GlobalAlarm}} (global){{end}}</option>
             {{end}}
           </select>
+          <small style="color:#888">Hold Ctrl/Cmd to select multiple. Global notifications always fire.</small>
         </div>
         <div>
           <label for="new-fail-threshold">Fail threshold</label>
@@ -389,13 +389,13 @@
           </select>
         </div>
         <div>
-          <label>Notification</label>
-          <select name="notification_id">
-            <option value="0">(none)</option>
+          <label>Notifications</label>
+          <select name="notification_ids" multiple size="3" style="min-height:60px">
             {{range .Notifications}}
-              <option value="{{.ID}}">{{.Name}}</option>
+              <option value="{{.ID}}">{{.Name}}{{if .GlobalAlarm}} (global){{end}}</option>
             {{end}}
           </select>
+          <small style="color:#888">Hold Ctrl/Cmd to select multiple. Global notifications always fire.</small>
         </div>
         <div>
           <label>Fail threshold</label>
@@ -826,7 +826,18 @@
       form.querySelector('input[name="interval_seconds"]').value = monitor.interval_seconds || 60;
       form.querySelector('input[name="timeout_seconds"]').value = monitor.timeout_seconds || 10;
       form.querySelector('select[name="master_id"]').value = monitor.master_id || '';
-      form.querySelector('select[name="notification_id"]').value = monitor.notification_id || '0';
+      // Set multi-select notification_ids
+      var nidSelect = form.querySelector('select[name="notification_ids"]');
+      if (nidSelect) {
+        var selectedIds = monitor.notification_ids || [];
+        // Legacy fallback
+        if ((!selectedIds || selectedIds.length === 0) && monitor.notification_id > 0) {
+          selectedIds = [monitor.notification_id];
+        }
+        Array.from(nidSelect.options).forEach(function(opt) {
+          opt.selected = selectedIds.indexOf(parseInt(opt.value, 10)) !== -1;
+        });
+      }
       form.querySelector('input[name="fail_threshold"]').value = monitor.fail_threshold || 3;
       form.querySelector('input[name="enabled"]').checked = monitor.enabled || false;
       
@@ -957,7 +968,7 @@
       group_id: parseInt(fd.get('group_id')||'0',10) || 0,
       order: parseInt(fd.get('order')||'1',10) || 1,
       master_id: fd.get('master_id')||'',
-      notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
+      notification_ids: Array.from(fmNew.querySelector('select[name="notification_ids"]').selectedOptions).map(function(o){ return parseInt(o.value,10); }),
       fail_threshold: parseInt(fd.get('fail_threshold')||'3',10) || 3,
       enabled: !!fd.get('enabled'),
       cert_validation: fd.get('cert_validation')||'full'
@@ -988,7 +999,7 @@
       target: fd.get('target')||'',
       interval_seconds: parseInt(fd.get('interval_seconds')||'60',10),
       timeout_seconds: parseInt(fd.get('timeout_seconds')||'10',10),
-      notification_id: parseInt(fd.get('notification_id')||'0',10) || 0,
+      notification_ids: Array.from(editMonitorForm.querySelector('select[name="notification_ids"]').selectedOptions).map(function(o){ return parseInt(o.value,10); }),
       enabled: fd.get('enabled') ? true : false,
       group_id: parseInt(fd.get('group_id')||'0',10) || 0,
       order: parseInt(fd.get('order')||'1',10) || 1,
