@@ -52,7 +52,7 @@ type MonitorData struct {
 	Enabled        bool      `json:"enabled"`
 	GroupID        int       `json:"group_id"`
 	Order          int       `json:"order"`
-	MasterID       string    `json:"master_id"`
+	ParentID       string    `json:"parent_id"`
 	FailThreshold  int       `json:"fail_threshold"`
 	CertValidation string    `json:"cert_validation"`
 	CreatedAt      time.Time `json:"created_at"`

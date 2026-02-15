@@ -97,8 +97,8 @@
                   {{if not .Enabled}}
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">Disabled</span>
                   {{else}}
-                    {{if .MasterDown}}
-                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" title="Master monitor is down">Master down</span>
+                    {{if .ParentDown}}
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" title="Parent monitor is down">Parent down</span>
                     {{else}}
                       {{if eq .Status "up"}}
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50">Up</span>
@@ -274,8 +274,8 @@
           </select>
         </div>
         <div>
-          <label for="new-master">Master monitor</label>
-          <select id="new-master" name="master_id">
+          <label for="new-parent">Parent monitor</label>
+          <select id="new-parent" name="parent_id">
             <option value="" selected>(none)</option>
             {{range .Groups}}
               <optgroup label="---- {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}} ----">
@@ -376,8 +376,8 @@
           </select>
         </div>
         <div>
-          <label>Master monitor</label>
-          <select name="master_id">
+          <label>Parent monitor</label>
+          <select name="parent_id">
             <option value="">(none)</option>
             {{range .Groups}}
               <optgroup label="---- {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}} ----">
@@ -825,7 +825,7 @@
       form.querySelector('input[name="order"]').value = monitor.order || 1;
       form.querySelector('input[name="interval_seconds"]').value = monitor.interval_seconds || 60;
       form.querySelector('input[name="timeout_seconds"]').value = monitor.timeout_seconds || 10;
-      form.querySelector('select[name="master_id"]').value = monitor.master_id || '';
+      form.querySelector('select[name="parent_id"]').value = monitor.parent_id || '';
       // Set multi-select notification_ids
       var nidSelect = form.querySelector('select[name="notification_ids"]');
       if (nidSelect) {
@@ -852,9 +852,9 @@
       toggleCertValidation(typeSelect, certDiv);
       toggleTargetValidation(typeSelect, targetInput, targetDockerSelect);
       
-      // Remove self from master monitor options
-      const masterSelect = form.querySelector('select[name="master_id"]');
-      Array.from(masterSelect.options).forEach(option => {
+      // Remove self from parent monitor options
+      const parentSelect = form.querySelector('select[name="parent_id"]');
+      Array.from(parentSelect.options).forEach(option => {
         if (option.value === monitorId) {
           option.style.display = 'none';
         } else {
@@ -967,7 +967,7 @@
       timeout_seconds: parseInt(fd.get('timeout_seconds')||'10',10),
       group_id: parseInt(fd.get('group_id')||'0',10) || 0,
       order: parseInt(fd.get('order')||'1',10) || 1,
-      master_id: fd.get('master_id')||'',
+      parent_id: fd.get('parent_id')||'',
       notification_ids: Array.from(fmNew.querySelector('select[name="notification_ids"]').selectedOptions).map(function(o){ return parseInt(o.value,10); }),
       fail_threshold: parseInt(fd.get('fail_threshold')||'3',10) || 3,
       enabled: !!fd.get('enabled'),
@@ -1003,7 +1003,7 @@
       enabled: fd.get('enabled') ? true : false,
       group_id: parseInt(fd.get('group_id')||'0',10) || 0,
       order: parseInt(fd.get('order')||'1',10) || 1,
-      master_id: fd.get('master_id')||'',
+      parent_id: fd.get('parent_id')||'',
       fail_threshold: parseInt(fd.get('fail_threshold')||'3',10),
       cert_validation: fd.get('cert_validation')||'full'
     };

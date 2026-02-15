@@ -61,10 +61,10 @@ type MonitorConfig struct {
 	Group  string `json:"group"`
 	// Order specifies the order within its group (ascending)
 	Order  int `json:"order"`
-	// MasterID, when set, references another monitor that acts as a master.
-	// If the master monitor is down, this monitor continues to run checks but
-	// is labeled as "Master down" and does not send notifications.
-	MasterID string `json:"master_id,omitempty"`
+	// ParentID, when set, references another monitor that acts as a parent.
+	// If the parent monitor is down, this monitor continues to run checks but
+	// is labeled as "Parent down" and does not send notifications.
+	ParentID string `json:"parent_id,omitempty"`
 	// FailThreshold specifies after how many consecutive failures a DOWN
 	// notification should be sent via the notifier. Defaults to 3 if not set
 	// in forms; must be >= 1.
@@ -196,8 +196,8 @@ func (c *MonitorConfig) Validate() error {
 	if c.Timeout > c.Interval {
 		return errors.New("timeout must not exceed interval")
 	}
-	if c.MasterID != "" && c.MasterID == c.ID {
-		return errors.New("master_id must not reference itself")
+	if c.ParentID != "" && c.ParentID == c.ID {
+		return errors.New("parent_id must not reference itself")
 	}
 	if c.FailThreshold <= 0 {
 		// normalize to sensible default

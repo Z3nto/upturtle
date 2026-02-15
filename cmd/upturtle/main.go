@@ -140,7 +140,7 @@ func main() {
 							Enabled:        dbMonitor.Enabled,
 							GroupID:        dbMonitor.GroupID,
 							Order:          dbMonitor.Order,
-							MasterID:       dbMonitor.MasterID,
+							ParentID:       dbMonitor.ParentID,
 							FailThreshold:  dbMonitor.FailThreshold,
 							CertValidation: monitor.CertValidationMode(dbMonitor.CertValidation),
 						}

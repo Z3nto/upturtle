@@ -126,7 +126,7 @@ func (s *SQLiteDB) createMonitorsTable() error {
 		enabled BOOLEAN NOT NULL DEFAULT 1,
 		group_id INTEGER DEFAULT 0,
 		order_num INTEGER DEFAULT 0,
-		master_id TEXT,
+		parent_id TEXT,
 		fail_threshold INTEGER NOT NULL DEFAULT 3,
 		cert_validation TEXT DEFAULT 'full',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -560,7 +560,7 @@ func (s *SQLiteDB) SaveMonitor(monitor MonitorData) error {
 	query := `
 	INSERT OR REPLACE INTO monitors (
 		id, name, type, target, interval_sec, timeout_sec, notification_id,
-		enabled, group_id, order_num, master_id, fail_threshold, cert_validation,
+		enabled, group_id, order_num, parent_id, fail_threshold, cert_validation,
 		created_at, updated_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
 		COALESCE((SELECT created_at FROM monitors WHERE id = ?), CURRENT_TIMESTAMP),
@@ -569,7 +569,7 @@ func (s *SQLiteDB) SaveMonitor(monitor MonitorData) error {
 	_, err := s.db.Exec(query,
 		monitor.ID, monitor.Name, monitor.Type, monitor.Target,
 		monitor.IntervalSec, monitor.TimeoutSec, monitor.NotificationID,
-		monitor.Enabled, monitor.GroupID, monitor.Order, monitor.MasterID,
+		monitor.Enabled, monitor.GroupID, monitor.Order, monitor.ParentID,
 		monitor.FailThreshold, monitor.CertValidation, monitor.ID)
 
 	return err
@@ -579,7 +579,7 @@ func (s *SQLiteDB) SaveMonitor(monitor MonitorData) error {
 func (s *SQLiteDB) GetMonitor(id string) (*MonitorData, error) {
 	query := `
 	SELECT id, name, type, target, interval_sec, timeout_sec, notification_id,
-		   enabled, group_id, order_num, master_id, fail_threshold, cert_validation,
+		   enabled, group_id, order_num, parent_id, fail_threshold, cert_validation,
 		   created_at, updated_at
 	FROM monitors WHERE id = ?`
 
@@ -587,7 +587,7 @@ func (s *SQLiteDB) GetMonitor(id string) (*MonitorData, error) {
 	err := s.db.QueryRow(query, id).Scan(
 		&monitor.ID, &monitor.Name, &monitor.Type, &monitor.Target,
 		&monitor.IntervalSec, &monitor.TimeoutSec, &monitor.NotificationID,
-		&monitor.Enabled, &monitor.GroupID, &monitor.Order, &monitor.MasterID,
+		&monitor.Enabled, &monitor.GroupID, &monitor.Order, &monitor.ParentID,
 		&monitor.FailThreshold, &monitor.CertValidation,
 		&monitor.CreatedAt, &monitor.UpdatedAt)
 
@@ -602,7 +602,7 @@ func (s *SQLiteDB) GetMonitor(id string) (*MonitorData, error) {
 func (s *SQLiteDB) GetAllMonitors() ([]MonitorData, error) {
 	query := `
 	SELECT id, name, type, target, interval_sec, timeout_sec, notification_id,
-		   enabled, group_id, order_num, master_id, fail_threshold, cert_validation,
+		   enabled, group_id, order_num, parent_id, fail_threshold, cert_validation,
 		   created_at, updated_at
 	FROM monitors ORDER BY group_id, order_num, name`
 
@@ -618,7 +618,7 @@ func (s *SQLiteDB) GetAllMonitors() ([]MonitorData, error) {
 		err := rows.Scan(
 			&monitor.ID, &monitor.Name, &monitor.Type, &monitor.Target,
 			&monitor.IntervalSec, &monitor.TimeoutSec, &monitor.NotificationID,
-			&monitor.Enabled, &monitor.GroupID, &monitor.Order, &monitor.MasterID,
+			&monitor.Enabled, &monitor.GroupID, &monitor.Order, &monitor.ParentID,
 			&monitor.FailThreshold, &monitor.CertValidation,
 			&monitor.CreatedAt, &monitor.UpdatedAt)
 		if err != nil {

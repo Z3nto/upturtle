@@ -38,90 +38,154 @@
         body {
             background: radial-gradient(circle at top, rgba(170,170,170,0.16), transparent 60%), #1f1f23;
         }
-        
-        /* Minimal custom styles for complex interactions */
-        .nav-toggle { display: none; }
+
+        /* ── Desktop sidebar (>900px) ── */
+        .sidebar {
+            display: none;
+        }
+        @media (min-width: 901px) {
+            .sidebar {
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                top: 0; left: 0; bottom: 0;
+                width: 220px;
+                background: rgba(24,24,24,0.92);
+                border-right: 1px solid rgba(160,160,160,0.2);
+                backdrop-filter: blur(12px);
+                z-index: 50;
+                padding: 1.25rem 0;
+                overflow-y: auto;
+            }
+            .sidebar .sidebar-logo {
+                display: flex;
+                align-items: center;
+                gap: 0.6rem;
+                padding: 0 1.25rem 1.25rem;
+                border-bottom: 1px solid rgba(160,160,160,0.15);
+                margin-bottom: 0.75rem;
+                text-decoration: none;
+                color: inherit;
+            }
+            .sidebar .sidebar-logo img { height: 1.6rem; width: auto; }
+            .sidebar .sidebar-logo span { font-size: 1.15rem; font-weight: 600; color: #f3f4f6; }
+            .sidebar nav { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0 0.6rem; }
+            .sidebar nav a {
+                display: flex; align-items: center; gap: 0.6rem;
+                padding: 0.5rem 0.65rem;
+                border-radius: 8px;
+                color: #a1a1aa;
+                font-size: 0.875rem; font-weight: 500;
+                text-decoration: none;
+                transition: all 0.15s ease;
+            }
+            .sidebar nav a:hover { background: rgba(160,160,160,0.1); color: #fff; }
+            .sidebar nav a.active { background: rgba(99,102,241,0.15); color: #fff; }
+            .sidebar nav .nav-section {
+                font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+                color: #71717a; padding: 0.75rem 0.65rem 0.25rem; margin-top: 0.25rem;
+            }
+            .sidebar .sidebar-footer {
+                padding: 0.75rem 0.6rem 0;
+                border-top: 1px solid rgba(160,160,160,0.15);
+                margin-top: 0.5rem;
+            }
+            .sidebar .sidebar-user {
+                display: flex; align-items: center; gap: 0.6rem;
+                padding: 0.5rem 0.65rem;
+                border-radius: 8px;
+                text-decoration: none; color: inherit;
+                transition: background 0.15s;
+            }
+            .sidebar .sidebar-user:hover { background: rgba(160,160,160,0.1); }
+            .sidebar .sidebar-user .avatar {
+                width: 2rem; height: 2rem; border-radius: 50%;
+                background: linear-gradient(135deg, #6366f1, #9333ea);
+                color: #fff; display: flex; align-items: center; justify-content: center;
+                font-weight: 600; font-size: 0.8rem; text-transform: uppercase; flex-shrink: 0;
+            }
+            .sidebar .sidebar-user .user-info { display: flex; flex-direction: column; min-width: 0; }
+            .sidebar .sidebar-user .user-info strong { font-size: 0.8rem; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .sidebar .sidebar-user .user-info span { font-size: 0.7rem; color: #71717a; text-transform: capitalize; }
+            .sidebar .sidebar-actions { display: flex; gap: 2px; padding: 0.25rem 0; }
+            .sidebar .sidebar-actions a {
+                display: flex; align-items: center; gap: 0.5rem;
+                padding: 0.4rem 0.65rem; border-radius: 8px;
+                color: #a1a1aa; font-size: 0.8rem; font-weight: 500;
+                text-decoration: none; transition: all 0.15s;
+            }
+            .sidebar .sidebar-actions a:hover { background: rgba(160,160,160,0.1); color: #fff; }
+            .sidebar .sidebar-actions a.logout:hover { color: #f87171; }
+
+            .mobile-header { display: none !important; }
+            .page-wrapper { margin-left: 220px; }
+        }
+
+        /* ── Mobile top bar + hamburger (<=900px) ── */
+        .mobile-header {
+            display: flex;
+            position: sticky; top: 0; z-index: 50;
+            backdrop-filter: blur(12px);
+            background: rgba(24,24,24,0.8);
+            border-bottom: 1px solid rgba(160,160,160,0.2);
+            padding: 0.75rem 1rem;
+            align-items: center; justify-content: space-between;
+        }
+        .nav-toggle { display: none; background: none; border: none; color: #d1d5db; font-size: 1.5rem; cursor: pointer; padding: 0.25rem; }
         @media (max-width: 900px) {
             .nav-toggle { display: inline-flex; }
             .nav-links {
                 position: fixed;
-                top: 0;
-                right: -100%;
-                width: 280px;
-                max-width: 85vw;
-                height: 100vh;
+                top: 0; right: -100%;
+                width: 280px; max-width: 85vw; height: 100vh;
                 background: #1f1f23;
-                border-left: 1px solid rgba(160, 160, 160, 0.3);
+                border-left: 1px solid rgba(160,160,160,0.3);
                 z-index: 9999;
                 padding: 2rem 1.5rem;
                 overflow-y: auto;
                 transition: right 0.3s ease;
-                box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
+                box-shadow: -5px 0 20px rgba(0,0,0,0.5);
                 flex-direction: column;
             }
             body.nav-open .nav-links { right: 0; }
             body.nav-open { overflow: hidden; }
             .nav-links::before {
                 content: '✕';
-                position: absolute;
-                top: 1rem;
-                right: 1rem;
-                font-size: 1.5rem;
-                color: #d1d5db;
-                cursor: pointer;
-                width: 2.5rem;
-                height: 2.5rem;
-                display: flex;
-                align-items: center;
-                justify-content: center;
+                position: absolute; top: 1rem; right: 1rem;
+                font-size: 1.5rem; color: #d1d5db; cursor: pointer;
+                width: 2.5rem; height: 2.5rem;
+                display: flex; align-items: center; justify-content: center;
                 border-radius: 6px;
             }
-            .nav-links::before:hover { background: rgba(160, 160, 160, 0.1); }
-            .nav-links > a, .nav-links > .menu { 
-                padding: 1rem 0;
-                border-bottom: 1px solid rgba(160, 160, 160, 0.1);
-                width: 100%;
-            }
-            .nav-links.submenu-active > a,
-            .nav-links.submenu-active > .menu:not(.active-submenu) { display: none; }
-            .nav-links.submenu-active .menu.active-submenu > a[aria-haspopup="true"] { display: none; }
-            .nav-links .submenu { display: none !important; }
-            .nav-links.submenu-active .menu.active-submenu .submenu { display: block !important; }
-            .nav-links.submenu-active .menu.active-submenu::before {
-                content: '← Zurück';
+            .nav-links > a {
                 display: block;
-                padding: 0.75rem 0;
-                margin: 0 0 0.5rem 0;
-                border-bottom: 1px solid rgba(160, 160, 160, 0.2);
-                cursor: pointer;
+                padding: 0.85rem 0;
+                border-bottom: 1px solid rgba(160,160,160,0.1);
+                width: 100%;
                 color: #d1d5db;
+                text-decoration: none;
+                font-size: 0.95rem;
+                font-weight: 500;
             }
-            .nav-links .submenu a {
-                padding: 0.75rem 0;
-                border-bottom: 1px solid rgba(160, 160, 160, 0.05);
+            .nav-links > a:hover { color: #fff; }
+            .nav-links .mobile-section {
+                font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+                color: #71717a; padding: 1rem 0 0.35rem; margin: 0;
             }
+            .nav-links .mobile-user-block {
+                display: flex; align-items: center; gap: 0.6rem;
+                padding: 0.85rem 0;
+                border-bottom: 1px solid rgba(160,160,160,0.1);
+            }
+            .nav-links .mobile-user-block .m-avatar {
+                width: 2rem; height: 2rem; border-radius: 50%;
+                background: linear-gradient(135deg, #6366f1, #9333ea);
+                color: #fff; display: flex; align-items: center; justify-content: center;
+                font-weight: 600; font-size: 0.8rem; text-transform: uppercase; flex-shrink: 0;
+            }
+            .nav-links .mobile-user-block .m-user-info strong { font-size: 0.85rem; color: #e5e7eb; }
+            .nav-links .mobile-user-block .m-user-info span { font-size: 0.7rem; color: #71717a; text-transform: capitalize; }
         }
-        
-        /* Submenu hover behavior */
-        nav .submenu {
-            position: absolute;
-            right: 0;
-            top: 100%;
-            margin-top: 6px;
-            background: rgba(31,31,35,0.98);
-            border: 1px solid rgba(160,160,160,0.25);
-            border-radius: 10px;
-            box-shadow: 0 14px 28px rgba(0,0,0,0.5);
-            padding: 0.4rem;
-            min-width: 200px;
-            display: none;
-            z-index: 100;
-            backdrop-filter: blur(12px);
-        }
-        nav .submenu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
-        nav .submenu a { display: block; padding: 0.45rem 0.65rem; border-radius: 8px; color: #d1d5db; transition: all 0.15s ease; }
-        nav .submenu a:hover { background: rgba(99,102,241,0.15); color: #ffffff; text-decoration: none; }
-        nav .menu:hover .submenu, nav .menu:focus-within .submenu, nav .menu.open .submenu { display: block; }
         
         /* Chart interactions */
         tr.monitor-row { cursor: pointer; transition: background-color 0.2s ease; }
@@ -134,55 +198,109 @@
 </head>
 <body class="min-h-screen text-gray-200">
 {{if not .HideHeader}}
-<header class="sticky top-0 z-50 backdrop-blur-lg bg-[rgba(24,24,24,0.8)] border-b border-[rgba(160,160,160,0.2)]">
-    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold m-0">
-            <a href="/" class="flex items-center gap-2.5 no-underline hover:no-underline">
-                <img src="/static/logo.png" alt="Upturtle" class="h-7 w-auto" />
-                <span>Upturtle</span>
+<!-- ── Desktop Sidebar ── -->
+<aside class="sidebar" aria-label="Sidebar navigation">
+    <a href="/" class="sidebar-logo">
+        <img src="/static/logo.png" alt="Upturtle" />
+        <span>Upturtle</span>
+    </a>
+    <nav>
+        <a href="/" {{if eq .Title "Status"}}class="active"{{end}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Status
+        </a>
+        {{if .CurrentUser}}
+            {{if ne .CurrentUser.Role "readonly"}}
+            <div class="nav-section">Admin</div>
+            <a href="/admin" {{if eq .Title "Monitors"}}class="active"{{end}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Monitors
             </a>
-        </h1>
-        <nav aria-label="Primary navigation" class="flex items-center gap-2">
-            <button class="nav-toggle p-2 text-gray-300 hover:text-white transition-colors text-2xl leading-none bg-transparent border-none cursor-pointer" aria-label="Toggle navigation" aria-controls="primary-links" aria-expanded="false">☰</button>
-            <div id="primary-links" class="nav-links flex items-center gap-1">
-                <a href="/" class="ml-4 font-medium hover:text-white transition-colors">Status</a>
-                {{if .CurrentUser}}
-                    {{if ne .CurrentUser.Role "readonly"}}
-                    <div class="menu relative inline-flex items-center ml-4">
-                        <a href="/admin" aria-haspopup="true" aria-expanded="false" class="inline-flex items-center gap-1.5 font-medium hover:text-white transition-colors">Admin ▾</a>
-                        <div class="submenu" role="menu" aria-label="Admin submenu">
-                            <a href="/admin" role="menuitem">Monitors</a>
-                            <a href="/admin/notifications" role="menuitem">Notifications</a>
-                            <a href="/admin/statuspages" role="menuitem">Status Pages</a>
-                            {{if eq .CurrentUser.Role "admin"}}
-                            <a href="/admin/users" role="menuitem">Users</a>
-                            <a href="/admin/settings" role="menuitem">Settings</a>
-                            {{end}}
-                            <a href="/admin/about" role="menuitem">About</a>
-                        </div>
-                    </div>
-                    {{end}}
-                    <div class="menu user-menu relative inline-flex items-center ml-4">
-                        <a href="#" class="user-avatar flex items-center p-0 no-underline hover:no-underline" aria-haspopup="true" aria-expanded="false" title="{{.CurrentUser.Username}}">
-                            <span class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-semibold text-sm uppercase cursor-pointer transition-all hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/40">{{slice .CurrentUser.Username 0 1}}</span>
-                        </a>
-                        <div class="submenu" role="menu" aria-label="User menu">
-                            <div class="flex flex-col px-2.5 py-2.5 gap-1">
-                                <strong class="text-sm">{{.CurrentUser.Username}}</strong>
-                                <span class="text-xs text-zinc-400 capitalize">{{.CurrentUser.Role}}</span>
-                            </div>
-                            <hr class="border-none border-t border-[rgba(160,160,160,0.2)] my-2">
-                            <a href="/admin/users/settings" role="menuitem">Settings</a>
-                            <a href="/logout" role="menuitem">Logout</a>
-                        </div>
-                    </div>
-                {{end}}
+            <a href="/admin/notifications" {{if eq .Title "Notifications"}}class="active"{{end}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                Notifications
+            </a>
+            <a href="/admin/statuspages" {{if eq .Title "Status Pages"}}class="active"{{end}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Status Pages
+            </a>
+            {{if eq .CurrentUser.Role "admin"}}
+            <a href="/admin/users" {{if eq .Title "Users"}}class="active"{{end}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Users
+            </a>
+            <a href="/admin/settings" {{if eq .Title "Settings"}}class="active"{{end}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Settings
+            </a>
+            {{end}}
+            <a href="/admin/about" {{if eq .Title "About"}}class="active"{{end}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                About
+            </a>
+            {{end}}
+        {{end}}
+    </nav>
+    {{if .CurrentUser}}
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <div class="avatar">{{slice .CurrentUser.Username 0 1}}</div>
+            <div class="user-info">
+                <strong>{{.CurrentUser.Username}}</strong>
+                <span>{{.CurrentUser.Role}}</span>
             </div>
-        </nav>
+        </div>
+        <div class="sidebar-actions">
+            <a href="/admin/users/settings">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Account
+            </a>
+            <a href="/logout" class="logout">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Logout
+            </a>
+        </div>
+    </div>
+    {{end}}
+</aside>
+
+<!-- ── Mobile Top Bar ── -->
+<header class="mobile-header">
+    <a href="/" class="flex items-center gap-2 no-underline" style="color:inherit">
+        <img src="/static/logo.png" alt="Upturtle" class="h-6 w-auto" />
+        <span class="font-semibold text-lg text-gray-100">Upturtle</span>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-controls="primary-links" aria-expanded="false">☰</button>
+    <div id="primary-links" class="nav-links">
+        <a href="/">Status</a>
+        {{if .CurrentUser}}
+            {{if ne .CurrentUser.Role "readonly"}}
+            <p class="mobile-section">Admin</p>
+            <a href="/admin">Monitors</a>
+            <a href="/admin/notifications">Notifications</a>
+            <a href="/admin/statuspages">Status Pages</a>
+            {{if eq .CurrentUser.Role "admin"}}
+            <a href="/admin/users">Users</a>
+            <a href="/admin/settings">Settings</a>
+            {{end}}
+            <a href="/admin/about">About</a>
+            {{end}}
+            <p class="mobile-section">Account</p>
+            <div class="mobile-user-block">
+                <div class="m-avatar">{{slice .CurrentUser.Username 0 1}}</div>
+                <div class="m-user-info">
+                    <strong>{{.CurrentUser.Username}}</strong><br>
+                    <span>{{.CurrentUser.Role}}</span>
+                </div>
+            </div>
+            <a href="/admin/users/settings">Account Settings</a>
+            <a href="/logout">Logout</a>
+        {{end}}
     </div>
 </header>
 {{end}}
 <!-- HTTPS Warning Banner -->
+<div class="page-wrapper">
 <div id="https-warning" class="hidden bg-yellow-900/30 border-b border-yellow-700/50 backdrop-blur-sm">
     <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
         <div class="flex items-center gap-3">
@@ -202,7 +320,6 @@
     </div>
 </div>
 <script>
-// Show HTTPS warning immediately if not using HTTPS
 (function() {
   if (window.location.protocol !== 'https:') {
     var warning = document.getElementById('https-warning');
@@ -226,135 +343,64 @@
         GitHub
     </a>
 </footer>
+</div>
 <script>
 (function(){
   try{
-    const toggle = document.querySelector('.nav-toggle');
-    const links = document.querySelector('.nav-links');
-    const body = document.body;
-    
+    var toggle = document.querySelector('.nav-toggle');
+    var links = document.querySelector('.nav-links');
+    var body = document.body;
+
     function openNav() {
       if (!links) return;
       body.classList.add('nav-open');
-      toggle?.setAttribute('aria-expanded', 'true');
+      if (toggle) toggle.setAttribute('aria-expanded', 'true');
       body.style.overflow = 'hidden';
     }
-    
     function closeNav() {
       if (!links) return;
       body.classList.remove('nav-open');
-      toggle?.setAttribute('aria-expanded', 'false');
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
       body.style.overflow = '';
-      document.querySelectorAll('.nav-links .menu.open').forEach(m => m.classList.remove('open'));
     }
-    
+
     if (toggle) {
       toggle.addEventListener('click', function(e){
         e.preventDefault();
-        if (body.classList.contains('nav-open')) {
+        body.classList.contains('nav-open') ? closeNav() : openNav();
+      });
+    }
+
+    // Close via ✕ pseudo-element area
+    if (links) {
+      links.addEventListener('click', function(e) {
+        var rect = links.getBoundingClientRect();
+        if (e.clientX >= rect.right - 60 && e.clientX <= rect.right - 10 &&
+            e.clientY >= rect.top + 10 && e.clientY <= rect.top + 60) {
           closeNav();
-        } else {
-          openNav();
         }
       });
     }
-    
-    links?.addEventListener('click', function(e) {
-      const rect = links.getBoundingClientRect();
-      const closeButtonArea = {
-        left: rect.right - 60,
-        right: rect.right - 10,
-        top: rect.top + 10,
-        bottom: rect.top + 60
-      };
-      
-      if (e.clientX >= closeButtonArea.left && e.clientX <= closeButtonArea.right &&
-          e.clientY >= closeButtonArea.top && e.clientY <= closeButtonArea.bottom) {
-        closeNav();
-      }
-    });
-    
+
+    // Close on Escape
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && body.classList.contains('nav-open')) {
-        closeNav();
-      }
-    });
-    
-    document.addEventListener('click', function(e) {
-      if (!body.classList.contains('nav-open')) return;
-      if (!links.contains(e.target) && !toggle?.contains(e.target)) {
-        closeNav();
-      }
+      if (e.key === 'Escape' && body.classList.contains('nav-open')) closeNav();
     });
 
-    const menus = document.querySelectorAll('.nav-links .menu');
-    const isMobile = () => window.innerWidth <= 900;
-    
-    menus.forEach(menu => {
-      const trigger = menu.querySelector('a[aria-haspopup="true"]');
-      const submenu = menu.querySelector('.submenu');
-      let closeTimer;
-      
-      function openMenu(){ 
-        menu.classList.add('open'); 
-        if(trigger) trigger.setAttribute('aria-expanded','true'); 
-      }
-      function closeMenu(){ 
-        menu.classList.remove('open'); 
-        if(trigger) trigger.setAttribute('aria-expanded','false'); 
-      }
-      
-      menu.addEventListener('mouseenter', function(){ 
-        if (!isMobile()) {
-          if(closeTimer){ clearTimeout(closeTimer); } 
-          openMenu(); 
-        }
-      });
-      menu.addEventListener('mouseleave', function(){ 
-        if (!isMobile()) {
-          closeTimer = setTimeout(closeMenu, 150); 
-        }
-      });
-      submenu?.addEventListener('mouseenter', function(){ 
-        if (!isMobile()) {
-          if(closeTimer){ clearTimeout(closeTimer); } 
-          openMenu(); 
-        }
-      });
-      submenu?.addEventListener('mouseleave', function(){ 
-        if (!isMobile()) {
-          closeTimer = setTimeout(closeMenu, 150); 
-        }
-      });
-      
-      trigger?.addEventListener('click', function(e){
-        if (isMobile()) {
-          e.preventDefault();
-          links.classList.add('submenu-active');
-          menu.classList.add('active-submenu');
-        }
-      });
-      
-      menu.addEventListener('click', function(e) {
-        if (isMobile() && menu.classList.contains('active-submenu')) {
-          const rect = menu.getBoundingClientRect();
-          if (e.clientY >= rect.top && e.clientY <= rect.top + 60) {
-            e.preventDefault();
-            e.stopPropagation();
-            links.classList.remove('submenu-active');
-            menu.classList.remove('active-submenu');
-          }
-        }
-      });
+    // Close on outside click
+    document.addEventListener('click', function(e) {
+      if (!body.classList.contains('nav-open')) return;
+      if (links && !links.contains(e.target) && toggle && !toggle.contains(e.target)) closeNav();
     });
-    
-    links?.querySelectorAll('a:not([aria-haspopup="true"])').forEach(a => {
-      a.addEventListener('click', () => {
-        if (body.classList.contains('nav-open')) {
-          closeNav();
-        }
+
+    // Close when clicking a link
+    if (links) {
+      links.querySelectorAll('a').forEach(function(a) {
+        a.addEventListener('click', function() {
+          if (body.classList.contains('nav-open')) closeNav();
+        });
       });
-    });
+    }
   }catch(err){ console.error('Nav error:', err); }
 })();
 </script>

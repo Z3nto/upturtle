@@ -89,7 +89,7 @@ type PersistedMonitorConfig struct {
 	Enabled         bool                     `json:"enabled"`
 	GroupID         int                      `json:"group_id,omitempty"`
 	Order           int                      `json:"order,omitempty"`
-	MasterID        string                   `json:"master_id,omitempty"`
+	ParentID        string                   `json:"parent_id,omitempty"`
 	FailThreshold   int                      `json:"fail_threshold"`
 	CertValidation  monitor.CertValidationMode `json:"cert_validation,omitempty"`
 }
@@ -112,7 +112,7 @@ func FromMonitorConfig(m monitor.MonitorConfig) PersistedMonitorConfig {
 		Enabled:         m.Enabled,
 		GroupID:         m.GroupID,
 		Order:           m.Order,
-		MasterID:        m.MasterID,
+		ParentID:        m.ParentID,
 		FailThreshold:   m.FailThreshold,
 		CertValidation:  m.CertValidation,
 	}
@@ -147,7 +147,7 @@ func (p PersistedMonitorConfig) ToMonitorConfig() monitor.MonitorConfig {
 		Enabled:         p.Enabled,
 		GroupID:         p.GroupID,
 		Order:           p.Order,
-		MasterID:        p.MasterID,
+		ParentID:        p.ParentID,
 		FailThreshold:   p.FailThreshold,
 		CertValidation:  p.CertValidation,
 	}

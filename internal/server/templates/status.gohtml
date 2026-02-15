@@ -70,8 +70,8 @@
                 {{if not .Enabled}}
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">Disabled</span>
                 {{else}}
-                  {{if .MasterDown}}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Master monitor is down">Master down</span>
+                  {{if .ParentDown}}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Parent monitor is down">Parent down</span>
                   {{else}}
                     {{if eq .Status "up"}}
                       <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50" data-field="status">{{.Status}}</span>
@@ -142,8 +142,8 @@
               {{if not .Enabled}}
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">Disabled</span>
               {{else}}
-                {{if .MasterDown}}
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Master monitor is down">Master down</span>
+                {{if .ParentDown}}
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Parent monitor is down">Parent down</span>
                 {{else}}
                   {{if eq .Status "up"}}
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50" data-field="status">{{.Status}}</span>
@@ -420,23 +420,23 @@
         const it = byId[id];
         if(!it) return;
 
-        // Always update row class (cheap) and master-dependent status badge
+        // Always update row class (cheap) and parent-dependent status badge
         row.classList.remove('status-up','status-down','status-unknown');
         row.classList.add(statusClass(it.status));
         const statusCell = row.querySelector('[data-field="status"]');
-        const isMasterDown = !!(it.master_id && byId[it.master_id] && byId[it.master_id].status === 'down');
+        const isParentDown = !!(it.parent_id && byId[it.parent_id] && byId[it.parent_id].status === 'down');
         
-        if(isMasterDown){
+        if(isParentDown){
           // For desktop table, update the td container
           const statusContainer = row.querySelector('td:nth-child(2)');
           if(statusContainer){ 
-            statusContainer.innerHTML = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Master monitor is down">Master down<\/span>'; 
+            statusContainer.innerHTML = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Parent monitor is down">Parent down<\/span>'; 
           }
           // For mobile cards, update the status badge directly
           if(statusCell && !statusContainer){
             statusCell.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50';
-            statusCell.textContent = 'Master down';
-            statusCell.setAttribute('data-tip', 'Master monitor is down');
+            statusCell.textContent = 'Parent down';
+            statusCell.setAttribute('data-tip', 'Parent monitor is down');
           }
         } else if(statusCell){
           // Update badge with Tailwind classes

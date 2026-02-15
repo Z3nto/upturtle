@@ -129,7 +129,7 @@ type APIMonitorConfig struct {
 	Group           string `json:"group"`
 	GroupID         int    `json:"group_id"`
 	Order           int    `json:"order"`
-	MasterID        string `json:"master_id"`
+	ParentID        string `json:"parent_id"`
 	NotificationID  int    `json:"notification_id"`
 	NotificationIDs []int  `json:"notification_ids"`
 	FailThreshold   int    `json:"fail_threshold"`
@@ -168,7 +168,7 @@ func convertSnapshotToAPI(snap monitor.Snapshot) APISnapshot {
 			Group:           snap.Config.Group,
 			GroupID:         snap.Config.GroupID,
 			Order:           snap.Config.Order,
-			MasterID:        snap.Config.MasterID,
+			ParentID:        snap.Config.ParentID,
 			NotificationID:  snap.Config.NotificationID,
 			NotificationIDs: snap.Config.NotificationIDs,
 			FailThreshold:   snap.Config.FailThreshold,
@@ -434,10 +434,10 @@ func (s *Server) getGroupName(id int) string {
 // ==== View Models & Helpers ===================================================
 
 // buildAdminData constructs the data model for the admin page, including
-// grouping, ordering, and computing MasterDown flags.
+// grouping, ordering, and computing ParentDown flags.
 func (s *Server) buildAdminData(r *http.Request, success, failure string) AdminPageData {
 	snapshots := s.manager.List()
-	// Build status map for master dependency
+	// Build status map for parent dependency
 	statusByID := make(map[string]monitor.Status, len(snapshots))
 	for _, snap := range snapshots {
 		statusByID[snap.Config.ID] = snap.Status
@@ -446,9 +446,9 @@ func (s *Server) buildAdminData(r *http.Request, success, failure string) AdminP
 	for _, snap := range snapshots {
 		g := snap.Config.GroupID
 		v := toAdminMonitorView(snap)
-		if v.MasterID != "" {
-			if st, ok := statusByID[v.MasterID]; ok {
-				v.MasterDown = st == monitor.StatusDown
+		if v.ParentID != "" {
+			if st, ok := statusByID[v.ParentID]; ok {
+				v.ParentDown = st == monitor.StatusDown
 			}
 		}
 		grouped[g] = append(grouped[g], v)
@@ -1893,7 +1893,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) buildStatusData(r *http.Request) StatusPageData {
 	snapshots := s.manager.List()
-	// Build a quick lookup of monitor status by ID (for master dependency)
+	// Build a quick lookup of monitor status by ID (for parent dependency)
 	statusByID := make(map[string]monitor.Status, len(snapshots))
 	for _, snap := range snapshots {
 		statusByID[snap.Config.ID] = snap.Status
@@ -1905,9 +1905,9 @@ func (s *Server) buildStatusData(r *http.Request) StatusPageData {
 		v := toStatusMonitorView(snap)
 		// Resolve group name from ID for display
 		v.Group = s.getGroupName(gid)
-		if v.MasterID != "" {
-			if st, ok := statusByID[v.MasterID]; ok {
-				v.MasterDown = (st == monitor.StatusDown)
+		if v.ParentID != "" {
+			if st, ok := statusByID[v.ParentID]; ok {
+				v.ParentDown = (st == monitor.StatusDown)
 			}
 		}
 		grouped[gid] = append(grouped[gid], v)
@@ -1964,7 +1964,7 @@ type monitorRequest struct {
 	GroupID         int    `json:"group_id"`
 	Group           string `json:"group"`
 	Order           int    `json:"order"`
-	MasterID        string `json:"master_id"`
+	ParentID        string `json:"parent_id"`
 	FailThreshold   int    `json:"fail_threshold"`
 	CertValidation  string `json:"cert_validation"`
 }
@@ -2004,7 +2004,7 @@ func (m monitorRequest) toConfig(id string) (monitor.MonitorConfig, error) {
 	if m.Enabled != nil {
 		cfg.Enabled = *m.Enabled
 	}
-	cfg.MasterID = strings.TrimSpace(m.MasterID)
+	cfg.ParentID = strings.TrimSpace(m.ParentID)
 	if m.FailThreshold > 0 {
 		cfg.FailThreshold = m.FailThreshold
 	}
@@ -2105,8 +2105,8 @@ type StatusMonitorView struct {
 	GroupID     int
 	Group       string
 	Order       int
-	MasterID    string
-	MasterDown  bool
+	ParentID    string
+	ParentDown  bool
 }
 
 // AdminMonitorView extends StatusMonitorView with configuration options.
@@ -2176,7 +2176,7 @@ func toStatusMonitorView(snap monitor.Snapshot) StatusMonitorView {
 		GroupID:     snap.Config.GroupID,
 		Group:       snap.Config.Group,
 		Order:       snap.Config.Order,
-		MasterID:    snap.Config.MasterID,
+		ParentID:    snap.Config.ParentID,
 	}
 }
 
@@ -2366,7 +2366,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 					Enabled:        mc.Enabled,
 					GroupID:        mc.GroupID,
 					Order:          mc.Order,
-					MasterID:       mc.MasterID,
+					ParentID:       mc.ParentID,
 					FailThreshold:  mc.FailThreshold,
 					CertValidation: string(mc.CertValidation),
 				}
@@ -2519,7 +2519,7 @@ func (s *Server) saveConfig() error {
 				Enabled:        mc.Enabled,
 				GroupID:        mc.GroupID,
 				Order:          mc.Order,
-				MasterID:       mc.MasterID,
+				ParentID:       mc.ParentID,
 				FailThreshold:  mc.FailThreshold,
 				CertValidation: string(mc.CertValidation),
 			}

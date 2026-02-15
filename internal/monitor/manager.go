@@ -337,7 +337,7 @@ func (m *Manager) UpdateMonitor(cfg MonitorConfig) (MonitorConfig, error) {
 	entry.config.GroupID = cfg.GroupID
 	entry.config.Group = cfg.Group
 	entry.config.Order = cfg.Order
-	entry.config.MasterID = cfg.MasterID
+	entry.config.ParentID = cfg.ParentID
 	entry.config.FailThreshold = cfg.FailThreshold
 	entry.config.CertValidation = cfg.CertValidation
 	entry.mu.Unlock()
@@ -552,28 +552,28 @@ func (m *Manager) execute(entry *monitorEntry) {
 		}
 	}
 
-	// Determine if master is configured and currently down
-	masterDown := false
-	if cfg.MasterID != "" {
+	// Determine if parent is configured and currently down
+	parentDown := false
+	if cfg.ParentID != "" {
 		m.mu.RLock()
-		master, ok := m.monitors[cfg.MasterID]
+		parent, ok := m.monitors[cfg.ParentID]
 		m.mu.RUnlock()
 		if ok {
-			master.mu.RLock()
-			masterStatus := master.status
-			master.mu.RUnlock()
-			if masterStatus == StatusDown {
-				masterDown = true
+			parent.mu.RLock()
+			parentStatus := parent.status
+			parent.mu.RUnlock()
+			if parentStatus == StatusDown {
+				parentDown = true
 			}
 		}
 	}
 
-	// If master is down, prefix the result message so history also shows the label
-	if masterDown {
+	// If parent is down, prefix the result message so history also shows the label
+	if parentDown {
 		if result.Message != "" {
-			result.Message = "[Master down] " + result.Message
+			result.Message = "[Parent down] " + result.Message
 		} else {
-			result.Message = "[Master down]"
+			result.Message = "[Parent down]"
 		}
 	}
 
@@ -643,8 +643,8 @@ func (m *Manager) execute(entry *monitorEntry) {
 			shouldNotify = true
 		}
 	}
-	// Suppress notifications if master is down
-	if masterDown {
+	// Suppress notifications if parent is down
+	if parentDown {
 		shouldNotify = false
 	}
 	entry.mu.Unlock()

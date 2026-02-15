@@ -10,20 +10,20 @@ _Vibe coded with Claude._
 
 > **⚠️ Note**: This project is still under active development. Features and APIs may change.
 
-<img src="https://raw.githubusercontent.com/z3nto/upturtle/master/.github/images/screenshot1.png" width="700" alt="Upturtle Status Page" />
+<img src="https://raw.githubusercontent.com/z3nto/upturtle/main/.github/images/screenshot1.png" width="700" alt="Upturtle Status Page" />
 
 ## Features
 
 - **ICMP**, **HTTP/S**, **Docker** monitoring
 - **Charts**: Charts for monitor history
-- **Master/Dependency**: Suppress notifications when a master service is down
+- **Parent/Dependency**: Suppress notifications when a parent service is down
 - **Status Pages**: Create public status pages with selected monitors
 - **Flexible Grouping**: Organize monitors into custom groups
 - **Multi-channel Notifications**: Integration with Discord, Slack, Telegram, and more via [Shoutrrr](https://containrrr.dev/shoutrrr/)
 - **User Management**: Multi-user support with role-based access control (admin, write, readonly)
 - **API Access**: RESTful API with API key authentication
 
-<img src="https://raw.githubusercontent.com/z3nto/upturtle/master/.github/images/screenshot2.png" width="700" alt="Upturtle Charts" />
+<img src="https://raw.githubusercontent.com/z3nto/upturtle/main/.github/images/screenshot2.png" width="700" alt="Upturtle Charts" />
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ _Vibe coded with Claude._
 ```yaml
 services:
   upturtle:
-    image: ghcr.io/z3nto/upturtle:master
+    image: ghcr.io/z3nto/upturtle:main
     container_name: upturtle
     ports:
       - "8080:8080"
@@ -62,7 +62,7 @@ docker run -d \
   -p 8080:8080 \
   -v /opt/data/upturtle:/conf \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \  # only if you want to monitor docker containers 
-  ghcr.io/z3nto/upturtle:master
+  ghcr.io/z3nto/upturtle:main
 ```
 
 ### Building from Source

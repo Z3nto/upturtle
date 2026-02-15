@@ -2192,7 +2192,7 @@ func (s *Server) apiStatus(r *http.Request) (interface{}, int, error) {
 			"name":             snap.Config.Name,
 			"type":             snap.Config.Type,
 			"target":           snap.Config.Target,
-			"master_id":        snap.Config.MasterID,
+			"parent_id":        snap.Config.ParentID,
 			"enabled":          snap.Config.Enabled,
 			"group_id":         snap.Config.GroupID,
 			"group":            s.getGroupName(snap.Config.GroupID),
