@@ -36,17 +36,17 @@
               {{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}
             </h3>
             {{if .Name}}
-              <button type="button" class="p-1.5 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-900/20 rounded transition-colors" data-action="rename-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Rename group">
+              <button type="button" class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-yellow-400 dark:hover:text-yellow-300 dark:hover:bg-yellow-900/20 rounded transition-colors" data-action="rename-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Rename group">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
                 </svg>
               </button>
-              <button type="button" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded transition-colors" data-action="delete-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Delete group">
+              <button type="button" class="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 rounded transition-colors" data-action="delete-group" data-group-id="{{.ID}}" data-group-name="{{.Name}}" title="Delete group">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
                 </svg>
               </button>
-              <button type="button" class="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded transition-colors" data-action="add-monitor-to-group" data-group-id="{{.ID}}" title="Add monitor to this group">
+              <button type="button" class="p-1.5 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20 rounded transition-colors" data-action="add-monitor-to-group" data-group-id="{{.ID}}" title="Add monitor to this group">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                 </svg>
@@ -56,10 +56,10 @@
           {{if .Name}}
           <div class="flex items-center gap-1">
             <form class="inline-block btn-group-move" data-group-id="{{.ID}}" data-move="up" action="#" method="post">
-              <button type="submit" title="Move group up" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors">▲</button>
+              <button type="submit" title="Move group up" class="p-1.5 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-700/50 rounded transition-colors">▲</button>
             </form>
             <form class="inline-block btn-group-move" data-group-id="{{.ID}}" data-move="down" action="#" method="post">
-              <button type="submit" title="Move group down" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors">▼</button>
+              <button type="submit" title="Move group down" class="p-1.5 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-700/50 rounded transition-colors">▼</button>
             </form>
           </div>
           {{end}}
@@ -112,12 +112,12 @@
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-1">
-                    <button type="button" class="p-1.5 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-900/20 rounded transition-colors" data-action="edit-monitor" data-monitor-id="{{.ID}}" title="Edit">
+                    <button type="button" class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-yellow-400 dark:hover:text-yellow-300 dark:hover:bg-yellow-900/20 rounded transition-colors" data-action="edit-monitor" data-monitor-id="{{.ID}}" title="Edit">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
                       </svg>
                     </button>
-                    <button type="button" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded transition-colors" data-action="delete-monitor" data-monitor-id="{{.ID}}" data-monitor-name="{{.Name}}" title="Delete">
+                    <button type="button" class="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 rounded transition-colors" data-action="delete-monitor" data-monitor-id="{{.ID}}" data-monitor-name="{{.Name}}" title="Delete">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M3 6h18v2H3V6zm2 3h14l-1.5 12.5A2 2 0 0 1 15.5 24h-7a2 2 0 0 1-1.99-1.5L5 9zm5-6h4l1 1h5v2H4V4h5l1-1z"/>
                       </svg>
@@ -142,86 +142,18 @@
 </div>
 
 <!-- Modals -->
-<style>
-.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem; }
-.modal-backdrop.show { display: flex; }
-.modal { background: rgba(24,24,24,0.95); border: 1px solid rgba(160,160,160,0.2); border-radius: 12px; max-width: 42rem; width: 100%; max-height: 90vh; overflow-y: auto; }
-.modal header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid rgba(160,160,160,0.2); }
-.modal header h3 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #f3f4f6; }
-.modal header .close { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 1.75rem; line-height: 1; padding: 0.25rem; transition: color 0.2s; }
-.modal header .close:hover { color: #fff; }
-.modal form { padding: 1.5rem; }
-.modal .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
-.modal .form-row > div { display: flex; flex-direction: column; }
-.modal label { font-size: 0.875rem; font-weight: 500; color: #d1d5db; margin-bottom: 0.375rem; }
-.modal input[type="text"], .modal input[type="number"], .modal select, .modal textarea {
-  padding: 0.5rem 0.75rem;
-  background-color: rgba(31,31,35,0.8);
-  border: 1px solid rgba(160,160,160,0.25);
-  border-radius: 0.5rem;
-  color: #e5e7eb;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-.modal input:focus, .modal select:focus, .modal textarea:focus {
-  outline: none;
-  border-color: rgba(99,102,241,0.6);
-  background-color: rgba(31,31,35,0.95);
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
-}
-.modal input[type="checkbox"] { width: 1rem; height: 1rem; }
-.modal .checkbox-row label { display: flex; align-items: center; gap: 0.5rem; }
-.modal .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(160,160,160,0.2); }
-.modal button[type="submit"], .modal button.primary {
-  padding: 0.5rem 1rem;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.modal button[type="submit"]:hover, .modal button.primary:hover { background: #2563eb; }
-.modal button.danger {
-  padding: 0.5rem 1rem;
-  background: #dc2626;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.modal button.danger:hover { background: #b91c1c; }
-.modal button[type="button"]:not(.close):not(.danger):not(.primary) {
-  padding: 0.5rem 1rem;
-  background: rgba(107,114,128,0.3);
-  color: #d1d5db;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.modal button[type="button"]:not(.close):not(.danger):not(.primary):hover {
-  background: rgba(107,114,128,0.5);
-}
-.muted { color: #9ca3af; }
-</style>
-
 <!-- Create Modal -->
-<div id="modal-new" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true">
-    <header>
-      <h3>Create monitor</h3>
-      <button class="close" type="button" data-close>&times;</button>
+<div id="modal-new" data-modal-backdrop class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/30 dark:bg-black/70 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-white/95 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+    <header class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border">
+      <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Create monitor</h3>
+      <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-create-monitor" action="#" method="post">
+    <form id="form-create-monitor" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <input type="hidden" name="order" value="1">
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label for="new-type">Type</label>
           <select id="new-type" name="type">
             <option value="http">HTTP(S)</option>
@@ -230,12 +162,12 @@
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label for="new-name">Name</label>
           <input id="new-name" name="name" type="text" required placeholder="Monitor name">
         </div>
-        <div>
+        <div class="flex flex-col">
           <label for="new-target">Target</label>
           <input id="new-target" name="target" type="text" placeholder="URL / Host / IP" required>
           <select id="new-target-docker" name="target_docker" style="display: none;" disabled>
@@ -243,8 +175,8 @@
           </select>
         </div>
       </div>
-      <div id="new-cert-validation-div" class="form-row" style="display: none;">
-        <div>
+      <div id="new-cert-validation-div" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col" style="display: none;">
+        <div class="flex flex-col">
           <label for="new-cert-validation">Certificate Validation</label>
           <select id="new-cert-validation" name="cert_validation">
             <option value="full" selected>Valid (Full validation)</option>
@@ -253,18 +185,18 @@
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label for="new-interval">Interval (seconds)</label>
           <input id="new-interval" name="interval_seconds" type="number" min="5" value="60">
         </div>
-        <div>
+        <div class="flex flex-col">
           <label for="new-timeout">Timeout (seconds)</label>
           <input id="new-timeout" name="timeout_seconds" type="number" min="1" value="10">
         </div>
       </div>
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label for="new-group">Group</label>
           <select id="new-group" name="group_id">
             <option value="0" selected>(none)</option>
@@ -273,7 +205,7 @@
             {{end}}
           </select>
         </div>
-        <div>
+        <div class="flex flex-col">
           <label for="new-parent">Parent monitor</label>
           <select id="new-parent" name="parent_id">
             <option value="" selected>(none)</option>
@@ -287,43 +219,43 @@
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label for="new-notification">Notifications</label>
           <select id="new-notification" name="notification_ids" multiple size="3" style="min-height:60px">
             {{range .Notifications}}
               <option value="{{.ID}}">{{.Name}}{{if .GlobalAlarm}} (global){{end}}</option>
             {{end}}
           </select>
-          <small style="color:#888">Hold Ctrl/Cmd to select multiple. Global notifications always fire.</small>
+          <small class="text-sm text-slate-500 dark:text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple. Global notifications always fire.</small>
         </div>
-        <div>
+        <div class="flex flex-col">
           <label for="new-fail-threshold">Fail threshold</label>
           <input id="new-fail-threshold" name="fail_threshold" type="number" min="1" value="3">
         </div>
       </div>
-      <div class="form-row checkbox-row">
+      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
         <label><input type="checkbox" name="enabled" value="true" checked> Enabled</label>
       </div>
-      <div class="actions">
-        <button type="submit" class="primary">Create</button>
+      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Create</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Edit Monitor Modal -->
-<div id="modal-edit-monitor" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true">
-    <header>
-      <h3>Edit monitor</h3>
-      <button class="close" type="button" data-close>&times;</button>
+<div id="modal-edit-monitor" data-modal-backdrop class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/30 dark:bg-black/70 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-white/95 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+    <header class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border">
+      <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Edit monitor</h3>
+      <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-edit-monitor" action="#" method="post">
+    <form id="form-edit-monitor" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <input type="hidden" name="order" value="1">
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>Type</label>
           <select name="type">
             <option value="http">HTTP(S)</option>
@@ -332,12 +264,12 @@
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>Name</label>
           <input name="name" type="text" required>
         </div>
-        <div>
+        <div class="flex flex-col">
           <label>Target</label>
           <input name="target" type="text" required>
           <select name="target_docker" style="display: none;" disabled>
@@ -345,8 +277,8 @@
           </select>
         </div>
       </div>
-      <div class="form-row cert-validation-div" style="display: none;">
-        <div>
+      <div data-cert-validation class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col" style="display: none;">
+        <div class="flex flex-col">
           <label>Certificate Validation</label>
           <select name="cert_validation">
             <option value="full">Valid (Full validation)</option>
@@ -355,18 +287,18 @@
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>Interval (seconds)</label>
           <input name="interval_seconds" type="number" min="5">
         </div>
-        <div>
+        <div class="flex flex-col">
           <label>Timeout (seconds)</label>
           <input name="timeout_seconds" type="number" min="1">
         </div>
       </div>
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>Group</label>
           <select name="group_id">
             <option value="0">Ungrouped</option>
@@ -375,7 +307,7 @@
             {{end}}
           </select>
         </div>
-        <div>
+        <div class="flex flex-col">
           <label>Parent monitor</label>
           <select name="parent_id">
             <option value="">(none)</option>
@@ -388,109 +320,109 @@
             {{end}}
           </select>
         </div>
-        <div>
+        <div class="flex flex-col">
           <label>Notifications</label>
           <select name="notification_ids" multiple size="3" style="min-height:60px">
             {{range .Notifications}}
               <option value="{{.ID}}">{{.Name}}{{if .GlobalAlarm}} (global){{end}}</option>
             {{end}}
           </select>
-          <small style="color:#888">Hold Ctrl/Cmd to select multiple. Global notifications always fire.</small>
+          <small class="text-sm text-slate-500 dark:text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple. Global notifications always fire.</small>
         </div>
-        <div>
+        <div class="flex flex-col">
           <label>Fail threshold</label>
           <input name="fail_threshold" type="number" min="1">
         </div>
       </div>
-      <div class="form-row checkbox-row">
+      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
         <label><input type="checkbox" name="enabled" value="true"> Enabled</label>
       </div>
-      <div class="actions">
-        <button type="submit" class="primary">Save</button>
+      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Save</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Delete Monitor Modal -->
-<div id="modal-delete-monitor" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true">
-    <header>
-      <h3>Delete monitor</h3>
-      <button class="close" type="button" data-close>&times;</button>
+<div id="modal-delete-monitor" data-modal-backdrop class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/30 dark:bg-black/70 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-white/95 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+    <header class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border">
+      <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Delete monitor</h3>
+      <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-delete-monitor" action="#" method="post">
+    <form id="form-delete-monitor" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <p id="delete-monitor-message">Are you sure?</p>
-      <div class="actions">
-        <button type="button" data-close>Cancel</button>
-        <button type="submit" class="danger">Delete</button>
+      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+        <button type="button" data-close class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Delete</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Create Group Modal -->
-<div id="modal-new-group" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true">
-    <header>
-      <h3>Create group</h3>
-      <button class="close" type="button" data-close>&times;</button>
+<div id="modal-new-group" data-modal-backdrop class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/30 dark:bg-black/70 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-white/95 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+    <header class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border">
+      <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Create group</h3>
+      <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-create-group" method="post" action="#">
+    <form id="form-create-group" method="post" action="#" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>Group name</label>
           <input name="name" type="text" required placeholder="Group name">
         </div>
       </div>
-      <div class="actions">
-        <button type="submit" class="primary">Add Group</button>
+      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Add Group</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Rename Group Modal -->
-<div id="modal-rename-group" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true">
-    <header>
-      <h3>Rename group</h3>
-      <button class="close" type="button" data-close>&times;</button>
+<div id="modal-rename-group" data-modal-backdrop class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/30 dark:bg-black/70 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-white/95 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+    <header class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border">
+      <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Rename group</h3>
+      <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-rename-group" method="post" action="#">
+    <form id="form-rename-group" method="post" action="#" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>New name</label>
           <input name="name" type="text" required>
         </div>
       </div>
-      <div class="actions">
-        <button type="submit" class="primary">Rename</button>
+      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Rename</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Delete Group Modal -->
-<div id="modal-delete-group" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true">
-    <header>
-      <h3>Delete group</h3>
-      <button class="close" type="button" data-close>&times;</button>
+<div id="modal-delete-group" data-modal-backdrop class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/30 dark:bg-black/70 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-white/95 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+    <header class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border">
+      <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Delete group</h3>
+      <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-delete-group" method="post" action="#">
+    <form id="form-delete-group" method="post" action="#" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <p id="delete-group-message">Delete this group?</p>
-      <div class="form-row checkbox-row">
+      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
         <label><input type="checkbox" name="delete_monitors"> Also delete monitors in this group</label>
       </div>
-      <p class="muted">If unchecked, monitors will be moved to Ungrouped.</p>
-      <div class="actions">
-        <button type="button" data-close>Cancel</button>
-        <button type="submit" class="danger">Delete group</button>
+      <p class="text-slate-500 dark:text-gray-400">If unchecked, monitors will be moved to Ungrouped.</p>
+      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+        <button type="button" data-close class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Delete group</button>
       </div>
     </form>
   </div>
@@ -543,7 +475,7 @@
         fallbackOnBody: true,
         removeCloneOnHide: true,
         // Do NOT start drag when interacting with action buttons/links/forms
-        filter: 'button, .actions, form, a, [data-open], input, select, textarea',
+        filter: 'button, [data-modal-actions], form, a, [data-open], input, select, textarea',
         // Keep default events (click) working on filtered elements
         preventOnFilter: false,
         dragoverBubble: true,
@@ -581,8 +513,8 @@
     }
   };
   document.head.appendChild(s);
-  function openModal(id){ var el = document.getElementById(id); if(!el) return; el.classList.add('show'); el.setAttribute('aria-hidden','false'); }
-  function closeModal(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); }
+  function openModal(id){ var el = document.getElementById(id); if(!el) return; el.classList.remove('hidden'); el.classList.add('flex'); el.setAttribute('aria-hidden','false'); }
+  function closeModal(el){ el.classList.add('hidden'); el.classList.remove('flex'); el.setAttribute('aria-hidden','true'); }
   // Expose to global for inline onclick handlers
   window.openModal = openModal;
   window.closeModal = closeModal;
@@ -597,7 +529,7 @@
   function toggleCertValidation(typeSelect, certDiv) {
     if (typeSelect && certDiv) {
       const isHTTP = typeSelect.value === 'http';
-      certDiv.style.display = isHTTP ? 'block' : 'none';
+      certDiv.style.display = isHTTP ? 'grid' : 'none';
     }
   }
   
@@ -749,7 +681,7 @@
   const editForm = document.getElementById('form-edit-monitor');
   if (editForm) {
     const typeSelect = editForm.querySelector('select[name="type"]');
-    const certDiv = editForm.querySelector('.cert-validation-div');
+    const certDiv = editForm.querySelector('[data-cert-validation]');
     const targetInput = editForm.querySelector('input[name="target"]');
     const targetDockerSelect = editForm.querySelector('select[name="target_docker"]');
     if (typeSelect && certDiv) {
@@ -796,7 +728,7 @@
     e.preventDefault(); e.stopPropagation();
     openModal(t.getAttribute('data-open'));
   }, true);
-  document.querySelectorAll('.modal-backdrop').forEach(function(bg){
+  document.querySelectorAll('[data-modal-backdrop]').forEach(function(bg){
     bg.querySelectorAll('[data-close]').forEach(function(x){ x.addEventListener('click', function(){ closeModal(bg); }); });
   });
   // No row-level click-to-open to avoid conflicts with dragging
@@ -846,7 +778,7 @@
       
       // Update certificate validation visibility and target validation
       const typeSelect = form.querySelector('select[name="type"]');
-      const certDiv = form.querySelector('.cert-validation-div');
+      const certDiv = form.querySelector('[data-cert-validation]');
       const targetInput = form.querySelector('input[name="target"]');
       const targetDockerSelect = form.querySelector('select[name="target_docker"]');
       toggleCertValidation(typeSelect, certDiv);

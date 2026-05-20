@@ -19,7 +19,8 @@ import (
 type AppConfig struct {
 	AdminUser         string                   `json:"admin_user"`
 	AdminPasswordHash string                   `json:"admin_password_hash"`
-	Monitors            []PersistedMonitorConfig `json:"monitors"`
+	AdminTheme        string                   `json:"admin_theme,omitempty"`
+	Monitors          []PersistedMonitorConfig `json:"monitors"`
 	// Groups defines the order of monitor groups for UI display
 	Groups []GroupConfig `json:"groups,omitempty"`
 	// Notifications is the list of reusable notification targets (Shoutrrr URLs)
@@ -61,9 +62,9 @@ const (
 
 // GroupConfig defines a group with a stable integer ID and a name.
 type GroupConfig struct {
-	ID    int       `json:"id"`
-	Name  string    `json:"name"`
-	Type  GroupType `json:"type,omitempty"` // Type of group (default or statuspage)
+	ID   int       `json:"id"`
+	Name string    `json:"name"`
+	Type GroupType `json:"type,omitempty"` // Type of group (default or statuspage)
 	// Order controls the display ordering of groups. Lower values appear first.
 	Order int `json:"order,omitempty"`
 }
@@ -78,19 +79,19 @@ type NotificationConfig struct {
 
 // PersistedMonitorConfig mirrors monitor.MonitorConfig but uses seconds for durations.
 type PersistedMonitorConfig struct {
-	ID              string                   `json:"id"`
-	Name            string                   `json:"name"`
-	Type            monitor.Type             `json:"type"`
-	Target          string                   `json:"target"`
-	IntervalSec     int                      `json:"interval_seconds"`
-	TimeoutSec      int                      `json:"timeout_seconds"`
-	NotificationID  int                      `json:"notification_id,omitempty"`
-	NotificationIDs []int                    `json:"notification_ids,omitempty"`
-	Enabled         bool                     `json:"enabled"`
-	GroupID         int                      `json:"group_id,omitempty"`
-	Order           int                      `json:"order,omitempty"`
-	ParentID        string                   `json:"parent_id,omitempty"`
-	FailThreshold   int                      `json:"fail_threshold"`
+	ID              string                     `json:"id"`
+	Name            string                     `json:"name"`
+	Type            monitor.Type               `json:"type"`
+	Target          string                     `json:"target"`
+	IntervalSec     int                        `json:"interval_seconds"`
+	TimeoutSec      int                        `json:"timeout_seconds"`
+	NotificationID  int                        `json:"notification_id,omitempty"`
+	NotificationIDs []int                      `json:"notification_ids,omitempty"`
+	Enabled         bool                       `json:"enabled"`
+	GroupID         int                        `json:"group_id,omitempty"`
+	Order           int                        `json:"order,omitempty"`
+	ParentID        string                     `json:"parent_id,omitempty"`
+	FailThreshold   int                        `json:"fail_threshold"`
 	CertValidation  monitor.CertValidationMode `json:"cert_validation,omitempty"`
 }
 

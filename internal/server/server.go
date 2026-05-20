@@ -247,6 +247,7 @@ type Server struct {
 	templates       *template.Template
 	adminUser       string
 	adminPassword   string
+	adminTheme      string
 	refreshInterval time.Duration
 	logger          *log.Logger
 	mux             *http.ServeMux
@@ -288,6 +289,7 @@ type Config struct {
 	Manager           *monitor.Manager
 	AdminUser         string
 	AdminPasswordHash string
+	AdminTheme        string
 	RefreshInterval   time.Duration
 	Logger            *log.Logger
 	// When true, the server will require an installation step to set admin
@@ -330,6 +332,7 @@ func New(cfg Config) (*Server, error) {
 		manager:           cfg.Manager,
 		templates:         templates,
 		adminUser:         cfg.AdminUser,
+		adminTheme:        normalizeTheme(cfg.AdminTheme),
 		refreshInterval:   refresh,
 		logger:            cfg.Logger,
 		mux:               http.NewServeMux(),
@@ -968,6 +971,25 @@ func validateUsername(username string) error {
 	return nil
 }
 
+func normalizeTheme(theme string) string {
+	switch strings.ToLower(strings.TrimSpace(theme)) {
+	case "light":
+		return "light"
+	default:
+		return "dark"
+	}
+}
+
+func (s *Server) themeForUser(user *database.UserData) string {
+	if user != nil && user.Theme != "" {
+		return normalizeTheme(user.Theme)
+	}
+	if user != nil && user.ID == -1 {
+		return normalizeTheme(s.adminTheme)
+	}
+	return "dark"
+}
+
 // ==== User Management & Role-Based Access Control ===========================
 
 // getCurrentUser returns the current user from session, API key, or nil if not authenticated
@@ -1026,6 +1048,7 @@ func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
 			Username: s.adminUser,
 			Role:     database.UserRoleAdmin,
 			Enabled:  true,
+			Theme:    normalizeTheme(s.adminTheme),
 		}
 	}
 
@@ -1108,6 +1131,7 @@ func (s *Server) authenticateUser(username, password string) (*database.UserData
 				Username: s.adminUser,
 				Role:     database.UserRoleAdmin,
 				Enabled:  true,
+				Theme:    normalizeTheme(s.adminTheme),
 			}, nil
 		}
 
@@ -2033,6 +2057,7 @@ type BasePageData struct {
 	Title           string
 	RefreshSeconds  int
 	ContentTemplate string
+	Theme           string
 	// When true, the main header bar is hidden (used for focused pages like install/login)
 	HideHeader bool
 	// CSRF token for form protection
@@ -2055,12 +2080,14 @@ func (s *Server) getCSRFTokenAndSetCookie(w http.ResponseWriter, r *http.Request
 // createBasePageData creates BasePageData with current user information
 func (s *Server) createBasePageData(r *http.Request, title, contentTemplate string) BasePageData {
 	csrfToken := s.getCSRFToken(r)
+	currentUser := s.getCurrentUser(r)
 	return BasePageData{
 		Title:           title,
 		ContentTemplate: contentTemplate,
 		CSRFToken:       csrfToken,
 		DatabaseEnabled: s.configDB != nil,
-		CurrentUser:     s.getCurrentUser(r),
+		CurrentUser:     currentUser,
+		Theme:           s.themeForUser(currentUser),
 	}
 }
 
@@ -2215,6 +2242,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			BasePageData: BasePageData{
 				Title:           "Install Upturtle",
 				ContentTemplate: "install.content",
+				Theme:           "dark",
 				HideHeader:      true,
 				CSRFToken:       s.getCSRFTokenAndSetCookie(w, r),
 			},
@@ -2246,6 +2274,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		user := strings.TrimSpace(r.FormValue("username"))
 		pass := r.FormValue("password")
 		storageType := r.FormValue("storage_type")
+		theme := normalizeTheme(r.FormValue("theme"))
 
 		if user == "" || pass == "" {
 			http.Redirect(w, r, "/install?error=Username+and+password+are+required", http.StatusSeeOther)
@@ -2287,6 +2316,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		}
 		s.adminUser = user
 		s.adminPassword = string(hash)
+		s.adminTheme = theme
 		s.databaseConfig = dbConfig
 		s.installRequired = false
 
@@ -2320,6 +2350,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 				PasswordHash: string(hash),
 				Role:         database.UserRoleAdmin,
 				Enabled:      true,
+				Theme:        theme,
 			}
 
 			if savedUser, err := db.SaveUser(adminUser); err != nil {
@@ -2459,6 +2490,7 @@ func (s *Server) saveConfig() error {
 				PasswordHash: s.adminPassword,
 				Role:         database.UserRoleAdmin,
 				Enabled:      true,
+				Theme:        normalizeTheme(s.adminTheme),
 			}
 
 			// Check if admin user already exists
@@ -2466,6 +2498,9 @@ func (s *Server) saveConfig() error {
 			if err == nil && existingUser != nil {
 				// Update existing user
 				adminUser.ID = existingUser.ID
+				if existingUser.Theme != "" {
+					adminUser.Theme = existingUser.Theme
+				}
 				if _, err := s.configDB.SaveUser(adminUser); err != nil {
 					s.logger.Printf("Warning: Failed to update admin user in database: %v", err)
 				}
@@ -2596,6 +2631,7 @@ func (s *Server) saveConfig() error {
 	cfg := config.AppConfig{
 		AdminUser:         s.adminUser,
 		AdminPasswordHash: s.adminPassword,
+		AdminTheme:        normalizeTheme(s.adminTheme),
 		Database:          s.databaseConfig,
 	}
 	cfg.Groups = append([]config.GroupConfig(nil), s.groups...)

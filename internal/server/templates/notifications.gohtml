@@ -37,7 +37,7 @@
             <td class="px-4 py-3 text-center">{{if .GlobalAlarm}}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900/40 text-yellow-300 border border-yellow-700/50">All alarms</span>{{else}}<span class="text-gray-600 text-xs">&mdash;</span>{{end}}</td>
             <td class="px-4 py-3">
               <div class="flex items-center justify-end gap-1">
-                <button class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" type="button" data-action="edit-notification" data-notification-id="{{.ID}}" title="Edit">
+                <button class="p-1.5 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-700/50 rounded transition-colors" type="button" data-action="edit-notification" data-notification-id="{{.ID}}" title="Edit">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92-8.06 8.06zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>
                 </button>
                 <button class="p-1.5 text-gray-400 hover:text-yellow-400 hover:bg-yellow-900/20 rounded transition-colors" type="button" data-id="{{.ID}}" title="Test">
@@ -62,124 +62,65 @@
 </div>
 
 <!-- Modals -->
-<style>
-.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem; }
-.modal-backdrop.show { display: flex; }
-.modal { background: rgba(24,24,24,0.95); border: 1px solid rgba(160,160,160,0.2); border-radius: 12px; max-width: 42rem; width: 100%; max-height: 90vh; overflow-y: auto; }
-.modal header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid rgba(160,160,160,0.2); }
-.modal header h3 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #f3f4f6; }
-.modal header .close { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 1.75rem; line-height: 1; padding: 0.25rem; transition: color 0.2s; }
-.modal header .close:hover { color: #fff; }
-.modal form { padding: 1.5rem; }
-.modal .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
-.modal .form-row > div { display: flex; flex-direction: column; }
-.modal label { font-size: 0.875rem; font-weight: 500; color: #d1d5db; margin-bottom: 0.375rem; }
-.modal input[type="text"], .modal input[type="number"], .modal select, .modal textarea {
-  padding: 0.5rem 0.75rem;
-  background-color: rgba(31,31,35,0.8);
-  border: 1px solid rgba(160,160,160,0.25);
-  border-radius: 0.5rem;
-  color: #e5e7eb;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-.modal input:focus, .modal select:focus, .modal textarea:focus {
-  outline: none;
-  border-color: rgba(99,102,241,0.6);
-  background-color: rgba(31,31,35,0.95);
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
-}
-.modal input[type="checkbox"] { width: 1rem; height: 1rem; }
-.modal .checkbox-row label { display: flex; align-items: center; gap: 0.5rem; }
-.modal .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(160,160,160,0.2); }
-.modal button[type="submit"], .modal button.primary {
-  padding: 0.5rem 1rem;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.modal button[type="submit"]:hover, .modal button.primary:hover { background: #2563eb; }
-.modal button[type="button"]:not(.close):not(.primary) {
-  padding: 0.5rem 1rem;
-  background: rgba(107,114,128,0.3);
-  color: #d1d5db;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.modal button[type="button"]:not(.close):not(.primary):hover {
-  background: rgba(107,114,128,0.5);
-}
-.modal .hint { color: #9ca3af; font-size: 0.75rem; margin-top: 0.25rem; }
-.modal .hint a { color: #60a5fa; text-decoration: underline; }
-.modal .hint a:hover { color: #93bbfd; }
-</style>
-
 <!-- Edit Notification Modal -->
-<div id="modal-edit-notification" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true">
-    <header>
-      <h3>Edit notification</h3>
-      <button class="close" type="button" data-close>&times;</button>
+<div id="modal-edit-notification" data-modal-backdrop class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/30 dark:bg-black/70 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-white/95 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+    <header class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border">
+      <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Edit notification</h3>
+      <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-edit-notification" action="#" method="post">
-      <div class="form-row">
-        <div>
+    <form id="form-edit-notification" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>Name</label>
           <input name="name" type="text" required>
         </div>
       </div>
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>Shoutrrr URL</label>
           <input name="url" type="text" required placeholder="e.g. discord://token@id or gotify://host/token" style="font-family:monospace;font-size:0.8rem">
-          <span class="hint">Enter a valid Shoutrrr URL. See <a href="https://containrrr.dev/shoutrrr/v0.8/services/overview/" target="_blank" rel="noopener noreferrer">Shoutrrr Documentation</a> for supported services and URL formats.</span>
+          <span class="text-xs text-slate-500 dark:text-gray-400 mt-1">Enter a valid Shoutrrr URL. See <a href="https://containrrr.dev/shoutrrr/v0.8/services/overview/" target="_blank" rel="noopener noreferrer">Shoutrrr Documentation</a> for supported services and URL formats.</span>
         </div>
       </div>
-      <div class="form-row checkbox-row">
+      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
         <label><input name="global_alarm" type="checkbox" value="true"> Global alarm &mdash; receive notifications for <strong>all</strong> monitor alarms</label>
       </div>
-      <div class="actions">
-        <button type="button" data-close>Cancel</button>
-        <button type="submit" class="primary">Save</button>
+      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+        <button type="button" data-close class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Save</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Create Notification Modal -->
-<div id="modal-create-notification" class="modal-backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true">
-    <header>
-      <h3>Create notification</h3>
-      <button class="close" type="button" data-close>&times;</button>
+<div id="modal-create-notification" data-modal-backdrop class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/30 dark:bg-black/70 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="bg-white/95 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+    <header class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border">
+      <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Create notification</h3>
+      <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-create-notification" action="#" method="post">
-      <div class="form-row">
-        <div>
+    <form id="form-create-notification" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>Name</label>
           <input name="name" type="text" required placeholder="e.g. Discord Alerts">
         </div>
       </div>
-      <div class="form-row">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+        <div class="flex flex-col">
           <label>Shoutrrr URL</label>
           <input name="url" type="text" required placeholder="e.g. discord://token@id or gotify://host/token" style="font-family:monospace;font-size:0.8rem">
-          <span class="hint">Enter a valid Shoutrrr URL. See <a href="https://containrrr.dev/shoutrrr/v0.8/services/overview/" target="_blank" rel="noopener noreferrer">Shoutrrr Documentation</a> for supported services and URL formats.</span>
+          <span class="text-xs text-slate-500 dark:text-gray-400 mt-1">Enter a valid Shoutrrr URL. See <a href="https://containrrr.dev/shoutrrr/v0.8/services/overview/" target="_blank" rel="noopener noreferrer">Shoutrrr Documentation</a> for supported services and URL formats.</span>
         </div>
       </div>
-      <div class="form-row checkbox-row">
+      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
         <label><input name="global_alarm" type="checkbox" value="true"> Global alarm &mdash; receive notifications for <strong>all</strong> monitor alarms</label>
       </div>
-      <div class="actions">
-        <button type="button" data-close>Cancel</button>
-        <button type="submit" class="primary">Create</button>
+      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+        <button type="button" data-close class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Create</button>
       </div>
     </form>
   </div>
@@ -190,18 +131,18 @@
   function openModal(id){
     var el = document.getElementById(id);
     if(!el) return;
-    el.classList.add('show');
+    el.classList.remove('hidden'); el.classList.add('flex');
     el.setAttribute('aria-hidden','false');
   }
   function closeModal(el){
     if(typeof el === 'string') el = document.getElementById(el);
     if(!el) return;
-    el.classList.remove('show');
+    el.classList.add('hidden'); el.classList.remove('flex');
     el.setAttribute('aria-hidden','true');
   }
 
   // Close buttons inside modals
-  document.querySelectorAll('.modal-backdrop').forEach(function(bg){
+  document.querySelectorAll('[data-modal-backdrop]').forEach(function(bg){
     bg.querySelectorAll('[data-close]').forEach(function(x){
       x.addEventListener('click', function(){ closeModal(bg); });
     });

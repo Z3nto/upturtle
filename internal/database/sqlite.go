@@ -89,7 +89,6 @@ func (s *SQLiteDB) Initialize() error {
 		return fmt.Errorf("failed to create today's history table: %w", err)
 	}
 
-
 	log.Printf("SQLite database initialized at %s", s.path)
 	return nil
 }
@@ -110,7 +109,6 @@ func (s *SQLiteDB) Health() error {
 
 	return s.db.Ping()
 }
-
 
 // createMonitorsTable creates the monitors table
 func (s *SQLiteDB) createMonitorsTable() error {
@@ -292,6 +290,7 @@ func (s *SQLiteDB) createUsersTable() error {
 		password_hash TEXT NOT NULL,
 		role TEXT NOT NULL DEFAULT 'readonly',
 		enabled BOOLEAN NOT NULL DEFAULT 1,
+		theme TEXT NOT NULL DEFAULT 'dark',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`
@@ -300,6 +299,9 @@ func (s *SQLiteDB) createUsersTable() error {
 	if err != nil {
 		return err
 	}
+
+	// Migration: add theme column if it doesn't exist (for existing databases)
+	s.db.Exec(`ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'dark'`)
 
 	// Create indexes
 	indexes := []string{
@@ -849,7 +851,6 @@ func (s *SQLiteDB) DeleteNotification(id int) error {
 	return err
 }
 
-
 // CleanupOldHistory removes history data older than retentionDays
 func (s *SQLiteDB) CleanupOldHistory(retentionDays int) error {
 	cutoffDate := time.Now().AddDate(0, 0, -retentionDays)
@@ -1097,15 +1098,18 @@ func (s *SQLiteDB) ClearStatusPageMonitors(statusPageID int) error {
 // SaveUser saves a user record
 func (s *SQLiteDB) SaveUser(user UserData) (*UserData, error) {
 	now := time.Now()
-	
+
 	if user.ID == 0 {
 		// Insert new user
+		if user.Theme == "" {
+			user.Theme = "dark"
+		}
 		query := `
-		INSERT INTO users (username, password_hash, role, enabled, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO users (username, password_hash, role, enabled, theme, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 		RETURNING id`
-		
-		err := s.db.QueryRow(query, user.Username, user.PasswordHash, user.Role, user.Enabled, now, now).Scan(&user.ID)
+
+		err := s.db.QueryRow(query, user.Username, user.PasswordHash, user.Role, user.Enabled, user.Theme, now, now).Scan(&user.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -1113,82 +1117,85 @@ func (s *SQLiteDB) SaveUser(user UserData) (*UserData, error) {
 		user.UpdatedAt = now
 	} else {
 		// Update existing user
+		if user.Theme == "" {
+			user.Theme = "dark"
+		}
 		query := `
 		UPDATE users 
-		SET username = ?, password_hash = ?, role = ?, enabled = ?, updated_at = ?
+		SET username = ?, password_hash = ?, role = ?, enabled = ?, theme = ?, updated_at = ?
 		WHERE id = ?`
-		
-		_, err := s.db.Exec(query, user.Username, user.PasswordHash, user.Role, user.Enabled, now, user.ID)
+
+		_, err := s.db.Exec(query, user.Username, user.PasswordHash, user.Role, user.Enabled, user.Theme, now, user.ID)
 		if err != nil {
 			return nil, err
 		}
 		user.UpdatedAt = now
 	}
-	
+
 	return &user, nil
 }
 
 // GetUser retrieves a user by ID
 func (s *SQLiteDB) GetUser(id int) (*UserData, error) {
 	query := `
-	SELECT id, username, password_hash, role, enabled, created_at, updated_at
+	SELECT id, username, password_hash, role, enabled, theme, created_at, updated_at
 	FROM users 
 	WHERE id = ?`
-	
+
 	var user UserData
 	err := s.db.QueryRow(query, id).Scan(
-		&user.ID, &user.Username, &user.PasswordHash, &user.Role, 
-		&user.Enabled, &user.CreatedAt, &user.UpdatedAt)
+		&user.ID, &user.Username, &user.PasswordHash, &user.Role,
+		&user.Enabled, &user.Theme, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &user, nil
 }
 
 // GetUserByUsername retrieves a user by username
 func (s *SQLiteDB) GetUserByUsername(username string) (*UserData, error) {
 	query := `
-	SELECT id, username, password_hash, role, enabled, created_at, updated_at
+	SELECT id, username, password_hash, role, enabled, theme, created_at, updated_at
 	FROM users 
 	WHERE username = ?`
-	
+
 	var user UserData
 	err := s.db.QueryRow(query, username).Scan(
-		&user.ID, &user.Username, &user.PasswordHash, &user.Role, 
-		&user.Enabled, &user.CreatedAt, &user.UpdatedAt)
+		&user.ID, &user.Username, &user.PasswordHash, &user.Role,
+		&user.Enabled, &user.Theme, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &user, nil
 }
 
 // GetAllUsers retrieves all users
 func (s *SQLiteDB) GetAllUsers() ([]UserData, error) {
 	query := `
-	SELECT id, username, password_hash, role, enabled, created_at, updated_at
+	SELECT id, username, password_hash, role, enabled, theme, created_at, updated_at
 	FROM users 
 	ORDER BY username`
-	
+
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var users []UserData
 	for rows.Next() {
 		var user UserData
 		err := rows.Scan(
-			&user.ID, &user.Username, &user.PasswordHash, &user.Role, 
-			&user.Enabled, &user.CreatedAt, &user.UpdatedAt)
+			&user.ID, &user.Username, &user.PasswordHash, &user.Role,
+			&user.Enabled, &user.Theme, &user.CreatedAt, &user.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
 		users = append(users, user)
 	}
-	
+
 	return users, rows.Err()
 }
 

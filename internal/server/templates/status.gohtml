@@ -7,12 +7,12 @@
 #upturtle-tooltip {
   position: fixed;
   display: none;
-  background: rgba(24,24,24,0.95);
-  border: 1px solid rgba(160,160,160,0.3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
   font-size: 0.875rem;
-  color: #e2e8f0;
+  color: var(--color-text);
   z-index: 10000;
   pointer-events: none;
   max-width: 300px;
@@ -273,9 +273,7 @@
     });
   }
   function statusClass(s){
-    if(s === 'up') return 'status-up';
-    if(s === 'down') return 'status-down';
-    return 'status-unknown';
+    return '';
   }
   const HISTORY_PREVIEW = 20;
   function formatDuration(ms){
@@ -422,7 +420,6 @@
 
         // Always update row class (cheap) and parent-dependent status badge
         row.classList.remove('status-up','status-down','status-unknown');
-        row.classList.add(statusClass(it.status));
         const statusCell = row.querySelector('[data-field="status"]');
         const isParentDown = !!(it.parent_id && byId[it.parent_id] && byId[it.parent_id].status === 'down');
         
@@ -730,6 +727,12 @@
 
   function renderChart(canvas, data, monitorType){
     const ctx = canvas.getContext('2d');
+    const isLightTheme = document.documentElement.classList.contains('light');
+    const chartTextColor = isLightTheme ? '#334155' : '#e2e8f0';
+    const chartMutedColor = isLightTheme ? '#64748b' : '#a1a1aa';
+    const chartGridColor = isLightTheme ? 'rgba(15, 23, 42, 0.1)' : 'rgba(160, 160, 160, 0.1)';
+    const chartTooltipBg = isLightTheme ? 'rgba(255, 255, 255, 0.96)' : 'rgba(24, 24, 24, 0.95)';
+    const chartTooltipBorder = isLightTheme ? 'rgba(15, 23, 42, 0.16)' : 'rgba(160, 160, 160, 0.3)';
     
     // Destroy existing chart if any
     if(chartInstances[data.id]){
@@ -855,7 +858,7 @@
             display: true,
             position: 'top',
             labels: {
-              color: '#e2e8f0',
+              color: chartTextColor,
               font: { size: 12 }
             }
           },
@@ -863,10 +866,10 @@
             display: false
           },
           tooltip: {
-            backgroundColor: 'rgba(24, 24, 24, 0.95)',
-            titleColor: '#e2e8f0',
-            bodyColor: '#e2e8f0',
-            borderColor: 'rgba(160, 160, 160, 0.3)',
+            backgroundColor: chartTooltipBg,
+            titleColor: chartTextColor,
+            bodyColor: chartTextColor,
+            borderColor: chartTooltipBorder,
             borderWidth: 1,
             callbacks: {
               label: function(context){
@@ -886,12 +889,12 @@
         scales: {
           x: {
             ticks: { 
-              color: '#a1a1aa',
+              color: chartMutedColor,
               maxRotation: 45,
               minRotation: 45
             },
             grid: { 
-              color: 'rgba(160, 160, 160, 0.1)' 
+              color: chartGridColor 
             }
           },
           y: {
@@ -901,16 +904,16 @@
             title: {
               display: true,
               text: 'Response Time (ms)',
-              color: '#e2e8f0'
+              color: chartTextColor
             },
             ticks: { 
-              color: '#a1a1aa',
+              color: chartMutedColor,
               callback: function(value){
                 return value.toFixed(0) + ' ms';
               }
             },
             grid: { 
-              color: 'rgba(160, 160, 160, 0.1)' 
+              color: chartGridColor 
             }
           },
           y1: {
@@ -922,10 +925,10 @@
             title: {
               display: true,
               text: 'Status',
-              color: '#e2e8f0'
+              color: chartTextColor
             },
             ticks: {
-              color: '#a1a1aa',
+              color: chartMutedColor,
               stepSize: 1,
               callback: function(value){
                 if(value === 1){

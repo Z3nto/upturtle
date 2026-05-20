@@ -42,20 +42,20 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 
 	// Parse the path to determine which endpoint was called
 	path := strings.TrimPrefix(r.URL.Path, "/api/")
-	
+
 	var handler APIHandlerFunc
 	var requireAuth = true // Default: require authentication for security
 	var endpointExists bool
-	
+
 	// Route to specific handlers based on path and method
 	endpointExists, handler, requireAuth = s.routeAPIEndpoint(path, r.Method)
-	
+
 	// Check if endpoint exists
 	if !endpointExists {
 		s.sendJSONError(w, "endpoint not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// Check authentication if required (CSRF is validated in handler from JSON body)
 	if requireAuth {
 		if !s.ensureAuth(w, r) {
@@ -63,23 +63,23 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	// Execute the handler
 	data, statusCode, err := handler(r)
-	
+
 	// Send response
 	if err != nil {
 		s.sendJSONError(w, err.Error(), statusCode)
 		return
 	}
-	
+
 	s.sendJSONResponse(w, data, statusCode)
 }
 
 // routeAPIEndpoint routes all /api/* endpoints to their respective handlers
 func (s *Server) routeAPIEndpoint(path, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Default: require auth for security
-	
+
 	// Determine the main resource (first path segment)
 	parts := strings.SplitN(path, "/", 2)
 	resource := parts[0]
@@ -87,7 +87,7 @@ func (s *Server) routeAPIEndpoint(path, method string) (exists bool, handler API
 	if len(parts) > 1 {
 		subPath = parts[1]
 	}
-	
+
 	// Route based on resource type
 	switch resource {
 	case "monitors":
@@ -120,7 +120,7 @@ func (s *Server) routeAPIEndpoint(path, method string) (exists bool, handler API
 // routeMonitorsEndpoint routes /api/monitors/* endpoints
 func (s *Server) routeMonitorsEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Default: require auth
-	
+
 	if subPath == "" {
 		// /api/monitors - collection operations
 		exists = true
@@ -165,25 +165,25 @@ func (s *Server) routeMonitorsEndpoint(subPath, method string) (exists bool, han
 			return false, nil, true
 		}
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
 // sendJSONResponse sends a successful JSON response
 func (s *Server) sendJSONResponse(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	if statusCode == http.StatusNoContent {
 		w.WriteHeader(statusCode)
 		return
 	}
-	
+
 	if statusCode != http.StatusOK && statusCode != http.StatusCreated {
 		w.WriteHeader(statusCode)
 	} else if statusCode == http.StatusCreated {
 		w.WriteHeader(statusCode)
 	}
-	
+
 	if data != nil {
 		if err := json.NewEncoder(w).Encode(data); err != nil {
 			s.logger.Printf("failed to encode JSON response: %v", err)
@@ -195,12 +195,12 @@ func (s *Server) sendJSONResponse(w http.ResponseWriter, data interface{}, statu
 func (s *Server) sendJSONError(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	response := APIResponse{
 		Success: false,
 		Error:   message,
 	}
-	
+
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		s.logger.Printf("failed to encode JSON error: %v", err)
 	}
@@ -220,17 +220,17 @@ func (s *Server) apiMonitorsCreate(r *http.Request) (interface{}, int, error) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	cfg, err := req.toConfig("")
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	// If no order specified or order is 0, calculate next order for the group
 	if cfg.Order <= 0 {
 		cfg.Order = s.getNextOrderForGroup(cfg.GroupID)
 	}
-	
+
 	// Resolve NotifyURLs from selected notifications + global alarm notifications
 	cfg.NotifyURLs = s.resolveNotifyURLs(cfg.NotificationIDs)
 	// Legacy fallback for single NotificationID
@@ -242,16 +242,16 @@ func (s *Server) apiMonitorsCreate(r *http.Request) (interface{}, int, error) {
 			}
 		}
 	}
-	
+
 	monitorCfg, err := s.manager.AddMonitor(cfg)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	if err := s.persistMonitors(); err != nil {
 		s.logger.Printf("persist monitors after api create: %v", err)
 	}
-	
+
 	return monitorCfg, http.StatusCreated, nil
 }
 
@@ -261,12 +261,12 @@ func (s *Server) apiMonitorGet(r *http.Request) (interface{}, int, error) {
 	if id == "" {
 		return nil, http.StatusNotFound, http.ErrMissingFile
 	}
-	
+
 	snapshot, err := s.manager.GetSnapshot(id)
 	if err != nil {
 		return nil, http.StatusNotFound, err
 	}
-	
+
 	apiSnapshot := convertSnapshotToAPI(snapshot)
 	return apiSnapshot, http.StatusOK, nil
 }
@@ -277,17 +277,17 @@ func (s *Server) apiMonitorUpdate(r *http.Request) (interface{}, int, error) {
 	if id == "" {
 		return nil, http.StatusNotFound, http.ErrMissingFile
 	}
-	
+
 	var req monitorRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	cfg, err := req.toConfig(id)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	// Resolve NotifyURLs from selected notifications + global alarm notifications
 	cfg.NotifyURLs = s.resolveNotifyURLs(cfg.NotificationIDs)
 	// Legacy fallback for single NotificationID
@@ -299,16 +299,16 @@ func (s *Server) apiMonitorUpdate(r *http.Request) (interface{}, int, error) {
 			}
 		}
 	}
-	
+
 	monitorCfg, err := s.manager.UpdateMonitor(cfg)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	if err := s.persistMonitors(); err != nil {
 		s.logger.Printf("persist monitors after api update: %v", err)
 	}
-	
+
 	return monitorCfg, http.StatusOK, nil
 }
 
@@ -318,11 +318,11 @@ func (s *Server) apiMonitorDelete(r *http.Request) (interface{}, int, error) {
 	if id == "" {
 		return nil, http.StatusNotFound, http.ErrMissingFile
 	}
-	
+
 	if err := s.manager.RemoveMonitor(id); err != nil {
 		return nil, http.StatusNotFound, err
 	}
-	
+
 	// Delete from database if configured
 	if s.configDB != nil {
 		if err := s.configDB.DeleteMonitor(id); err != nil {
@@ -330,11 +330,11 @@ func (s *Server) apiMonitorDelete(r *http.Request) (interface{}, int, error) {
 			return nil, http.StatusInternalServerError, err
 		}
 	}
-	
+
 	if err := s.persistMonitors(); err != nil {
 		s.logger.Printf("persist monitors after api delete: %v", err)
 	}
-	
+
 	return nil, http.StatusNoContent, nil
 }
 
@@ -346,16 +346,16 @@ func (s *Server) apiMonitorsReorder(r *http.Request) (interface{}, int, error) {
 			Order   []string `json:"order"`
 		} `json:"groups"`
 	}
-	
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	if err := json.Unmarshal(body, &multi); err != nil || len(multi.Groups) == 0 {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	// Build a map from monitor ID to its new group ID and order
 	type placement struct {
 		gid   int
@@ -367,7 +367,7 @@ func (s *Server) apiMonitorsReorder(r *http.Request) (interface{}, int, error) {
 			pos[id] = placement{gid: g.GroupID, order: i + 1}
 		}
 	}
-	
+
 	snapshots := s.manager.List()
 	for _, snap := range snapshots {
 		if p, ok := pos[snap.Config.ID]; ok {
@@ -380,11 +380,11 @@ func (s *Server) apiMonitorsReorder(r *http.Request) (interface{}, int, error) {
 			}
 		}
 	}
-	
+
 	if err := s.saveConfig(); err != nil {
 		s.logger.Printf("persist after api reorder: %v", err)
 	}
-	
+
 	return nil, http.StatusNoContent, nil
 }
 
@@ -393,29 +393,29 @@ func (s *Server) apiMonitorChart(r *http.Request) (interface{}, int, error) {
 	// Extract monitor ID from URL path: /api/monitors/chart/{id}
 	path := strings.TrimPrefix(r.URL.Path, "/api/monitors/chart/")
 	monitorID := strings.TrimSpace(path)
-	
+
 	if monitorID == "" {
 		return nil, http.StatusBadRequest, http.ErrMissingFile
 	}
-	
+
 	// Get monitor snapshot
 	snap, err := s.manager.GetSnapshot(monitorID)
 	if err != nil {
 		return nil, http.StatusNotFound, err
 	}
-	
+
 	// Prepare chart data based on monitor type
 	chartData := map[string]any{
 		"id":   snap.Config.ID,
 		"name": snap.Config.Name,
 		"type": snap.Config.Type,
 	}
-	
+
 	// Collect time series data from history
 	timestamps := make([]string, 0, len(snap.History))
 	latencies := make([]float64, 0, len(snap.History))
 	statuses := make([]int, 0, len(snap.History))
-	
+
 	for _, h := range snap.History {
 		timestamps = append(timestamps, h.Timestamp.Format(time.RFC3339))
 		latencies = append(latencies, h.Latency.Seconds()*1000) // Convert to milliseconds
@@ -425,11 +425,11 @@ func (s *Server) apiMonitorChart(r *http.Request) (interface{}, int, error) {
 			statuses = append(statuses, 0)
 		}
 	}
-	
+
 	chartData["timestamps"] = timestamps
 	chartData["latencies"] = latencies
 	chartData["statuses"] = statuses
-	
+
 	return chartData, http.StatusOK, nil
 }
 
@@ -438,7 +438,7 @@ func (s *Server) apiMonitorChart(r *http.Request) (interface{}, int, error) {
 // routeNotificationsEndpoint routes /api/notifications/* endpoints
 func (s *Server) routeNotificationsEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Default: require auth
-	
+
 	if subPath == "" {
 		// /api/notifications - collection operations
 		exists = true
@@ -476,7 +476,7 @@ func (s *Server) routeNotificationsEndpoint(subPath, method string) (exists bool
 			return false, nil, true
 		}
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
@@ -530,7 +530,7 @@ func (s *Server) apiNotificationsCreate(r *http.Request) (interface{}, int, erro
 	if err := s.saveConfig(); err != nil {
 		s.logger.Printf("persist after api notification create: %v", err)
 	}
-	
+
 	return n, http.StatusCreated, nil
 }
 
@@ -540,18 +540,18 @@ func (s *Server) apiNotificationGet(r *http.Request) (interface{}, int, error) {
 	if idStr == "" {
 		return nil, http.StatusNotFound, fmt.Errorf("notification not found")
 	}
-	
+
 	nid, err := strconv.Atoi(idStr)
 	if err != nil || nid <= 0 {
 		return nil, http.StatusNotFound, fmt.Errorf("invalid notification ID")
 	}
-	
+
 	for _, n := range s.notifications {
 		if n.ID == nid {
 			return n, http.StatusOK, nil
 		}
 	}
-	
+
 	return nil, http.StatusNotFound, fmt.Errorf("notification not found")
 }
 
@@ -561,12 +561,12 @@ func (s *Server) apiNotificationUpdate(r *http.Request) (interface{}, int, error
 	if idStr == "" {
 		return nil, http.StatusNotFound, fmt.Errorf("notification not found")
 	}
-	
+
 	nid, err := strconv.Atoi(idStr)
 	if err != nil || nid <= 0 {
 		return nil, http.StatusNotFound, fmt.Errorf("invalid notification ID")
 	}
-	
+
 	var body struct {
 		Name        string `json:"name"`
 		URL         string `json:"url"`
@@ -576,7 +576,7 @@ func (s *Server) apiNotificationUpdate(r *http.Request) (interface{}, int, error
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	for i := range s.notifications {
 		if s.notifications[i].ID == nid {
 			s.notifications[i].Name = strings.TrimSpace(body.Name)
@@ -596,7 +596,7 @@ func (s *Server) apiNotificationUpdate(r *http.Request) (interface{}, int, error
 			return s.notifications[i], http.StatusOK, nil
 		}
 	}
-	
+
 	return nil, http.StatusNotFound, fmt.Errorf("notification not found")
 }
 
@@ -606,12 +606,12 @@ func (s *Server) apiNotificationDelete(r *http.Request) (interface{}, int, error
 	if idStr == "" {
 		return nil, http.StatusNotFound, fmt.Errorf("notification not found")
 	}
-	
+
 	nid, err := strconv.Atoi(idStr)
 	if err != nil || nid <= 0 {
 		return nil, http.StatusNotFound, fmt.Errorf("invalid notification ID")
 	}
-	
+
 	idx := -1
 	for i, n := range s.notifications {
 		if n.ID == nid {
@@ -622,9 +622,9 @@ func (s *Server) apiNotificationDelete(r *http.Request) (interface{}, int, error
 	if idx == -1 {
 		return nil, http.StatusNotFound, fmt.Errorf("notification not found")
 	}
-	
+
 	s.notifications = append(s.notifications[:idx], s.notifications[idx+1:]...)
-	
+
 	// Clear notification references in monitors (both legacy NotificationID and new NotificationIDs)
 	cfgs := s.manager.GetAllConfigs()
 	changed := false
@@ -657,18 +657,18 @@ func (s *Server) apiNotificationDelete(r *http.Request) (interface{}, int, error
 			s.logger.Printf("persist after api notification delete refs: %v", err)
 		}
 	}
-	
+
 	// Delete from database if configured
 	if s.configDB != nil {
 		if err := s.configDB.DeleteNotification(nid); err != nil {
 			s.logger.Printf("failed to delete notification %d from database: %v", nid, err)
 		}
 	}
-	
+
 	if err := s.saveConfig(); err != nil {
 		s.logger.Printf("persist after api notification delete: %v", err)
 	}
-	
+
 	return nil, http.StatusNoContent, nil
 }
 
@@ -680,12 +680,12 @@ func (s *Server) apiNotificationTest(r *http.Request) (interface{}, int, error) 
 	if len(parts) < 2 || parts[1] != "test" {
 		return nil, http.StatusNotFound, fmt.Errorf("invalid test endpoint")
 	}
-	
+
 	nid, err := strconv.Atoi(parts[0])
 	if err != nil || nid <= 0 {
 		return nil, http.StatusNotFound, fmt.Errorf("invalid notification ID")
 	}
-	
+
 	// Find the notification config
 	var urlStr, name string
 	for _, n := range s.notifications {
@@ -698,7 +698,7 @@ func (s *Server) apiNotificationTest(r *http.Request) (interface{}, int, error) 
 	if urlStr == "" {
 		return nil, http.StatusNotFound, fmt.Errorf("notification not found")
 	}
-	
+
 	// Build a test notification payload
 	msg := monitor.Notification{
 		MonitorID:   "test",
@@ -714,7 +714,7 @@ func (s *Server) apiNotificationTest(r *http.Request) (interface{}, int, error) 
 		s.logger.Printf("test notification error for id %d: %v", nid, err)
 		return nil, http.StatusBadGateway, fmt.Errorf("failed to send test notification")
 	}
-	
+
 	return nil, http.StatusNoContent, nil
 }
 
@@ -723,7 +723,7 @@ func (s *Server) apiNotificationTest(r *http.Request) (interface{}, int, error) 
 // routeGroupsEndpoint routes /api/groups/* endpoints
 func (s *Server) routeGroupsEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Default: require auth
-	
+
 	if subPath == "" {
 		// /api/groups - collection operations
 		exists = true
@@ -748,7 +748,7 @@ func (s *Server) routeGroupsEndpoint(subPath, method string) (exists bool, handl
 			return false, nil, true
 		}
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
@@ -782,7 +782,7 @@ func (s *Server) apiGroupsCreate(r *http.Request) (interface{}, int, error) {
 	if name == "" {
 		return nil, http.StatusBadRequest, fmt.Errorf("name required")
 	}
-	
+
 	for _, g := range s.groups {
 		if g.Name == name {
 			return nil, http.StatusConflict, fmt.Errorf("group exists")
@@ -858,12 +858,12 @@ func (s *Server) apiGroupUpdate(r *http.Request) (interface{}, int, error) {
 	if idStr == "" {
 		return nil, http.StatusNotFound, fmt.Errorf("group not found")
 	}
-	
+
 	gid, err := strconv.Atoi(idStr)
 	if err != nil || gid <= 0 {
 		return nil, http.StatusNotFound, fmt.Errorf("invalid group ID")
 	}
-	
+
 	var body struct {
 		Name string
 		Move string
@@ -871,7 +871,7 @@ func (s *Server) apiGroupUpdate(r *http.Request) (interface{}, int, error) {
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	
+
 	idx := -1
 	for i, g := range s.groups {
 		if g.ID == gid {
@@ -882,7 +882,7 @@ func (s *Server) apiGroupUpdate(r *http.Request) (interface{}, int, error) {
 	if idx == -1 {
 		return nil, http.StatusNotFound, fmt.Errorf("group not found")
 	}
-	
+
 	mv := strings.ToLower(strings.TrimSpace(body.Move))
 	if mv == "up" || mv == "down" {
 		// Build list of default groups only (exclude statuspage groups)
@@ -892,12 +892,12 @@ func (s *Server) apiGroupUpdate(r *http.Request) (interface{}, int, error) {
 				defaultIndices = append(defaultIndices, i)
 			}
 		}
-		
+
 		// Sort default groups by Order
 		sort.Slice(defaultIndices, func(a, b int) bool {
 			return s.groups[defaultIndices[a]].Order < s.groups[defaultIndices[b]].Order
 		})
-		
+
 		// Find position of target group in default groups
 		posInDefaults := -1
 		for pos, globalIdx := range defaultIndices {
@@ -907,11 +907,11 @@ func (s *Server) apiGroupUpdate(r *http.Request) (interface{}, int, error) {
 				break
 			}
 		}
-		
+
 		if posInDefaults == -1 {
 			return nil, http.StatusNotFound, fmt.Errorf("group not found in default groups")
 		}
-		
+
 		// Swap Order values with neighbor in default groups
 		if mv == "up" && posInDefaults > 0 {
 			prevIdx := defaultIndices[posInDefaults-1]
@@ -920,16 +920,16 @@ func (s *Server) apiGroupUpdate(r *http.Request) (interface{}, int, error) {
 			nextIdx := defaultIndices[posInDefaults+1]
 			s.groups[idx].Order, s.groups[nextIdx].Order = s.groups[nextIdx].Order, s.groups[idx].Order
 		}
-		
+
 		// Re-normalize to sort by new Order and reassign sequential values
 		s.normalizeAndSortGroups()
-		
+
 		if err := s.saveConfig(); err != nil {
 			s.logger.Printf("persist api group move: %v", err)
 		}
 		return nil, http.StatusNoContent, nil
 	}
-	
+
 	newName := strings.TrimSpace(body.Name)
 	if newName != "" && newName != s.groups[idx].Name {
 		// rename
@@ -950,7 +950,7 @@ func (s *Server) apiGroupUpdate(r *http.Request) (interface{}, int, error) {
 		}
 		return nil, http.StatusNoContent, nil
 	}
-	
+
 	return nil, http.StatusBadRequest, fmt.Errorf("nothing to update")
 }
 
@@ -960,15 +960,15 @@ func (s *Server) apiGroupDelete(r *http.Request) (interface{}, int, error) {
 	if idStr == "" {
 		return nil, http.StatusNotFound, fmt.Errorf("group not found")
 	}
-	
+
 	gid, err := strconv.Atoi(idStr)
 	if err != nil || gid <= 0 {
 		return nil, http.StatusNotFound, fmt.Errorf("invalid group ID")
 	}
-	
+
 	q := r.URL.Query().Get("delete_monitors")
 	deleteMon := q == "1" || strings.ToLower(q) == "true" || q == "yes"
-	
+
 	idx := -1
 	for i, g := range s.groups {
 		if g.ID == gid {
@@ -979,10 +979,10 @@ func (s *Server) apiGroupDelete(r *http.Request) (interface{}, int, error) {
 	if idx == -1 {
 		return nil, http.StatusNotFound, fmt.Errorf("group not found")
 	}
-	
+
 	s.groups = append(s.groups[:idx], s.groups[idx+1:]...)
 	s.normalizeAndSortGroups()
-	
+
 	snaps := s.manager.List()
 	for _, snap := range snaps {
 		if snap.Config.GroupID != gid {
@@ -1003,18 +1003,18 @@ func (s *Server) apiGroupDelete(r *http.Request) (interface{}, int, error) {
 			_, _ = s.manager.UpdateMonitor(cfg)
 		}
 	}
-	
+
 	// Delete from database if configured
 	if s.configDB != nil {
 		if err := s.configDB.DeleteGroup(gid); err != nil {
 			s.logger.Printf("failed to delete group %d from database: %v", gid, err)
 		}
 	}
-	
+
 	if err := s.saveConfig(); err != nil {
 		s.logger.Printf("persist api group delete: %v", err)
 	}
-	
+
 	return nil, http.StatusNoContent, nil
 }
 
@@ -1023,7 +1023,7 @@ func (s *Server) apiGroupDelete(r *http.Request) (interface{}, int, error) {
 // routeSettingsEndpoint routes /api/settings endpoint
 func (s *Server) routeSettingsEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Always require auth for settings
-	
+
 	if subPath == "" {
 		// /api/settings
 		exists = true
@@ -1035,7 +1035,7 @@ func (s *Server) routeSettingsEndpoint(subPath, method string) (exists bool, han
 	} else {
 		return false, nil, true
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
@@ -1083,7 +1083,7 @@ func (s *Server) apiSettingsUpdate(r *http.Request) (interface{}, int, error) {
 // routeHistoryEndpoint routes /api/history/* endpoints
 func (s *Server) routeHistoryEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Require auth for history
-	
+
 	if subPath != "" {
 		// /api/history/{id}
 		exists = true
@@ -1095,7 +1095,7 @@ func (s *Server) routeHistoryEndpoint(subPath, method string) (exists bool, hand
 	} else {
 		return false, nil, true
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
@@ -1128,7 +1128,7 @@ func (s *Server) apiHistoryGet(r *http.Request) (interface{}, int, error) {
 // routeStatusPagesEndpoint routes /api/statuspages/* endpoints
 func (s *Server) routeStatusPagesEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Always require auth for status pages
-	
+
 	if subPath == "" {
 		// /api/statuspages - collection operations
 		exists = true
@@ -1154,7 +1154,7 @@ func (s *Server) routeStatusPagesEndpoint(subPath, method string) (exists bool, 
 			return false, nil, true
 		}
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
@@ -1169,7 +1169,7 @@ func (s *Server) apiStatusPagesList(r *http.Request) (interface{}, int, error) {
 func (s *Server) apiStatusPageGet(r *http.Request) (interface{}, int, error) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/statuspages/")
 	path = strings.Trim(path, "/")
-	
+
 	id, err := strconv.Atoi(path)
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("invalid status page ID")
@@ -1378,12 +1378,12 @@ func (s *Server) apiStatusPageDelete(r *http.Request) (interface{}, int, error) 
 // routeUsersEndpoint routes /api/users/* endpoints
 func (s *Server) routeUsersEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Always require auth for users
-	
+
 	// Check for API keys sub-endpoints first
 	if strings.HasPrefix(subPath, "apikeys") {
 		return s.routeUserAPIKeysEndpoint(subPath, method)
 	}
-	
+
 	// Check for change-password endpoint
 	if subPath == "change-password" {
 		exists = true
@@ -1394,7 +1394,17 @@ func (s *Server) routeUsersEndpoint(subPath, method string) (exists bool, handle
 		}
 		return exists, handler, requireAuth
 	}
-	
+
+	if subPath == "theme" {
+		exists = true
+		if method == http.MethodPost {
+			handler = s.apiUserUpdateTheme
+		} else {
+			return false, nil, true
+		}
+		return exists, handler, requireAuth
+	}
+
 	if subPath == "" {
 		// /api/users - collection operations
 		exists = true
@@ -1420,18 +1430,18 @@ func (s *Server) routeUsersEndpoint(subPath, method string) (exists bool, handle
 			return false, nil, true
 		}
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
 // routeUserAPIKeysEndpoint routes /api/users/apikeys/* endpoints
 func (s *Server) routeUserAPIKeysEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Always require auth for API keys
-	
+
 	// Remove "apikeys" prefix
 	rest := strings.TrimPrefix(subPath, "apikeys")
 	rest = strings.Trim(rest, "/")
-	
+
 	if rest == "" {
 		// /api/users/apikeys - collection operations
 		exists = true
@@ -1459,7 +1469,7 @@ func (s *Server) routeUserAPIKeysEndpoint(subPath, method string) (exists bool, 
 	} else {
 		return false, nil, true
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
@@ -1471,6 +1481,7 @@ type UserResponse struct {
 	Username  string            `json:"username"`
 	Role      database.UserRole `json:"role"`
 	Enabled   bool              `json:"enabled"`
+	Theme     string            `json:"theme"`
 	CreatedAt time.Time         `json:"created_at"`
 	UpdatedAt time.Time         `json:"updated_at"`
 }
@@ -1501,6 +1512,7 @@ func (s *Server) apiUsersList(r *http.Request) (interface{}, int, error) {
 			Username:  user.Username,
 			Role:      user.Role,
 			Enabled:   user.Enabled,
+			Theme:     normalizeTheme(user.Theme),
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
 		})
@@ -1538,6 +1550,7 @@ func (s *Server) apiUserGet(r *http.Request) (interface{}, int, error) {
 		Username:  user.Username,
 		Role:      user.Role,
 		Enabled:   user.Enabled,
+		Theme:     normalizeTheme(user.Theme),
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}
@@ -1609,6 +1622,7 @@ func (s *Server) apiUsersCreate(r *http.Request) (interface{}, int, error) {
 		PasswordHash: string(passwordHash),
 		Role:         req.Role,
 		Enabled:      req.Enabled,
+		Theme:        "dark",
 	}
 
 	savedUser, err := s.configDB.SaveUser(user)
@@ -1622,6 +1636,7 @@ func (s *Server) apiUsersCreate(r *http.Request) (interface{}, int, error) {
 		Username:  savedUser.Username,
 		Role:      savedUser.Role,
 		Enabled:   savedUser.Enabled,
+		Theme:     normalizeTheme(savedUser.Theme),
 		CreatedAt: savedUser.CreatedAt,
 		UpdatedAt: savedUser.UpdatedAt,
 	}
@@ -1713,6 +1728,7 @@ func (s *Server) apiUserUpdate(r *http.Request) (interface{}, int, error) {
 		Username:  savedUser.Username,
 		Role:      savedUser.Role,
 		Enabled:   savedUser.Enabled,
+		Theme:     normalizeTheme(savedUser.Theme),
 		CreatedAt: savedUser.CreatedAt,
 		UpdatedAt: savedUser.UpdatedAt,
 	}
@@ -1821,6 +1837,53 @@ func (s *Server) apiUserChangePassword(r *http.Request) (interface{}, int, error
 	}
 
 	return map[string]bool{"success": true}, http.StatusOK, nil
+}
+
+// apiUserUpdateTheme allows a user to change their own theme.
+func (s *Server) apiUserUpdateTheme(r *http.Request) (interface{}, int, error) {
+	currentUser := s.getCurrentUser(r)
+	if currentUser == nil {
+		return nil, http.StatusUnauthorized, fmt.Errorf("authentication required")
+	}
+
+	var req struct {
+		Theme string `json:"theme"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("invalid request body")
+	}
+
+	theme := normalizeTheme(req.Theme)
+
+	if s.isUsingDatabaseAuth() {
+		user, err := s.configDB.GetUser(currentUser.ID)
+		if err != nil {
+			return nil, http.StatusInternalServerError, fmt.Errorf("failed to get user")
+		}
+		user.Theme = theme
+		if _, err := s.configDB.SaveUser(*user); err != nil {
+			s.logger.Printf("Failed to update theme: %v", err)
+			return nil, http.StatusInternalServerError, fmt.Errorf("failed to update theme")
+		}
+		if user.Username == s.adminUser {
+			s.adminTheme = theme
+		}
+	} else {
+		if currentUser.ID != -1 {
+			return nil, http.StatusBadRequest, fmt.Errorf("theme change only available for known users")
+		}
+		s.adminTheme = theme
+		if err := s.saveConfig(); err != nil {
+			s.logger.Printf("Failed to save theme: %v", err)
+			return nil, http.StatusInternalServerError, fmt.Errorf("failed to save theme")
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"theme":   theme,
+	}, http.StatusOK, nil
 }
 
 // ==== API: API Keys Handler Functions ========================================
@@ -1989,7 +2052,7 @@ func (s *Server) apiAPIKeysRevoke(r *http.Request) (interface{}, int, error) {
 // routePublicEndpoint routes /api/public/* endpoints
 func (s *Server) routePublicEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = false // Public endpoints don't require auth
-	
+
 	// Check for /api/public/status/* endpoints
 	if strings.HasPrefix(subPath, "status/") {
 		exists = true
@@ -2001,7 +2064,7 @@ func (s *Server) routePublicEndpoint(subPath, method string) (exists bool, handl
 	} else {
 		return false, nil, false
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
@@ -2009,9 +2072,9 @@ func (s *Server) routePublicEndpoint(subPath, method string) (exists bool, handl
 
 // PublicGroupView represents a group in the public status page
 type PublicGroupView struct {
-	ID       int                  `json:"id"`
-	Name     string               `json:"name"`
-	Monitors []PublicMonitorView  `json:"monitors"`
+	ID       int                 `json:"id"`
+	Name     string              `json:"name"`
+	Monitors []PublicMonitorView `json:"monitors"`
 }
 
 // PublicMonitorView represents a monitor in the public status page
@@ -2153,14 +2216,14 @@ func (s *Server) apiPublicStatus(r *http.Request) (interface{}, int, error) {
 // routeStatusEndpoint routes /api/status endpoint
 func (s *Server) routeStatusEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Require auth for status
-	
+
 	if subPath == "" && method == http.MethodGet {
 		exists = true
 		handler = s.apiStatus
 	} else {
 		return false, nil, true
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
@@ -2170,7 +2233,7 @@ func (s *Server) routeStatusEndpoint(subPath, method string) (exists bool, handl
 func (s *Server) apiStatus(r *http.Request) (interface{}, int, error) {
 	snapshots := s.manager.List()
 	response := make([]map[string]any, 0, len(snapshots))
-	
+
 	for _, snap := range snapshots {
 		// Limit history to the last 'historyPreview' entries
 		start := 0
@@ -2206,7 +2269,7 @@ func (s *Server) apiStatus(r *http.Request) (interface{}, int, error) {
 			"history":          history,
 		})
 	}
-	
+
 	return response, http.StatusOK, nil
 }
 
@@ -2215,14 +2278,14 @@ func (s *Server) apiStatus(r *http.Request) (interface{}, int, error) {
 // routeMemoryEndpoint routes /api/memory endpoint
 func (s *Server) routeMemoryEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Require auth for memory stats
-	
+
 	if subPath == "" && method == http.MethodGet {
 		exists = true
 		handler = s.apiMemory
 	} else {
 		return false, nil, true
 	}
-	
+
 	return exists, handler, requireAuth
 }
 
@@ -2239,14 +2302,14 @@ func (s *Server) apiMemory(r *http.Request) (interface{}, int, error) {
 // routeDockerEndpoint routes /api/docker/* endpoints
 func (s *Server) routeDockerEndpoint(subPath, method string) (exists bool, handler APIHandlerFunc, requireAuth bool) {
 	requireAuth = true // Require auth for Docker API
-	
+
 	if subPath == "containers" && method == http.MethodGet {
 		exists = true
 		handler = s.apiDockerContainers
 	} else {
 		return false, nil, true
 	}
-	
+
 	return exists, handler, requireAuth
 }
 

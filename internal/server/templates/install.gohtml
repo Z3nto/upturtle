@@ -47,6 +47,30 @@
           <small id="pw-match-error" role="alert" class="hidden text-red-400 text-sm mt-1">Passwords do not match</small>
         </div>
 
+        <h3 class="text-xl font-semibold text-gray-100 mb-4 pb-2 border-b border-dark-border">Appearance</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          <label class="p-4 bg-gray-800/30 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer">
+            <span class="flex items-start gap-3">
+              <input type="radio" name="theme" value="dark" checked
+                class="mt-1 w-4 h-4 text-blue-600 border-gray-600 focus:ring-2 focus:ring-blue-500">
+              <span>
+                <strong class="text-gray-200 block mb-1">Dark Design</strong>
+                <small class="text-gray-400 text-sm">Low-light interface with dark surfaces.</small>
+              </span>
+            </span>
+          </label>
+          <label class="p-4 bg-gray-800/30 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer">
+            <span class="flex items-start gap-3">
+              <input type="radio" name="theme" value="light"
+                class="mt-1 w-4 h-4 text-blue-600 border-gray-600 focus:ring-2 focus:ring-blue-500">
+              <span>
+                <strong class="text-gray-200 block mb-1">Light Design</strong>
+                <small class="text-gray-400 text-sm">Bright interface for daylight use.</small>
+              </span>
+            </span>
+          </label>
+        </div>
+
         <h3 class="text-xl font-semibold text-gray-100 mb-4 pb-2 border-b border-dark-border">Data Storage</h3>
         <div class="mb-4 p-4 bg-gray-800/30 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors">
           <label class="flex items-start gap-3 cursor-pointer">
@@ -86,6 +110,7 @@
         const p2 = form.querySelector('#password_confirm');
         const err = form.querySelector('#pw-match-error');
         const submit = form.querySelector('#install-submit');
+        const themeInputs = form.querySelectorAll('input[name="theme"]');
 
         const ruleLen = form.querySelector('#pw-rule-len');
         const ruleUpper = form.querySelector('#pw-rule-upper');
@@ -147,6 +172,12 @@
 
         p1.addEventListener('input', validate);
         p2.addEventListener('input', validate);
+        themeInputs.forEach(function(input) {
+          input.addEventListener('change', function() {
+            document.documentElement.classList.toggle('light', input.value === 'light');
+            document.documentElement.classList.toggle('dark', input.value !== 'light');
+          });
+        });
         // Do not call reportValidity() on blur to avoid focus being forced back
         form.addEventListener('submit', function (e) {
           validate();

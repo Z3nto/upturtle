@@ -98,8 +98,8 @@ type SettingData struct {
 type StatusPageData struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
-	Slug      string    `json:"slug"`      // URL path segment
-	Active    bool      `json:"active"`    // Whether the page is accessible
+	Slug      string    `json:"slug"`   // URL path segment
+	Active    bool      `json:"active"` // Whether the page is accessible
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -109,8 +109,8 @@ type StatusPageMonitorData struct {
 	ID           int       `json:"id"`
 	StatusPageID int       `json:"status_page_id"`
 	MonitorID    string    `json:"monitor_id"`
-	GroupID      int       `json:"group_id"`      // Can reference existing or statuspage-specific groups
-	Order        int       `json:"order"`         // Display order within the group
+	GroupID      int       `json:"group_id"` // Can reference existing or statuspage-specific groups
+	Order        int       `json:"order"`    // Display order within the group
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -130,32 +130,33 @@ type UserData struct {
 	PasswordHash string    `json:"-"` // Never send password hash to client
 	Role         UserRole  `json:"role"`
 	Enabled      bool      `json:"enabled"`
+	Theme        string    `json:"theme"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // RememberMeToken represents a persistent login token
 type RememberMeToken struct {
-	ID           int       `json:"id"`
-	UserID       int       `json:"user_id"`
-	Selector     string    `json:"selector"`      // Public identifier (stored in cookie)
-	TokenHash    string    `json:"token_hash"`    // Hashed validator (stored in DB)
-	ExpiresAt    time.Time `json:"expires_at"`
-	LastUsedAt   time.Time `json:"last_used_at"`
-	CreatedAt    time.Time `json:"created_at"`
-	UserAgent    string    `json:"user_agent"`    // For identifying device
-	IPAddress    string    `json:"ip_address"`    // For security logging
+	ID         int       `json:"id"`
+	UserID     int       `json:"user_id"`
+	Selector   string    `json:"selector"`   // Public identifier (stored in cookie)
+	TokenHash  string    `json:"token_hash"` // Hashed validator (stored in DB)
+	ExpiresAt  time.Time `json:"expires_at"`
+	LastUsedAt time.Time `json:"last_used_at"`
+	CreatedAt  time.Time `json:"created_at"`
+	UserAgent  string    `json:"user_agent"` // For identifying device
+	IPAddress  string    `json:"ip_address"` // For security logging
 }
 
 // APIKeyData represents an API key for programmatic access
 type APIKeyData struct {
-	ID          int       `json:"id"`
-	UserID      int       `json:"user_id"`
-	Name        string    `json:"name"`          // User-defined name for the key
-	Selector    string    `json:"selector"`      // Public identifier (first part of key)
-	TokenHash   string    `json:"token_hash"`    // Hashed token (second part of key)
-	LastUsedAt  time.Time `json:"last_used_at"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID         int       `json:"id"`
+	UserID     int       `json:"user_id"`
+	Name       string    `json:"name"`       // User-defined name for the key
+	Selector   string    `json:"selector"`   // Public identifier (first part of key)
+	TokenHash  string    `json:"token_hash"` // Hashed token (second part of key)
+	LastUsedAt time.Time `json:"last_used_at"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // Database interface defines the contract for database operations

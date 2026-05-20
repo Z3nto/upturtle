@@ -18,6 +18,20 @@
   </div>
 
   <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
+    <h3 class="text-lg font-semibold text-gray-100 mb-4">Appearance</h3>
+    <form id="form-theme" class="space-y-4">
+      <div>
+        <label for="theme-select" class="block text-sm font-medium text-gray-300 mb-2">Design</label>
+        <select id="theme-select" name="theme" class="w-full max-w-xs px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+          <option value="dark" {{if eq .Theme "dark"}}selected{{end}}>Dark Design</option>
+          <option value="light" {{if eq .Theme "light"}}selected{{end}}>Light Design</option>
+        </select>
+      </div>
+      <div id="theme-message" class="hidden"></div>
+    </form>
+  </div>
+
+  <div class="bg-dark-card backdrop-blur-sm border border-dark-border rounded-lg p-6 mb-4">
     <h3 class="text-lg font-semibold text-gray-100 mb-4">Change Password</h3>
     <form id="form-change-password" class="space-y-4">
       <div>
@@ -169,6 +183,40 @@
 
   // Load API keys on page load
   loadAPIKeys();
+
+  document.getElementById('theme-select')?.addEventListener('change', async function() {
+    const theme = this.value === 'light' ? 'light' : 'dark';
+    const messageDiv = document.getElementById('theme-message');
+    document.documentElement.classList.toggle('light', theme === 'light');
+    document.documentElement.classList.toggle('dark', theme !== 'light');
+
+    try {
+      const response = await fetch('/api/users/theme', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ theme })
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+
+      messageDiv.textContent = 'Design saved successfully.';
+      messageDiv.className = 'p-3 bg-green-900/20 border border-green-700/30 rounded-lg text-green-400 text-sm';
+      messageDiv.classList.remove('hidden');
+      setTimeout(() => {
+        messageDiv.classList.add('hidden');
+      }, 3000);
+    } catch (error) {
+      console.error('Failed to save design:', error);
+      messageDiv.textContent = 'Failed to save design: ' + error.message;
+      messageDiv.className = 'p-3 bg-red-900/20 border border-red-700/30 rounded-lg text-red-400 text-sm';
+      messageDiv.classList.remove('hidden');
+    }
+  });
 
   // Change password form
   document.getElementById('form-change-password')?.addEventListener('submit', async function(e) {

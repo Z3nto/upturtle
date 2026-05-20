@@ -54,7 +54,7 @@ func main() {
 	var dbIntegration *monitor.DatabaseIntegration
 	if exists && persisted.Database != nil {
 		log.Printf("Initializing database: %s", persisted.Database.Type)
-		
+
 		if err := database.ValidateConfig(*persisted.Database); err != nil {
 			log.Printf("Database configuration invalid: %v", err)
 		} else {
@@ -79,7 +79,7 @@ func main() {
 			if dbIntegration := manager.GetDatabaseIntegration(); dbIntegration != nil {
 				db := dbIntegration.GetDatabase()
 				log.Printf("Loading configurations from existing database connection...")
-				
+
 				// Load admin credentials if not set
 				installRequired := (persisted.AdminUser == "" || persisted.AdminPasswordHash == "")
 				if installRequired {
@@ -91,7 +91,7 @@ func main() {
 						}
 					}
 				}
-				
+
 				// Load groups from database (override config file)
 				if dbGroups, err := db.GetAllGroups(); err == nil && len(dbGroups) > 0 {
 					persisted.Groups = make([]config.GroupConfig, len(dbGroups))
@@ -110,7 +110,7 @@ func main() {
 					}
 					log.Printf("Loaded %d groups from database", len(dbGroups))
 				}
-				
+
 				// Load notifications from database (override config file)
 				if dbNotifications, err := db.GetAllNotifications(); err == nil && len(dbNotifications) > 0 {
 					persisted.Notifications = make([]config.NotificationConfig, len(dbNotifications))
@@ -124,7 +124,7 @@ func main() {
 					}
 					log.Printf("Loaded %d notifications from database", len(dbNotifications))
 				}
-				
+
 				// Load monitors from database (override config file)
 				if dbMonitors, err := db.GetAllMonitors(); err == nil && len(dbMonitors) > 0 {
 					persisted.Monitors = make([]config.PersistedMonitorConfig, len(dbMonitors))
@@ -147,7 +147,7 @@ func main() {
 					}
 					log.Printf("Loaded %d monitors from database", len(dbMonitors))
 				}
-				
+
 				// Load status pages from database (override config file)
 				if dbStatusPages, err := db.GetAllStatusPages(); err == nil && len(dbStatusPages) > 0 {
 					persisted.StatusPages = make([]config.StatusPageConfig, len(dbStatusPages))
@@ -159,7 +159,7 @@ func main() {
 							Active:   page.Active,
 							Monitors: []config.StatusPageMonitorConfig{}, // Initialize empty array
 						}
-						
+
 						// Load monitors for this status page
 						if spMonitors, err := db.GetStatusPageMonitors(page.ID); err == nil && len(spMonitors) > 0 {
 							persisted.StatusPages[i].Monitors = make([]config.StatusPageMonitorConfig, len(spMonitors))
@@ -219,7 +219,7 @@ func main() {
 
 	// Installation page is required until admin credentials are set.
 	installRequired := (persisted.AdminUser == "" || persisted.AdminPasswordHash == "")
-	
+
 	// If database is configured, check if admin user exists in database
 	if installRequired && persisted.Database != nil {
 		if db, err := database.NewSQLiteDB(*persisted.Database); err == nil {
@@ -236,19 +236,20 @@ func main() {
 			}
 		}
 	}
-	
+
 	// Set default values for UI settings if not configured and no database is used
 	if !exists {
 		persisted.AuthDebug = true // Default: enabled for debugging login issues
 	}
 
-	log.Printf("Creating server with %d groups, %d notifications, %d monitors, %d status pages", 
+	log.Printf("Creating server with %d groups, %d notifications, %d monitors, %d status pages",
 		len(persisted.Groups), len(persisted.Notifications), len(persisted.Monitors), len(persisted.StatusPages))
-	
+
 	srv, err := server.New(server.Config{
 		Manager:           manager,
 		AdminUser:         persisted.AdminUser,
 		AdminPasswordHash: persisted.AdminPasswordHash,
+		AdminTheme:        persisted.AdminTheme,
 		RefreshInterval:   cfg.RefreshInterval,
 		Logger:            log.Default(),
 		// Installation page is shown until admin credentials are configured
@@ -289,12 +290,12 @@ func main() {
 	log.Printf("shutdown signal received, stopping...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	// Close server and its database connections
 	if err := srv.Close(); err != nil {
 		log.Printf("server close error: %v", err)
 	}
-	
+
 	if err := httpServer.Shutdown(ctx); err != nil {
 		log.Printf("server shutdown error: %v", err)
 	}

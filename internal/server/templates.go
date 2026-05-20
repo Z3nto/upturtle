@@ -25,7 +25,7 @@ func loadTemplates() (*template.Template, error) {
 		"idSafe":         idSafe,
 		"jsonEscape":     jsonEscape,
 		// safeURL marks a string as a trusted URL for attribute contexts. Use sparingly.
-		"safeURL":        func(s string) template.URL { return template.URL(s) },
+		"safeURL": func(s string) template.URL { return template.URL(s) },
 	}
 
 	funcMap["render"] = func(name string, data any) (template.HTML, error) {
@@ -49,14 +49,7 @@ func loadTemplates() (*template.Template, error) {
 }
 
 func statusClass(status monitor.Status) string {
-	switch status {
-	case monitor.StatusUp:
-		return "status-up"
-	case monitor.StatusDown:
-		return "status-down"
-	default:
-		return "status-unknown"
-	}
+	return ""
 }
 
 func formatTime(t time.Time) string {
