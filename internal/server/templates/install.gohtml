@@ -50,7 +50,7 @@
         <h3 class="text-xl font-semibold text-gray-100 mb-4 pb-2 border-b border-dark-border">Data Storage</h3>
         <div class="mb-4 p-4 bg-gray-800/30 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors">
           <label class="flex items-start gap-3 cursor-pointer">
-            <input type="radio" name="storage_type" value="memory" checked onchange="toggleStorageOptions()" 
+            <input type="radio" name="storage_type" value="memory" checked
               class="mt-1 w-4 h-4 text-blue-600 border-gray-600 focus:ring-2 focus:ring-blue-500"> 
             <div class="flex-1">
               <strong class="text-gray-200 block mb-1">In-Memory Storage</strong>
@@ -63,7 +63,7 @@
 
         <div class="mb-6 p-4 bg-gray-800/30 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors">
           <label class="flex items-start gap-3 cursor-pointer">
-            <input type="radio" name="storage_type" value="sqlite" onchange="toggleStorageOptions()" 
+            <input type="radio" name="storage_type" value="sqlite"
               class="mt-1 w-4 h-4 text-blue-600 border-gray-600 focus:ring-2 focus:ring-blue-500"> 
             <div class="flex-1">
               <strong class="text-gray-200 block mb-1">SQLite Database</strong>
@@ -74,29 +74,11 @@
           </label>
         </div>
 
-        <div id="sqlite-options" class="hidden mb-6 p-4 bg-gray-800/20 border border-gray-700 rounded-lg">
-          <label for="sqlite_path" class="block text-sm font-medium text-gray-300 mb-2">Database Path:</label>
-          <input id="sqlite_path" name="sqlite_path" type="text" placeholder="/data/db/upturtle.db" value="/data/db/upturtle.db" 
-            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" />
-          <small class="text-gray-400 text-sm mt-2 block">
-            Path where the SQLite database file will be stored.
-          </small>
-        </div>
-
         <button id="install-submit" type="submit" class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-dark-bg" disabled>
           Save and Continue
         </button>
     
     <script>
-      // Toggle storage options visibility
-      function toggleStorageOptions() {
-        const sqliteRadio = document.querySelector('input[name="storage_type"][value="sqlite"]');
-        const sqliteOptions = document.getElementById('sqlite-options');
-        if (sqliteRadio && sqliteOptions) {
-          sqliteOptions.style.display = sqliteRadio.checked ? 'block' : 'none';
-        }
-      }
-
       (function () {
         const form = document.querySelector('form[action="/install"]');
         if (!form) return;
@@ -181,7 +163,6 @@
 
         // Initialize
         validate();
-        toggleStorageOptions(); // Initialize storage options visibility
       })();
     </script>
   </form>

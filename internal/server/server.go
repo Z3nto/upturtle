@@ -74,6 +74,13 @@ func normalizeShoutrrrURL(u string) string {
 	return s
 }
 
+func defaultSQLitePath(configPath string) string {
+	if configPath == "" {
+		return "/data/db/upturtle.db"
+	}
+	return filepath.Join(filepath.Dir(filepath.Dir(configPath)), "db", "upturtle.db")
+}
+
 // ==== Utilities ===============================================================
 
 // newStaticHandler returns a handler that serves files from the embedded static FS,
@@ -652,7 +659,7 @@ func (s *Server) normalizeAndSortGroups() {
 	if len(s.groups) == 0 {
 		return
 	}
-	
+
 	// Separate groups by type
 	var defaultGroups, statuspageGroups []int
 	for i, g := range s.groups {
@@ -662,7 +669,7 @@ func (s *Server) normalizeAndSortGroups() {
 			statuspageGroups = append(statuspageGroups, i)
 		}
 	}
-	
+
 	// Sort each type by Order, then by Name
 	sortByOrder := func(indices []int) {
 		sort.SliceStable(indices, func(a, b int) bool {
@@ -674,7 +681,7 @@ func (s *Server) normalizeAndSortGroups() {
 	}
 	sortByOrder(defaultGroups)
 	sortByOrder(statuspageGroups)
-	
+
 	// Normalize Order values independently for each type (starting from 1)
 	for pos, idx := range defaultGroups {
 		s.groups[idx].Order = pos + 1
@@ -682,7 +689,7 @@ func (s *Server) normalizeAndSortGroups() {
 	for pos, idx := range statuspageGroups {
 		s.groups[idx].Order = pos + 1
 	}
-	
+
 	// Rebuild groups slice: default groups first, then statuspage groups
 	newGroups := make([]config.GroupConfig, 0, len(s.groups))
 	for _, idx := range defaultGroups {
@@ -838,7 +845,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusUnauthorized)
 					json.NewEncoder(w).Encode(map[string]string{
-						"error": "unauthorized",
+						"error":   "unauthorized",
 						"message": "Authentication required",
 					})
 					return
@@ -856,7 +863,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusForbidden)
 					json.NewEncoder(w).Encode(map[string]string{
-						"error": "forbidden",
+						"error":   "forbidden",
 						"message": "Access denied",
 					})
 					return
@@ -919,7 +926,7 @@ func validatePassword(password string) error {
 	if len(password) < 8 {
 		return errors.New("password must be at least 8 characters long")
 	}
-	
+
 	var hasUpper, hasLower, hasDigit bool
 	for _, c := range password {
 		switch {
@@ -931,7 +938,7 @@ func validatePassword(password string) error {
 			hasDigit = true
 		}
 	}
-	
+
 	if !hasUpper {
 		return errors.New("password must contain at least one uppercase letter")
 	}
@@ -941,7 +948,7 @@ func validatePassword(password string) error {
 	if !hasDigit {
 		return errors.New("password must contain at least one digit")
 	}
-	
+
 	return nil
 }
 
@@ -1007,7 +1014,7 @@ func (s *Server) getCurrentUser(r *http.Request) *database.UserData {
 		// Use database
 		user, err := s.configDB.GetUser(userID)
 		if err != nil || !user.Enabled {
-				return nil
+			return nil
 		}
 		return user
 	}
@@ -1163,7 +1170,7 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 			s.logger.Printf("[ERROR] Failed to create remember-me token: %v", err)
 			// Continue with session creation even if remember-me fails
 		}
-		
+
 		// Set session cookie without Expires (session cookie)
 		cookie := &http.Cookie{
 			Name:     "upturtle_session",
@@ -1196,7 +1203,7 @@ func (s *Server) createUserSession(w http.ResponseWriter, r *http.Request, user 
 // destroyUserSession destroys the current user session and remember-me token
 func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("upturtle_session")
-	
+
 	s.sessionsMu.Lock()
 	if err == nil && c.Value != "" {
 		delete(s.sessions, c.Value)
@@ -1229,7 +1236,7 @@ func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 		Secure:   isHTTPS,
 	}
 	http.SetCookie(w, cookie)
-	
+
 	// Clear remember-me cookie
 	rememberCookie := &http.Cookie{
 		Name:     "upturtle_remember",
@@ -1241,7 +1248,7 @@ func (s *Server) destroyUserSession(w http.ResponseWriter, r *http.Request) {
 		Secure:   isHTTPS,
 	}
 	http.SetCookie(w, rememberCookie)
-	
+
 	// Clear temporary CSRF cookie
 	csrfCookie := &http.Cookie{
 		Name:     "upturtle_csrf_temp",
@@ -1264,30 +1271,30 @@ func (s *Server) createRememberMeToken(w http.ResponseWriter, r *http.Request, u
 	// Generate selector (public identifier) and validator (secret)
 	selectorBytes := make([]byte, 16)
 	validatorBytes := make([]byte, 32)
-	
+
 	if _, err := rand.Read(selectorBytes); err != nil {
 		return fmt.Errorf("failed to generate selector: %w", err)
 	}
 	if _, err := rand.Read(validatorBytes); err != nil {
 		return fmt.Errorf("failed to generate validator: %w", err)
 	}
-	
+
 	selector := hex.EncodeToString(selectorBytes)
 	validator := hex.EncodeToString(validatorBytes)
-	
+
 	// Hash the validator before storing (bcrypt for security)
 	validatorHash, err := bcrypt.GenerateFromPassword([]byte(validator), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("failed to hash validator: %w", err)
 	}
-	
+
 	// Get client info
 	userAgent := r.UserAgent()
 	ipAddress := r.RemoteAddr
 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 		ipAddress = forwarded
 	}
-	
+
 	// Create token (30 days expiry)
 	expiresAt := time.Now().Add(30 * 24 * time.Hour)
 	token := database.RememberMeToken{
@@ -1299,13 +1306,13 @@ func (s *Server) createRememberMeToken(w http.ResponseWriter, r *http.Request, u
 		UserAgent:  userAgent,
 		IPAddress:  ipAddress,
 	}
-	
+
 	// Save to database
 	savedToken, err := s.configDB.SaveRememberMeToken(token)
 	if err != nil {
 		return fmt.Errorf("failed to save remember-me token: %w", err)
 	}
-	
+
 	// Set cookie with selector:validator
 	cookieValue := selector + ":" + validator
 	cookie := &http.Cookie{
@@ -1318,7 +1325,7 @@ func (s *Server) createRememberMeToken(w http.ResponseWriter, r *http.Request, u
 		Secure:   isHTTPS,
 	}
 	http.SetCookie(w, cookie)
-	
+
 	s.authDebugf("Remember-me token created for user %s, ID=%d, expires=%s", user.Username, savedToken.ID, expiresAt.Format(time.RFC3339))
 	return nil
 }
@@ -1375,28 +1382,28 @@ func (s *Server) validateRememberMeToken(cookieValue string) (*database.UserData
 	if s.configDB == nil {
 		return nil, fmt.Errorf("database not available")
 	}
-	
+
 	// Parse cookie value (selector:validator)
 	parts := strings.Split(cookieValue, ":")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid token format")
 	}
-	
+
 	selector := parts[0]
 	validator := parts[1]
-	
+
 	// Get token from database
 	token, err := s.configDB.GetRememberMeToken(selector)
 	if err != nil {
 		return nil, fmt.Errorf("token not found: %w", err)
 	}
-	
+
 	// Check if expired
 	if time.Now().After(token.ExpiresAt) {
 		s.configDB.DeleteRememberMeToken(token.ID)
 		return nil, fmt.Errorf("token expired")
 	}
-	
+
 	// Verify validator hash
 	if err := bcrypt.CompareHashAndPassword([]byte(token.TokenHash), []byte(validator)); err != nil {
 		// Invalid token - possible theft, delete all tokens for this user
@@ -1404,24 +1411,24 @@ func (s *Server) validateRememberMeToken(cookieValue string) (*database.UserData
 		s.configDB.DeleteRememberMeTokensByUser(token.UserID)
 		return nil, fmt.Errorf("invalid token")
 	}
-	
+
 	// Update last used timestamp
 	if err := s.configDB.UpdateRememberMeTokenLastUsed(token.ID, time.Now()); err != nil {
 		s.logger.Printf("[WARN] Failed to update token last used: %v", err)
 	}
-	
+
 	// Get user
 	user, err := s.configDB.GetUser(token.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
-	
+
 	// Check if user is still enabled
 	if !user.Enabled {
 		s.configDB.DeleteRememberMeToken(token.ID)
 		return nil, fmt.Errorf("user disabled")
 	}
-	
+
 	s.authDebugf("Remember-me token validated for user %s", user.Username)
 	return user, nil
 }
@@ -1431,18 +1438,18 @@ func (s *Server) destroyRememberMeToken(cookieValue string) {
 	if s.configDB == nil {
 		return
 	}
-	
+
 	parts := strings.Split(cookieValue, ":")
 	if len(parts) != 2 {
 		return
 	}
-	
+
 	selector := parts[0]
 	token, err := s.configDB.GetRememberMeToken(selector)
 	if err != nil {
 		return
 	}
-	
+
 	if err := s.configDB.DeleteRememberMeToken(token.ID); err != nil {
 		s.logger.Printf("[WARN] Failed to delete remember-me token: %v", err)
 	}
@@ -1470,7 +1477,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
-		
+
 		s.authDebugf("Login GET request from %s, User-Agent: %s", r.RemoteAddr, r.UserAgent())
 		csrfToken := s.getCSRFToken(r)
 		s.setCSRFCookie(w, r, csrfToken)
@@ -1478,8 +1485,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 		data := struct {
 			BasePageData
-			Error              string
-			ShowRememberMe     bool
+			Error          string
+			ShowRememberMe bool
 		}{
 			BasePageData: BasePageData{
 				Title:           "Login",
@@ -1945,7 +1952,7 @@ func (s *Server) buildStatusData(r *http.Request) StatusPageData {
 	baseData.DatabaseEnabled = s.manager.HasDatabaseIntegration()
 	baseData.DatabaseHealthy = s.manager.IsDatabaseHealthy()
 	baseData.DatabaseError = s.manager.GetDatabaseError()
-	
+
 	return StatusPageData{
 		BasePageData: baseData,
 		Groups:       views,
@@ -2049,11 +2056,11 @@ func (s *Server) getCSRFTokenAndSetCookie(w http.ResponseWriter, r *http.Request
 func (s *Server) createBasePageData(r *http.Request, title, contentTemplate string) BasePageData {
 	csrfToken := s.getCSRFToken(r)
 	return BasePageData{
-		Title:             title,
-		ContentTemplate:   contentTemplate,
-		CSRFToken:         csrfToken,
-		DatabaseEnabled:   s.configDB != nil,
-		CurrentUser:       s.getCurrentUser(r),
+		Title:           title,
+		ContentTemplate: contentTemplate,
+		CSRFToken:       csrfToken,
+		DatabaseEnabled: s.configDB != nil,
+		CurrentUser:     s.getCurrentUser(r),
 	}
 }
 
@@ -2239,7 +2246,6 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		user := strings.TrimSpace(r.FormValue("username"))
 		pass := r.FormValue("password")
 		storageType := r.FormValue("storage_type")
-		sqlitePath := strings.TrimSpace(r.FormValue("sqlite_path"))
 
 		if user == "" || pass == "" {
 			http.Redirect(w, r, "/install?error=Username+and+password+are+required", http.StatusSeeOther)
@@ -2261,12 +2267,9 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		// Validate storage configuration
 		var dbConfig *database.Config
 		if storageType == "sqlite" {
-			if sqlitePath == "" {
-				sqlitePath = "/data/db/upturtle.db" // Default path
-			}
 			dbConfig = &database.Config{
 				Type: database.DatabaseTypeSQLite,
-				Path: sqlitePath,
+				Path: defaultSQLitePath(s.configPath),
 			}
 
 			// Validate the database configuration
@@ -2719,9 +2722,9 @@ func (s *Server) handleAdminStatusPagesConfig(w http.ResponseWriter, r *http.Req
 		Success          string
 	}{
 		BasePageData: BasePageData{
-			Title:             "Configure Status Page: " + statusPage.Name,
-			ContentTemplate:   "statuspage_config.content",
-			CSRFToken:         s.getCSRFToken(r),
+			Title:           "Configure Status Page: " + statusPage.Name,
+			ContentTemplate: "statuspage_config.content",
+			CSRFToken:       s.getCSRFToken(r),
 		},
 		StatusPage:       *statusPage,
 		AllMonitors:      make([]APISnapshot, 0, len(snapshots)),
