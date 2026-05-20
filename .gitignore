@@ -2,7 +2,7 @@
 .devcontainer/
 
 # Go build artifacts
-bin/
+/bin/
 /upturtle
 *.exe
 *.dll
@@ -45,3 +45,6 @@ docker-compose-sqlite.yml
 .appdata/
 API.md
 app_test/api_auth_test.py
+
+# Application Data
+/data/
