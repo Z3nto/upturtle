@@ -119,6 +119,7 @@
 
             .mobile-header { display: none !important; }
             .page-wrapper { margin-left: 220px; }
+            body.header-hidden .page-wrapper { margin-left: 0; }
         }
 
         /* ── Mobile top bar + hamburger (<=900px) ── */
@@ -196,7 +197,7 @@
         .sortable-ghost { opacity: 0.6; }
     </style>
 </head>
-<body class="min-h-screen text-gray-200">
+<body class="min-h-screen text-gray-200{{if .HideHeader}} header-hidden{{end}}">
 {{if not .HideHeader}}
 <!-- ── Desktop Sidebar ── -->
 <aside class="sidebar" aria-label="Sidebar navigation">
