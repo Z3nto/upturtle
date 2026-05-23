@@ -21,9 +21,11 @@ RUN apt-get update \
 RUN useradd -m -u 10001 appuser
 WORKDIR /app
 COPY --from=builder /out/upturtle /app/upturtle
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # Create writable directories for the non-root user
-RUN mkdir -p /data/conf /data/db && chown -R 10001:10001 /data
+RUN mkdir -p /data/conf /data/db \
+    && chown -R 10001:10001 /data \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
 EXPOSE 8080
 
-#ENTRYPOINT ["/app/upturtle"]
-ENTRYPOINT ["sh", "-c", "chown -R 10001:10001 /data 2>/dev/null || true && mkdir -p /data/conf /data/db && chown -R 10001:10001 /data && exec su -s /bin/sh appuser -c '/app/upturtle'"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
