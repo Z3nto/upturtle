@@ -162,6 +162,5 @@ Upturtle is built with the following open source projects:
 ### Frontend
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework (MIT)
 - [Chart.js](https://www.chartjs.org/) - JavaScript charting library (MIT)
-- [Inter Font](https://fonts.google.com/specimen/Inter) - Typography (OFL)
 
 Special thanks to the Go community for excellent tooling and libraries.
