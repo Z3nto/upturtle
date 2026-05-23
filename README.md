@@ -60,10 +60,16 @@ docker-compose up -d
 docker run -d \
   --name upturtle \
   -p 8080:8080 \
-  -v /opt/data/upturtle:/conf \
+  -v /opt/data/upturtle:/data \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \  # only if you want to monitor docker containers 
   ghcr.io/z3nto/upturtle:main
 ```
+
+Add the Docker socket mount only if you want to monitor Docker containers.
+
+When the Docker socket is mounted, the container entrypoint adds the `appuser`
+process to the socket group automatically. This is required because host
+systems use different group IDs for `/var/run/docker.sock`.
 
 ### Building from Source
 
