@@ -6,7 +6,7 @@
 
 A lightweight, easy-to-use self-hosted monitoring solution written in Go that keeps track of your services and infrastructure with real-time status updates and flexible notification options.
 
-_Vibe coded with Claude._
+_This Project is vibe-coded._
 
 > **⚠️ Note**: This project is still under active development. Features and APIs may change.
 
