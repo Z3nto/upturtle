@@ -79,13 +79,13 @@
       <h3 id="modal-create-apikey-title" class="text-lg font-semibold text-gray-100">Generate New API Key</h3>
       <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" aria-label="Close" onclick="closeModal(document.getElementById('modal-create-apikey'))">&times;</button>
     </div>
-    <form id="form-create-apikey" class="p-4">
-      <div class="mb-4">
-        <label for="apikey-name" class="block text-sm font-medium text-gray-300 mb-2">Name <span class="text-red-400">*</span></label>
+    <form id="form-create-apikey" class="p-6 space-y-5">
+      <div>
+        <label for="apikey-name" class="block text-sm font-medium text-gray-300 mb-1.5">Name <span class="text-red-400">*</span></label>
         <input type="text" id="apikey-name" name="name" required placeholder="e.g., Production Server, CI/CD Pipeline" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
         <small class="text-gray-500 text-sm mt-1 block">Give this API key a descriptive name to identify its purpose.</small>
       </div>
-      <div class="flex justify-end gap-2">
+      <div class="flex justify-end gap-2 mt-1 pt-5 border-t border-dark-border">
         <button type="button" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors" onclick="closeModal(document.getElementById('modal-create-apikey'))">Cancel</button>
         <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Generate Key</button>
       </div>
@@ -100,12 +100,12 @@
       <h3 id="modal-show-apikey-title" class="text-lg font-semibold text-gray-100">API Key Generated</h3>
       <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" aria-label="Close" onclick="closeModal(document.getElementById('modal-show-apikey'))">&times;</button>
     </div>
-    <div class="p-4">
-      <p class="text-red-400 mb-4">
+    <div class="p-6 space-y-5">
+      <p class="text-red-400">
         <strong>⚠️ Important:</strong> This API key will only be shown once. Make sure to copy it now and store it securely.
       </p>
-      <div class="mb-4">
-        <label for="generated-apikey" class="block text-sm font-medium text-gray-300 mb-2">Your API Key</label>
+      <div>
+        <label for="generated-apikey" class="block text-sm font-medium text-gray-300 mb-1.5">Your API Key</label>
         <div class="flex gap-2">
           <input type="text" id="generated-apikey" readonly class="flex-1 px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 font-mono text-sm">
           <button type="button" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors whitespace-nowrap" onclick="copyAPIKey()">Copy</button>
@@ -117,7 +117,7 @@
      https://your-server.com/api/status</pre>
       </div>
     </div>
-    <div class="flex justify-end p-4 border-t border-dark-border">
+    <div class="flex justify-end p-6 pt-5 border-t border-dark-border">
       <button type="button" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors" onclick="closeModal(document.getElementById('modal-show-apikey'))">I've Saved the Key</button>
     </div>
   </div>
@@ -130,11 +130,11 @@
       <h3 id="modal-delete-apikey-title" class="text-lg font-semibold text-gray-100">Revoke API Key</h3>
       <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" aria-label="Close" onclick="closeModal(document.getElementById('modal-delete-apikey'))">&times;</button>
     </div>
-    <form id="form-delete-apikey" class="p-4">
+    <form id="form-delete-apikey" class="p-6 space-y-5">
       <input type="hidden" name="id" id="delete-apikey-id">
-      <p class="text-gray-200 mb-2">Are you sure you want to revoke the API key "<strong id="delete-apikey-name" class="text-white"></strong>"?</p>
-      <p class="text-gray-400 text-sm mb-4">This action cannot be undone. Any applications using this key will no longer be able to authenticate.</p>
-      <div class="flex justify-end gap-2">
+      <p class="text-gray-200">Are you sure you want to revoke the API key "<strong id="delete-apikey-name" class="text-white"></strong>"?</p>
+      <p class="text-gray-400 text-sm">This action cannot be undone. Any applications using this key will no longer be able to authenticate.</p>
+      <div class="flex justify-end gap-2 mt-1 pt-5 border-t border-dark-border">
         <button type="button" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors" onclick="closeModal(document.getElementById('modal-delete-apikey'))">Cancel</button>
         <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Revoke Key</button>
       </div>

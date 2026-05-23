@@ -72,23 +72,23 @@
             <h3 id="modal-create-statuspage-title" class="text-lg font-semibold text-gray-100">Create Status Page</h3>
             <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" data-close="modal-create-statuspage" aria-label="Close">&times;</button>
         </div>
-        <form id="form-create-statuspage" class="p-4">
-            <div class="mb-4">
-                <label for="create-statuspage-name" class="block text-sm font-medium text-gray-300 mb-2">Name *</label>
+        <form id="form-create-statuspage" class="p-6 space-y-5">
+            <div>
+                <label for="create-statuspage-name" class="block text-sm font-medium text-gray-300 mb-1.5">Name *</label>
                 <input type="text" id="create-statuspage-name" name="name" required placeholder="My Service Status" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
             </div>
-            <div class="mb-4">
-                <label for="create-statuspage-slug" class="block text-sm font-medium text-gray-300 mb-2">URL Slug *</label>
+            <div>
+                <label for="create-statuspage-slug" class="block text-sm font-medium text-gray-300 mb-1.5">URL Slug *</label>
                 <input type="text" id="create-statuspage-slug" name="slug" required placeholder="my-service" pattern="[a-z0-9\-]+" class="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
                 <small class="text-gray-500 text-sm mt-1 block">Only lowercase letters, numbers, and hyphens</small>
             </div>
-            <div class="mb-4">
+            <div>
                 <label class="flex items-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
                     <input type="checkbox" name="active" value="true" checked class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
                     <span>Active (page is publicly accessible)</span>
                 </label>
             </div>
-            <div class="flex justify-end gap-2 mt-6">
+            <div class="flex justify-end gap-2 mt-1 pt-5 border-t border-dark-border">
                 <button type="button" data-close="modal-create-statuspage" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
                 <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Create</button>
             </div>
@@ -103,13 +103,13 @@
             <h3 id="modal-delete-statuspage-title" class="text-lg font-semibold text-gray-100">Delete Status Page</h3>
             <button type="button" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors" data-close="modal-delete-statuspage" aria-label="Close">&times;</button>
         </div>
-        <form id="form-delete-statuspage" class="p-4">
-            <p class="text-gray-200 mb-4">Are you sure you want to delete the status page <strong id="delete-statuspage-name" class="text-white"></strong>?</p>
-            <p class="text-yellow-400 bg-yellow-900/20 border border-yellow-700/50 p-3 rounded-lg mb-4">
+        <form id="form-delete-statuspage" class="p-6 space-y-5">
+            <p class="text-gray-200">Are you sure you want to delete the status page <strong id="delete-statuspage-name" class="text-white"></strong>?</p>
+            <p class="text-yellow-400 bg-yellow-900/20 border border-yellow-700/50 p-3 rounded-lg">
                 This action cannot be undone.
             </p>
             <input type="hidden" id="delete-statuspage-id" name="id">
-            <div class="flex justify-end gap-2">
+            <div class="flex justify-end gap-2 mt-1 pt-5 border-t border-dark-border">
                 <button type="button" data-close="modal-delete-statuspage" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
                 <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Delete</button>
             </div>

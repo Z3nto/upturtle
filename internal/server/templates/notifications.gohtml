@@ -69,24 +69,24 @@
       <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Edit notification</h3>
       <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-edit-notification" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+    <form id="form-edit-notification" action="#" method="post" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Name</label>
           <input name="name" type="text" required>
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Shoutrrr URL</label>
           <input name="url" type="text" required placeholder="e.g. discord://token@id or gotify://host/token" style="font-family:monospace;font-size:0.8rem">
           <span class="text-xs text-slate-500 dark:text-gray-400 mt-1">Enter a valid Shoutrrr URL. See <a href="https://containrrr.dev/shoutrrr/v0.8/services/overview/" target="_blank" rel="noopener noreferrer">Shoutrrr Documentation</a> for supported services and URL formats.</span>
         </div>
       </div>
-      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
+      <div class="grid grid-cols-1 gap-y-5 [&_label]:!flex [&_label]:items-center [&_label]:gap-2">
         <label><input name="global_alarm" type="checkbox" value="true"> Global alarm &mdash; receive notifications for <strong>all</strong> monitor alarms</label>
       </div>
-      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+      <div data-modal-actions class="flex justify-end gap-2 mt-1 pt-5 border-t border-slate-200 dark:border-dark-border">
         <button type="button" data-close class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
         <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Save</button>
       </div>
@@ -101,24 +101,24 @@
       <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Create notification</h3>
       <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-create-notification" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+    <form id="form-create-notification" action="#" method="post" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Name</label>
           <input name="name" type="text" required placeholder="e.g. Discord Alerts">
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Shoutrrr URL</label>
           <input name="url" type="text" required placeholder="e.g. discord://token@id or gotify://host/token" style="font-family:monospace;font-size:0.8rem">
           <span class="text-xs text-slate-500 dark:text-gray-400 mt-1">Enter a valid Shoutrrr URL. See <a href="https://containrrr.dev/shoutrrr/v0.8/services/overview/" target="_blank" rel="noopener noreferrer">Shoutrrr Documentation</a> for supported services and URL formats.</span>
         </div>
       </div>
-      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
+      <div class="grid grid-cols-1 gap-y-5 [&_label]:!flex [&_label]:items-center [&_label]:gap-2">
         <label><input name="global_alarm" type="checkbox" value="true"> Global alarm &mdash; receive notifications for <strong>all</strong> monitor alarms</label>
       </div>
-      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+      <div data-modal-actions class="flex justify-end gap-2 mt-1 pt-5 border-t border-slate-200 dark:border-dark-border">
         <button type="button" data-close class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
         <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Create</button>
       </div>

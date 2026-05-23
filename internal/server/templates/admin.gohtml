@@ -149,10 +149,10 @@
       <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Create monitor</h3>
       <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-create-monitor" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+    <form id="form-create-monitor" action="#" method="post" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <input type="hidden" name="order" value="1">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label for="new-type">Type</label>
           <select id="new-type" name="type">
@@ -162,7 +162,7 @@
           </select>
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label for="new-name">Name</label>
           <input id="new-name" name="name" type="text" required placeholder="Monitor name">
@@ -175,7 +175,7 @@
           </select>
         </div>
       </div>
-      <div id="new-cert-validation-div" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col" style="display: none;">
+      <div id="new-cert-validation-div" class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col" style="display: none;">
         <div class="flex flex-col">
           <label for="new-cert-validation">Certificate Validation</label>
           <select id="new-cert-validation" name="cert_validation">
@@ -185,7 +185,7 @@
           </select>
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label for="new-interval">Interval (seconds)</label>
           <input id="new-interval" name="interval_seconds" type="number" min="5" value="60">
@@ -195,7 +195,7 @@
           <input id="new-timeout" name="timeout_seconds" type="number" min="1" value="10">
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label for="new-group">Group</label>
           <select id="new-group" name="group_id">
@@ -219,7 +219,7 @@
           </select>
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label for="new-notification">Notifications</label>
           <select id="new-notification" name="notification_ids" multiple size="3" style="min-height:60px">
@@ -234,10 +234,10 @@
           <input id="new-fail-threshold" name="fail_threshold" type="number" min="1" value="3">
         </div>
       </div>
-      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
+      <div class="grid grid-cols-1 gap-y-5 [&_label]:!flex [&_label]:items-center [&_label]:gap-2">
         <label><input type="checkbox" name="enabled" value="true" checked> Enabled</label>
       </div>
-      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+      <div data-modal-actions class="flex justify-end gap-2 mt-1 pt-5 border-t border-slate-200 dark:border-dark-border">
         <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Create</button>
       </div>
     </form>
@@ -251,10 +251,10 @@
       <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Edit monitor</h3>
       <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-edit-monitor" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+    <form id="form-edit-monitor" action="#" method="post" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <input type="hidden" name="order" value="1">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Type</label>
           <select name="type">
@@ -264,7 +264,7 @@
           </select>
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Name</label>
           <input name="name" type="text" required>
@@ -277,7 +277,7 @@
           </select>
         </div>
       </div>
-      <div data-cert-validation class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col" style="display: none;">
+      <div data-cert-validation class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col" style="display: none;">
         <div class="flex flex-col">
           <label>Certificate Validation</label>
           <select name="cert_validation">
@@ -287,7 +287,7 @@
           </select>
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Interval (seconds)</label>
           <input name="interval_seconds" type="number" min="5">
@@ -297,7 +297,7 @@
           <input name="timeout_seconds" type="number" min="1">
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Group</label>
           <select name="group_id">
@@ -334,10 +334,10 @@
           <input name="fail_threshold" type="number" min="1">
         </div>
       </div>
-      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
+      <div class="grid grid-cols-1 gap-y-5 [&_label]:!flex [&_label]:items-center [&_label]:gap-2">
         <label><input type="checkbox" name="enabled" value="true"> Enabled</label>
       </div>
-      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+      <div data-modal-actions class="flex justify-end gap-2 mt-1 pt-5 border-t border-slate-200 dark:border-dark-border">
         <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Save</button>
       </div>
     </form>
@@ -351,10 +351,10 @@
       <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Delete monitor</h3>
       <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-delete-monitor" action="#" method="post" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+    <form id="form-delete-monitor" action="#" method="post" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <p id="delete-monitor-message">Are you sure?</p>
-      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+      <div data-modal-actions class="flex justify-end gap-2 mt-1 pt-5 border-t border-slate-200 dark:border-dark-border">
         <button type="button" data-close class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
         <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Delete</button>
       </div>
@@ -369,15 +369,15 @@
       <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Create group</h3>
       <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-create-group" method="post" action="#" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+    <form id="form-create-group" method="post" action="#" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Group name</label>
           <input name="name" type="text" required placeholder="Group name">
         </div>
       </div>
-      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+      <div data-modal-actions class="flex justify-end gap-2 mt-1 pt-5 border-t border-slate-200 dark:border-dark-border">
         <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Add Group</button>
       </div>
     </form>
@@ -391,15 +391,15 @@
       <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Rename group</h3>
       <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-rename-group" method="post" action="#" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+    <form id="form-rename-group" method="post" action="#" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>New name</label>
           <input name="name" type="text" required>
         </div>
       </div>
-      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+      <div data-modal-actions class="flex justify-end gap-2 mt-1 pt-5 border-t border-slate-200 dark:border-dark-border">
         <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">Rename</button>
       </div>
     </form>
@@ -413,14 +413,14 @@
       <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Delete group</h3>
       <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-delete-group" method="post" action="#" class="p-6 space-y-0 [&_label]:mb-1.5 [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:w-4 [&_input[type=checkbox]]:p-0 [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+    <form id="form-delete-group" method="post" action="#" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <p id="delete-group-message">Delete this group?</p>
-      <div class="grid grid-cols-1 gap-4 mb-4 [&_label]:flex [&_label]:items-center [&_label]:gap-2">
+      <div class="grid grid-cols-1 gap-y-5 [&_label]:!flex [&_label]:items-center [&_label]:gap-2">
         <label><input type="checkbox" name="delete_monitors"> Also delete monitors in this group</label>
       </div>
       <p class="text-slate-500 dark:text-gray-400">If unchecked, monitors will be moved to Ungrouped.</p>
-      <div data-modal-actions class="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-dark-border">
+      <div data-modal-actions class="flex justify-end gap-2 mt-1 pt-5 border-t border-slate-200 dark:border-dark-border">
         <button type="button" data-close class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-medium rounded-lg transition-colors">Cancel</button>
         <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Delete group</button>
       </div>
