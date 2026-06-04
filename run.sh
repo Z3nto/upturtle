@@ -22,8 +22,13 @@ EOF
 
 build_app() {
   mkdir -p "$BIN_DIR"
+  build_version="${UPTURTLE_BUILD_VERSION:-$(git -C "$ROOT_DIR" rev-list --count HEAD 2>/dev/null || echo 0)}"
+  build_date="${UPTURTLE_BUILD_DATE:-$(date -u '+%Y-%m-%dT%H:%M:%SZ')}"
+  ldflags="-s -w -X upturtle/internal/server.BuildVersion=$build_version -X upturtle/internal/server.BuildDate=$build_date"
   echo "Building $APP_NAME to $BIN_PATH ..."
-  CGO_ENABLED=1 go build -ldflags "-s -w" -o "$BIN_PATH" ./cmd/upturtle
+  echo "Build version: $build_version"
+  echo "Build date: $build_date"
+  CGO_ENABLED=1 go build -ldflags "$ldflags" -o "$BIN_PATH" ./cmd/upturtle
 }
 
 start_app() {

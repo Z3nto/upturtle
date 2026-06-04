@@ -10,7 +10,13 @@ RUN go mod download
 COPY . .
 
 ARG TARGETARCH
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags "-s -w" -o /out/upturtle ./cmd/upturtle
+ARG BUILD_VERSION
+ARG BUILD_DATE
+RUN build_version="${BUILD_VERSION:-$(git rev-list --count HEAD 2>/dev/null || echo 0)}" \
+    && build_date="${BUILD_DATE:-$(date -u '+%Y-%m-%dT%H:%M:%SZ')}" \
+    && CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build \
+       -ldflags "-s -w -X upturtle/internal/server.BuildVersion=${build_version} -X upturtle/internal/server.BuildDate=${build_date}" \
+       -o /out/upturtle ./cmd/upturtle
 
 FROM debian:bookworm-slim
 RUN apt-get update \

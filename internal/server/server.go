@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,12 +39,27 @@ import (
 //go:embed static/*
 var staticFS embed.FS
 
-// Version information - can be overridden at build time using ldflags
+// Version information. Version is the manually maintained major/minor version.
 var (
-	Version   = "1.0.0"
-	BuildDate = "2026"
-	GoVersion = "1.21+"
+	Version      = "1.0"
+	BuildVersion = "0"
+	BuildDate    = "unknown"
+	GoVersion    = runtime.Version()
 )
+
+func displayVersion() string {
+	buildVersion := strings.TrimSpace(BuildVersion)
+	if buildVersion == "" {
+		buildVersion = "0"
+	}
+	for _, char := range buildVersion {
+		if char < '0' || char > '9' {
+			buildVersion = "0"
+			break
+		}
+	}
+	return Version + "." + buildVersion
+}
 
 // Context key for storing the current user in request context
 type contextKey string
@@ -573,7 +589,7 @@ func (s *Server) handleAdminAbout(w http.ResponseWriter, r *http.Request) {
 		GoVersion string
 	}{
 		BasePageData: s.createBasePageData(r, "About", "about.content"),
-		Version:      Version,
+		Version:      displayVersion(),
 		BuildDate:    BuildDate,
 		GoVersion:    GoVersion,
 	}
