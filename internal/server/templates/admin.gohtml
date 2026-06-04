@@ -710,6 +710,16 @@
         break;
     }
   }, true);
+
+  document.addEventListener('dblclick', function(e){
+    const row = e.target.closest('tr.draggable-row[data-id]');
+    if (!row) return;
+    if (window.__upt_dragging) { e.preventDefault(); e.stopPropagation(); return; }
+    if (e.target.closest('button, [data-modal-actions], form, a, [data-open], [data-action], input, select, textarea')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openEditMonitorModal(row.getAttribute('data-id'));
+  }, true);
   
   // Legacy support for data-open attributes
   document.addEventListener('click', function(e){
