@@ -145,11 +145,11 @@
 <!-- Create Modal -->
 <div id="modal-new" data-modal-backdrop class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/30 dark:bg-black/70 p-4 backdrop-blur-sm" aria-hidden="true">
   <div class="bg-white/95 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
-    <header class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border">
+    <header class="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-slate-200 dark:border-dark-border bg-white/95 dark:bg-dark-card backdrop-blur-sm">
       <h3 class="m-0 text-xl font-semibold text-gray-900 dark:text-gray-100">Create monitor</h3>
       <button class="bg-transparent border-0 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white cursor-pointer text-3xl leading-none p-1 transition-colors" type="button" data-close>&times;</button>
     </header>
-    <form id="form-create-monitor" action="#" method="post" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
+    <form id="form-create-monitor" action="#" method="post" class="p-6 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <input type="hidden" name="order" value="1">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
@@ -161,8 +161,7 @@
             <option value="docker">Docker Container</option>
           </select>
         </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
+        <div class="hidden sm:block" aria-hidden="true"></div>
         <div class="flex flex-col">
           <label for="new-name">Name</label>
           <input id="new-name" name="name" type="text" required placeholder="Monitor name">
@@ -174,9 +173,7 @@
             <option value="">Loading containers...</option>
           </select>
         </div>
-      </div>
-      <div id="new-cert-validation-div" class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col" style="display: none;">
-        <div class="flex flex-col">
+        <div id="new-cert-validation-div" class="flex flex-col" style="display: none;">
           <label for="new-cert-validation">Certificate Validation</label>
           <select id="new-cert-validation" name="cert_validation">
             <option value="full" selected>Valid (Full validation)</option>
@@ -184,8 +181,6 @@
             <option value="ignore">Ignore</option>
           </select>
         </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label for="new-interval">Interval (seconds)</label>
           <input id="new-interval" name="interval_seconds" type="number" min="5" value="60">
@@ -194,8 +189,6 @@
           <label for="new-timeout">Timeout (seconds)</label>
           <input id="new-timeout" name="timeout_seconds" type="number" min="1" value="10">
         </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label for="new-group">Group</label>
           <select id="new-group" name="group_id">
@@ -218,8 +211,6 @@
             {{end}}
           </select>
         </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label for="new-notification">Notifications</label>
           <select id="new-notification" name="notification_ids" multiple size="3" style="min-height:60px">
@@ -234,7 +225,7 @@
           <input id="new-fail-threshold" name="fail_threshold" type="number" min="1" value="3">
         </div>
       </div>
-      <div class="grid grid-cols-1 gap-y-5 [&_label]:!flex [&_label]:items-center [&_label]:gap-2">
+      <div class="mt-5 [&_label]:!flex [&_label]:items-center [&_label]:gap-2">
         <label><input type="checkbox" name="enabled" value="true" checked> Enabled</label>
       </div>
       <div data-modal-actions class="flex justify-end gap-2 mt-1 pt-5 border-t border-slate-200 dark:border-dark-border">
@@ -371,7 +362,7 @@
     </header>
     <form id="form-create-group" method="post" action="#" class="p-6 space-y-5 [&_label]:mb-1.5 [&_label]:block [&_label]:text-sm [&_label]:font-medium [&_label]:text-slate-700 dark:[&_label]:text-gray-300 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-300 dark:[&_input]:border-dark-border [&_input]:bg-slate-50 dark:[&_input]:bg-gray-800/80 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-900 dark:[&_input]:text-gray-200 [&_input]:transition-colors [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_input[type=checkbox]]:h-4 [&_input[type=checkbox]]:!w-4 [&_input[type=checkbox]]:p-0 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 dark:[&_select]:border-dark-border [&_select]:bg-slate-50 dark:[&_select]:bg-gray-800/80 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-900 dark:[&_select]:text-gray-200 [&_select]:transition-colors [&_select]:focus:outline-none [&_select]:focus:ring-2 [&_select]:focus:ring-blue-500 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 dark:[&_textarea]:border-dark-border [&_textarea]:bg-slate-50 dark:[&_textarea]:bg-gray-800/80 [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:text-slate-900 dark:[&_textarea]:text-gray-200 [&_textarea]:transition-colors [&_textarea]:focus:outline-none [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-blue-500">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
+      <div class="grid grid-cols-1 gap-y-5 [&>div]:flex [&>div]:flex-col">
         <div class="flex flex-col">
           <label>Group name</label>
           <input name="name" type="text" required placeholder="Group name">
@@ -529,7 +520,7 @@
   function toggleCertValidation(typeSelect, certDiv) {
     if (typeSelect && certDiv) {
       const isHTTP = typeSelect.value === 'http';
-      certDiv.style.display = isHTTP ? 'grid' : 'none';
+      certDiv.style.display = isHTTP ? (certDiv.classList.contains('grid') ? 'grid' : 'flex') : 'none';
     }
   }
   
