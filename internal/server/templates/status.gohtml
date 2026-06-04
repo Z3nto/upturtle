@@ -20,8 +20,34 @@
   box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
 </style>
-<div class="mb-6">
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
   <h2 class="text-2xl font-semibold text-gray-100 m-0">Current status</h2>
+  <div class="inline-flex w-fit rounded-lg border border-dark-border bg-gray-800/30 p-1 text-sm" role="group" aria-label="Status view">
+    <button id="status-view-table" type="button" class="hidden px-3 py-1.5 rounded-md text-gray-300 transition-colors md:inline-flex" data-status-view-button="table" title="Table view" aria-label="Table view">
+      <span aria-hidden="true">☰</span>
+    </button>
+    <button id="status-view-cards" type="button" class="px-3 py-1.5 rounded-md text-gray-300 transition-colors" data-status-view-button="cards" title="Cards view" aria-label="Cards view">
+      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <rect x="2" y="3" width="7" height="6" rx="1"></rect>
+        <rect x="11" y="3" width="7" height="6" rx="1"></rect>
+        <rect x="2" y="11" width="7" height="6" rx="1"></rect>
+        <rect x="11" y="11" width="7" height="6" rx="1"></rect>
+      </svg>
+    </button>
+    <button id="status-view-grid" type="button" class="px-3 py-1.5 rounded-md text-gray-300 transition-colors" data-status-view-button="grid" title="Grid view" aria-label="Grid view">
+      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <rect x="2" y="2" width="4" height="4" rx="0.75"></rect>
+        <rect x="8" y="2" width="4" height="4" rx="0.75"></rect>
+        <rect x="14" y="2" width="4" height="4" rx="0.75"></rect>
+        <rect x="2" y="8" width="4" height="4" rx="0.75"></rect>
+        <rect x="8" y="8" width="4" height="4" rx="0.75"></rect>
+        <rect x="14" y="8" width="4" height="4" rx="0.75"></rect>
+        <rect x="2" y="14" width="4" height="4" rx="0.75"></rect>
+        <rect x="8" y="14" width="4" height="4" rx="0.75"></rect>
+        <rect x="14" y="14" width="4" height="4" rx="0.75"></rect>
+      </svg>
+    </button>
+  </div>
 </div>
 {{if .Groups}}
   {{range .Groups}}
@@ -30,6 +56,7 @@
         <h3 class="text-lg font-semibold text-gray-100 m-0">{{if .Name}}{{.Name}}{{else}}Ungrouped{{end}}</h3>
       </div>
       {{if .Monitors}}
+      <div data-status-view="table">
       <!-- Desktop Table View -->
       <div class="hidden md:block overflow-x-auto">
         <table class="status-table w-full table-fixed" data-group="{{.Name}}">
@@ -195,6 +222,95 @@
         </div>
         {{end}}
       </div>
+      </div>
+
+      <!-- Cards View -->
+      <div data-status-view="cards" class="hidden p-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {{range .Monitors}}
+          <div class="monitor-row {{statusClass .Status}} rounded-lg border border-gray-700/50 bg-gray-800/30 p-4 transition-colors hover:bg-gray-800/50" data-id="{{.ID}}" data-type="{{.Type}}" data-chart-disabled="true">
+            <div class="mb-3 border-b border-gray-700/50 pb-3">
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Monitor</div>
+              <div class="font-medium text-gray-200 truncate" title="{{.Name}}">{{.Name}}</div>
+              <div class="text-sm text-gray-500 truncate" title="{{.Target}}">
+                <span class="text-xs text-gray-500 uppercase tracking-wide" title="Monitor type">
+                  {{if eq .Type "http"}}HTTP{{else if eq .Type "https"}}HTTPS{{else if eq .Type "icmp"}}ICMP{{else if eq .Type "docker"}}Docker{{else}}{{.Type}}{{end}}
+                </span>
+                <span class="mx-1">-</span>
+                {{if or (eq .Type "http") (eq .Type "https")}}
+                  <a href="{{.Target}}" target="_blank" rel="noopener noreferrer" class="hover:text-blue-400 hover:underline">{{.Target}}</a>
+                {{else}}
+                  {{.Target}}
+                {{end}}
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Status</div>
+              {{if not .Enabled}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">Disabled</span>
+              {{else}}
+                {{if .ParentDown}}
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-tip="Parent monitor is down">Parent down</span>
+                {{else}}
+                  {{if eq .Status "up"}}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700/50" data-field="status">{{.Status}}</span>
+                  {{else if eq .Status "down"}}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/50 text-red-300 border border-red-700/50" data-field="status">{{.Status}}</span>
+                  {{else}}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700/50 text-gray-300 border border-gray-600/50" data-field="status">{{.Status}}</span>
+                  {{end}}
+                {{end}}
+              {{end}}
+            </div>
+            <div class="mb-3">
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Last Checked</div>
+              <span class="text-sm text-gray-400" data-field="last-checked-rel">{{formatRelative .LastChecked}}</span>
+            </div>
+            <div class="mb-3">
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">History</div>
+              <div class="history flex gap-0.5 overflow-hidden" data-field="history">
+                {{range .History}}
+                  {{if .Success}}
+                    <span class="up w-2 h-5 shrink-0 bg-green-500 rounded-sm" data-tip="{{formatTime .Timestamp}} · OK"></span>
+                  {{else}}
+                    <span class="down w-2 h-5 shrink-0 bg-red-500 rounded-sm" data-tip="{{formatTime .Timestamp}} · {{.Message}}"></span>
+                  {{end}}
+                {{end}}
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Uptime</div>
+              <span class="text-sm text-gray-300" data-field="uptime">{{printf "%.1f" .SuccessRate}}%</span>
+            </div>
+          </div>
+          {{end}}
+        </div>
+      </div>
+
+      <!-- Grid View -->
+      <div data-status-view="grid" class="hidden p-4">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {{range .Monitors}}
+          <div class="monitor-row {{statusClass .Status}} rounded-lg border border-gray-700/50 bg-gray-800/30 p-4 transition-colors hover:bg-gray-800/50" data-id="{{.ID}}" data-type="{{.Type}}" data-chart-disabled="true">
+            <div class="mb-3 min-w-0">
+              <div class="font-medium text-gray-200 truncate" title="{{.Name}}">{{.Name}}</div>
+              <div class="mt-1 text-xs text-gray-500 uppercase tracking-wide" title="Monitor type">
+                {{if eq .Type "http"}}HTTP{{else if eq .Type "https"}}HTTPS{{else if eq .Type "icmp"}}ICMP{{else if eq .Type "docker"}}Docker{{else}}{{.Type}}{{end}}
+              </div>
+            </div>
+            <div class="history flex gap-0.5 overflow-hidden" data-field="history" aria-label="History">
+              {{range .History}}
+                {{if .Success}}
+                  <span class="up w-2 h-5 shrink-0 bg-green-500 rounded-sm" data-tip="{{formatTime .Timestamp}} · OK"></span>
+                {{else}}
+                  <span class="down w-2 h-5 shrink-0 bg-red-500 rounded-sm" data-tip="{{formatTime .Timestamp}} · {{.Message}}"></span>
+                {{end}}
+              {{end}}
+            </div>
+          </div>
+          {{end}}
+        </div>
+      </div>
       {{else}}
         <p class="text-gray-400 text-center py-8">No monitors in this group.</p>
       {{end}}
@@ -239,6 +355,46 @@
   document.addEventListener('mouseout', function(ev){
     if(currentTarget && !ev.relatedTarget){ currentTarget = null; hideTip(); return; }
     if(currentTarget && !ev.relatedTarget?.closest('[data-tip]')){ currentTarget = null; hideTip(); }
+  });
+})();
+</script>
+<script>
+(function(){
+  const KEY = 'upturtle_status_view';
+  const validViews = ['table', 'cards', 'grid'];
+  const desktopQuery = window.matchMedia('(min-width: 768px)');
+  function getStoredView(){
+    const stored = localStorage.getItem(KEY);
+    return validViews.indexOf(stored) !== -1 ? stored : 'table';
+  }
+  function getEffectiveView(){
+    const view = getStoredView();
+    return !desktopQuery.matches && view === 'table' ? 'cards' : view;
+  }
+  function setActiveButton(view){
+    document.querySelectorAll('[data-status-view-button]').forEach(function(button){
+      const isActive = button.getAttribute('data-status-view-button') === view;
+      button.classList.toggle('bg-blue-600', isActive);
+      button.classList.toggle('text-white', isActive);
+      button.classList.toggle('text-gray-300', !isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+  function applyView(view, persist){
+    document.querySelectorAll('[data-status-view]').forEach(function(section){
+      section.classList.toggle('hidden', section.getAttribute('data-status-view') !== view);
+    });
+    setActiveButton(view);
+    if (persist) localStorage.setItem(KEY, view);
+  }
+  document.querySelectorAll('[data-status-view-button]').forEach(function(button){
+    button.addEventListener('click', function(){
+      applyView(button.getAttribute('data-status-view-button'), true);
+    });
+  });
+  applyView(getEffectiveView(), false);
+  desktopQuery.addEventListener('change', function(){
+    applyView(getEffectiveView(), false);
   });
 })();
 </script>
@@ -512,6 +668,7 @@
   document.addEventListener('click', function(ev){
     const monitorRow = ev.target.closest('.monitor-row');
     if(!monitorRow) return;
+    if(monitorRow.getAttribute('data-chart-disabled') === 'true') return;
 
     const monitorId = monitorRow.getAttribute('data-id');
     const monitorType = monitorRow.getAttribute('data-type');
