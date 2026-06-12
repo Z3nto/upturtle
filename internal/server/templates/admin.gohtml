@@ -186,6 +186,18 @@
             <option value="ignore">Ignore</option>
           </select>
         </div>
+        <div id="new-accepted-status-codes-div" class="flex flex-col" style="display: none;">
+          <label for="new-accepted-status-codes" class="flex items-center gap-1.5">
+            <span>Accepted status codes</span>
+            <span class="group relative inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-semibold leading-none text-slate-500 dark:border-gray-500 dark:text-gray-400" tabindex="0" aria-label="Accepted status code help">
+              i
+              <span class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs font-normal leading-snug text-slate-700 shadow-lg group-hover:block group-focus:block dark:border-dark-border dark:bg-gray-900 dark:text-gray-200">
+                Comma-separated status code patterns that count as up. Use x as a wildcard, for example 2xx, 200, 20x, or 2xx,3xx.
+              </span>
+            </span>
+          </label>
+          <input id="new-accepted-status-codes" name="accepted_status_codes" type="text" value="2xx" placeholder="2xx">
+        </div>
         <div class="flex flex-col">
           <label for="new-interval">Interval (seconds)</label>
           <input id="new-interval" name="interval_seconds" type="number" min="5" value="60">
@@ -281,6 +293,18 @@
             <option value="expiry_only">Expiry only</option>
             <option value="ignore">Ignore</option>
           </select>
+        </div>
+        <div class="flex flex-col">
+          <label class="flex items-center gap-1.5">
+            <span>Accepted status codes</span>
+            <span class="group relative inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-semibold leading-none text-slate-500 dark:border-gray-500 dark:text-gray-400" tabindex="0" aria-label="Accepted status code help">
+              i
+              <span class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs font-normal leading-snug text-slate-700 shadow-lg group-hover:block group-focus:block dark:border-dark-border dark:bg-gray-900 dark:text-gray-200">
+                Comma-separated status code patterns that count as up. Use x as a wildcard, for example 2xx, 200, 20x, or 2xx,3xx.
+              </span>
+            </span>
+          </label>
+          <input name="accepted_status_codes" type="text" value="2xx" placeholder="2xx">
         </div>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 [&>div]:flex [&>div]:flex-col">
@@ -648,17 +672,20 @@
   // For new monitor form
   const newTypeSelect = document.getElementById('new-type');
   const newCertDiv = document.getElementById('new-cert-validation-div');
+  const newAcceptedStatusCodesDiv = document.getElementById('new-accepted-status-codes-div');
   const newTargetInput = document.getElementById('new-target');
   const newTargetDockerSelect = document.getElementById('new-target-docker');
   if (newTypeSelect && newCertDiv) {
     newTypeSelect.addEventListener('change', function() {
       toggleCertValidation(newTypeSelect, newCertDiv);
+      toggleCertValidation(newTypeSelect, newAcceptedStatusCodesDiv);
       if (newTargetInput) {
         toggleTargetValidation(newTypeSelect, newTargetInput, newTargetDockerSelect);
       }
     });
     // Set initial state
     toggleCertValidation(newTypeSelect, newCertDiv);
+    toggleCertValidation(newTypeSelect, newAcceptedStatusCodesDiv);
     if (newTargetInput) {
       toggleTargetValidation(newTypeSelect, newTargetInput, newTargetDockerSelect);
     }
@@ -759,6 +786,7 @@
       form.querySelector('select[name="type"]').value = monitor.type || 'icmp';
       form.querySelector('input[name="target"]').value = monitor.target || '';
       form.querySelector('select[name="cert_validation"]').value = monitor.cert_validation || 'full';
+      form.querySelector('input[name="accepted_status_codes"]').value = monitor.accepted_status_codes || '2xx';
       form.querySelector('select[name="group_id"]').value = monitor.group_id || '0';
       form.querySelector('input[name="order"]').value = monitor.order || 1;
       form.querySelector('input[name="interval_seconds"]').value = monitor.interval_seconds || 60;
@@ -954,7 +982,8 @@
       notification_ids: Array.from(fmNew.querySelector('select[name="notification_ids"]').selectedOptions).map(function(o){ return parseInt(o.value,10); }),
       fail_threshold: parseInt(fd.get('fail_threshold')||'3',10) || 3,
       enabled: !!fd.get('enabled'),
-      cert_validation: fd.get('cert_validation')||'full'
+      cert_validation: fd.get('cert_validation')||'full',
+      accepted_status_codes: fd.get('accepted_status_codes')||'2xx'
     };
     const res = await api('/api/monitors/', { method:'POST', body: JSON.stringify(payload) });
     if(!res.ok) throw new Error('create monitor failed');
@@ -988,7 +1017,8 @@
       order: parseInt(fd.get('order')||'1',10) || 1,
       parent_id: fd.get('parent_id')||'',
       fail_threshold: parseInt(fd.get('fail_threshold')||'3',10),
-      cert_validation: fd.get('cert_validation')||'full'
+      cert_validation: fd.get('cert_validation')||'full',
+      accepted_status_codes: fd.get('accepted_status_codes')||'2xx'
     };
     const res = await api('/api/monitors/'+encodeURIComponent(id), { method:'PUT', body: JSON.stringify(payload) });
     if(!res.ok) throw new Error('update failed');

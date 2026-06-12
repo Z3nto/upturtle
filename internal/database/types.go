@@ -42,21 +42,22 @@ type HistoryData struct {
 
 // MonitorData represents a monitor record in the database
 type MonitorData struct {
-	ID             string    `json:"id"`
-	Name           string    `json:"name"`
-	Type           string    `json:"type"`
-	Target         string    `json:"target"`
-	IntervalSec    int       `json:"interval_seconds"`
-	TimeoutSec     int       `json:"timeout_seconds"`
-	NotificationID int       `json:"notification_id"`
-	Enabled        bool      `json:"enabled"`
-	GroupID        int       `json:"group_id"`
-	Order          int       `json:"order"`
-	ParentID       string    `json:"parent_id"`
-	FailThreshold  int       `json:"fail_threshold"`
-	CertValidation string    `json:"cert_validation"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                  string    `json:"id"`
+	Name                string    `json:"name"`
+	Type                string    `json:"type"`
+	Target              string    `json:"target"`
+	IntervalSec         int       `json:"interval_seconds"`
+	TimeoutSec          int       `json:"timeout_seconds"`
+	NotificationID      int       `json:"notification_id"`
+	Enabled             bool      `json:"enabled"`
+	GroupID             int       `json:"group_id"`
+	Order               int       `json:"order"`
+	ParentID            string    `json:"parent_id"`
+	FailThreshold       int       `json:"fail_threshold"`
+	CertValidation      string    `json:"cert_validation"`
+	AcceptedStatusCodes string    `json:"accepted_status_codes"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 // GroupType represents the type of group

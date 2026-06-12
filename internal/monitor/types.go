@@ -44,23 +44,23 @@ const (
 
 // MonitorConfig describes the configuration for a monitor.
 type MonitorConfig struct {
-	ID             string        `json:"id"`
-	Name           string        `json:"name"`
-	Type           Type          `json:"type"`
-	Target         string        `json:"target"`
-	Interval       time.Duration `json:"interval"`
-	Timeout        time.Duration `json:"timeout"`
+	ID              string        `json:"id"`
+	Name            string        `json:"name"`
+	Type            Type          `json:"type"`
+	Target          string        `json:"target"`
+	Interval        time.Duration `json:"interval"`
+	Timeout         time.Duration `json:"timeout"`
 	NotifyURL       string        `json:"notify_url"`
 	NotifyURLs      []string      `json:"notify_urls,omitempty"`
 	NotificationID  int           `json:"notification_id,omitempty"`
 	NotificationIDs []int         `json:"notification_ids,omitempty"`
-	Enabled        bool          `json:"enabled"`
+	Enabled         bool          `json:"enabled"`
 	// GroupID is a stable identifier for the group (persisted)
-	GroupID int    `json:"group_id,omitempty"`
+	GroupID int `json:"group_id,omitempty"`
 	// Group defines a logical grouping by human-readable name for UI rendering
-	Group  string `json:"group"`
+	Group string `json:"group"`
 	// Order specifies the order within its group (ascending)
-	Order  int `json:"order"`
+	Order int `json:"order"`
 	// ParentID, when set, references another monitor that acts as a parent.
 	// If the parent monitor is down, this monitor continues to run checks but
 	// is labeled as "Parent down" and does not send notifications.
@@ -71,7 +71,8 @@ type MonitorConfig struct {
 	FailThreshold int `json:"fail_threshold"`
 	// CertValidation specifies the certificate validation mode for HTTPS monitors.
 	// Only applies to HTTP monitors with HTTPS targets.
-	CertValidation CertValidationMode `json:"cert_validation,omitempty"`
+	CertValidation      CertValidationMode `json:"cert_validation,omitempty"`
+	AcceptedStatusCodes string             `json:"accepted_status_codes,omitempty"`
 }
 
 // CheckResult captures the outcome of a monitor check.
@@ -105,18 +106,18 @@ func validateDockerTarget(target string) error {
 	if target == "" {
 		return errors.New("target is required")
 	}
-	
+
 	// Docker container names/IDs can contain alphanumeric, underscore, period, hyphen
 	// Container names must start with alphanumeric
 	validPattern := `^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`
 	if matched, _ := regexp.MatchString(validPattern, target); !matched {
 		return errors.New("docker target contains invalid characters - only alphanumeric, underscore, period, and hyphen allowed")
 	}
-	
+
 	if len(target) > 255 {
 		return errors.New("docker target too long - maximum 255 characters")
 	}
-	
+
 	return nil
 }
 
@@ -126,22 +127,22 @@ func validateICMPTarget(target string) error {
 	if target == "" {
 		return errors.New("target is required")
 	}
-	
-	// Nur alphanumerische Zeichen, Punkte, Bindestriche und Doppelpunkte (für IPv6) erlauben
-	// Keine Leerzeichen, Semikolons, Pipes oder andere Shell-Metazeichen
+
+	// Allow only alphanumeric characters, dots, hyphens, and colons for IPv6.
+	// Reject spaces, semicolons, pipes, and other shell metacharacters.
 	validPattern := `^[a-zA-Z0-9.-:]+$`
 	if matched, _ := regexp.MatchString(validPattern, target); !matched {
 		return errors.New("icmp target contains invalid characters - only alphanumeric, dots, hyphens and colons allowed")
 	}
-	
-	// Zusätzliche Längen-Validierung
+
+	// Additional length validation.
 	if len(target) > 253 {
 		return errors.New("icmp target too long - maximum 253 characters")
 	}
-	
-	// Prüfe auf gefährliche Sequenzen
+
+	// Check for dangerous sequences.
 	dangerousPatterns := []string{
-		";", "|", "&", "$", "`", "$(", "||", "&&", 
+		";", "|", "&", "$", "`", "$(", "||", "&&",
 		">>", "<<", ">", "<", "\\", "'", "\"",
 	}
 	for _, pattern := range dangerousPatterns {
@@ -149,7 +150,41 @@ func validateICMPTarget(target string) error {
 			return fmt.Errorf("icmp target contains dangerous sequence: %s", pattern)
 		}
 	}
-	
+
+	return nil
+}
+
+func normalizeAcceptedStatusCodes(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "2xx"
+	}
+
+	parts := strings.Split(value, ",")
+	normalized := make([]string, 0, len(parts))
+	for _, part := range parts {
+		token := strings.ToLower(strings.TrimSpace(part))
+		if token != "" {
+			normalized = append(normalized, token)
+		}
+	}
+	if len(normalized) == 0 {
+		return "2xx"
+	}
+	return strings.Join(normalized, ",")
+}
+
+func validateAcceptedStatusCodes(value string) error {
+	for _, token := range strings.Split(normalizeAcceptedStatusCodes(value), ",") {
+		if len(token) != 3 {
+			return fmt.Errorf("invalid accepted status code pattern: %s", token)
+		}
+		for _, char := range token {
+			if char != 'x' && (char < '0' || char > '9') {
+				return fmt.Errorf("invalid accepted status code pattern: %s", token)
+			}
+		}
+	}
 	return nil
 }
 
@@ -172,6 +207,10 @@ func (c *MonitorConfig) Validate() error {
 		}
 		if parsed.Host == "" {
 			return errors.New("http monitor requires a host")
+		}
+		c.AcceptedStatusCodes = normalizeAcceptedStatusCodes(c.AcceptedStatusCodes)
+		if err := validateAcceptedStatusCodes(c.AcceptedStatusCodes); err != nil {
+			return err
 		}
 	case TypeICMP:
 		if err := validateICMPTarget(c.Target); err != nil {

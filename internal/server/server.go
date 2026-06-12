@@ -142,21 +142,22 @@ type APISnapshot struct {
 
 // APIMonitorConfig represents monitor configuration for API responses with converted time units
 type APIMonitorConfig struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	Target          string `json:"target"`
-	IntervalSeconds int    `json:"interval_seconds"` // converted from nanoseconds
-	TimeoutSeconds  int    `json:"timeout_seconds"`  // converted from nanoseconds
-	Enabled         bool   `json:"enabled"`
-	Group           string `json:"group"`
-	GroupID         int    `json:"group_id"`
-	Order           int    `json:"order"`
-	ParentID        string `json:"parent_id"`
-	NotificationID  int    `json:"notification_id"`
-	NotificationIDs []int  `json:"notification_ids"`
-	FailThreshold   int    `json:"fail_threshold"`
-	CertValidation  string `json:"cert_validation"`
+	ID                  string `json:"id"`
+	Name                string `json:"name"`
+	Type                string `json:"type"`
+	Target              string `json:"target"`
+	IntervalSeconds     int    `json:"interval_seconds"` // converted from nanoseconds
+	TimeoutSeconds      int    `json:"timeout_seconds"`  // converted from nanoseconds
+	Enabled             bool   `json:"enabled"`
+	Group               string `json:"group"`
+	GroupID             int    `json:"group_id"`
+	Order               int    `json:"order"`
+	ParentID            string `json:"parent_id"`
+	NotificationID      int    `json:"notification_id"`
+	NotificationIDs     []int  `json:"notification_ids"`
+	FailThreshold       int    `json:"fail_threshold"`
+	CertValidation      string `json:"cert_validation"`
+	AcceptedStatusCodes string `json:"accepted_status_codes"`
 }
 
 // APICheckResult represents a check result for API responses with converted time units
@@ -181,21 +182,22 @@ func convertCheckResultToAPI(result monitor.CheckResult) APICheckResult {
 func convertSnapshotToAPI(snap monitor.Snapshot) APISnapshot {
 	return APISnapshot{
 		Config: APIMonitorConfig{
-			ID:              snap.Config.ID,
-			Name:            snap.Config.Name,
-			Type:            string(snap.Config.Type),
-			Target:          snap.Config.Target,
-			IntervalSeconds: int(snap.Config.Interval.Seconds()),
-			TimeoutSeconds:  int(snap.Config.Timeout.Seconds()),
-			Enabled:         snap.Config.Enabled,
-			Group:           snap.Config.Group,
-			GroupID:         snap.Config.GroupID,
-			Order:           snap.Config.Order,
-			ParentID:        snap.Config.ParentID,
-			NotificationID:  snap.Config.NotificationID,
-			NotificationIDs: snap.Config.NotificationIDs,
-			FailThreshold:   snap.Config.FailThreshold,
-			CertValidation:  string(snap.Config.CertValidation),
+			ID:                  snap.Config.ID,
+			Name:                snap.Config.Name,
+			Type:                string(snap.Config.Type),
+			Target:              snap.Config.Target,
+			IntervalSeconds:     int(snap.Config.Interval.Seconds()),
+			TimeoutSeconds:      int(snap.Config.Timeout.Seconds()),
+			Enabled:             snap.Config.Enabled,
+			Group:               snap.Config.Group,
+			GroupID:             snap.Config.GroupID,
+			Order:               snap.Config.Order,
+			ParentID:            snap.Config.ParentID,
+			NotificationID:      snap.Config.NotificationID,
+			NotificationIDs:     snap.Config.NotificationIDs,
+			FailThreshold:       snap.Config.FailThreshold,
+			CertValidation:      string(snap.Config.CertValidation),
+			AcceptedStatusCodes: snap.Config.AcceptedStatusCodes,
 		},
 		Status:      string(snap.Status),
 		LastChecked: snap.LastChecked,
@@ -2000,20 +2002,21 @@ func (s *Server) buildStatusData(r *http.Request) StatusPageData {
 }
 
 type monitorRequest struct {
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	Target          string `json:"target"`
-	Interval        int    `json:"interval_seconds"`
-	Timeout         int    `json:"timeout_seconds"`
-	NotificationID  int    `json:"notification_id"`
-	NotificationIDs []int  `json:"notification_ids"`
-	Enabled         *bool  `json:"enabled"`
-	GroupID         int    `json:"group_id"`
-	Group           string `json:"group"`
-	Order           int    `json:"order"`
-	ParentID        string `json:"parent_id"`
-	FailThreshold   int    `json:"fail_threshold"`
-	CertValidation  string `json:"cert_validation"`
+	Name                string `json:"name"`
+	Type                string `json:"type"`
+	Target              string `json:"target"`
+	Interval            int    `json:"interval_seconds"`
+	Timeout             int    `json:"timeout_seconds"`
+	NotificationID      int    `json:"notification_id"`
+	NotificationIDs     []int  `json:"notification_ids"`
+	Enabled             *bool  `json:"enabled"`
+	GroupID             int    `json:"group_id"`
+	Group               string `json:"group"`
+	Order               int    `json:"order"`
+	ParentID            string `json:"parent_id"`
+	FailThreshold       int    `json:"fail_threshold"`
+	CertValidation      string `json:"cert_validation"`
+	AcceptedStatusCodes string `json:"accepted_status_codes"`
 }
 
 func (m monitorRequest) toConfig(id string) (monitor.MonitorConfig, error) {
@@ -2026,16 +2029,17 @@ func (m monitorRequest) toConfig(id string) (monitor.MonitorConfig, error) {
 		nids = []int{m.NotificationID}
 	}
 	cfg := monitor.MonitorConfig{
-		ID:              id,
-		Name:            strings.TrimSpace(m.Name),
-		Type:            monitorType,
-		Target:          target,
-		NotificationID:  m.NotificationID,
-		NotificationIDs: nids,
-		Enabled:         true,
-		GroupID:         m.GroupID,
-		Group:           strings.TrimSpace(m.Group),
-		Order:           m.Order,
+		ID:                  id,
+		Name:                strings.TrimSpace(m.Name),
+		Type:                monitorType,
+		Target:              target,
+		NotificationID:      m.NotificationID,
+		NotificationIDs:     nids,
+		Enabled:             true,
+		GroupID:             m.GroupID,
+		Group:               strings.TrimSpace(m.Group),
+		Order:               m.Order,
+		AcceptedStatusCodes: strings.TrimSpace(m.AcceptedStatusCodes),
 	}
 	if cfg.Type == "" {
 		cfg.Type = monitor.TypeHTTP
@@ -2162,13 +2166,14 @@ type StatusMonitorView struct {
 // AdminMonitorView extends StatusMonitorView with configuration options.
 type AdminMonitorView struct {
 	StatusMonitorView
-	IntervalSeconds int
-	TimeoutSeconds  int
-	NotifyURL       string
-	FailThreshold   int
-	NotificationID  int
-	NotificationIDs []int
-	CertValidation  string
+	IntervalSeconds     int
+	TimeoutSeconds      int
+	NotifyURL           string
+	FailThreshold       int
+	NotificationID      int
+	NotificationIDs     []int
+	CertValidation      string
+	AcceptedStatusCodes string
 }
 
 // PublicMonitorView and PublicGroupView types have been moved to api.go
@@ -2233,14 +2238,15 @@ func toStatusMonitorView(snap monitor.Snapshot) StatusMonitorView {
 func toAdminMonitorView(snap monitor.Snapshot) AdminMonitorView {
 	view := toStatusMonitorView(snap)
 	return AdminMonitorView{
-		StatusMonitorView: view,
-		IntervalSeconds:   int(snap.Config.Interval / time.Second),
-		TimeoutSeconds:    int(snap.Config.Timeout / time.Second),
-		NotifyURL:         snap.Config.NotifyURL,
-		FailThreshold:     snap.Config.FailThreshold,
-		NotificationID:    snap.Config.NotificationID,
-		NotificationIDs:   snap.Config.NotificationIDs,
-		CertValidation:    string(snap.Config.CertValidation),
+		StatusMonitorView:   view,
+		IntervalSeconds:     int(snap.Config.Interval / time.Second),
+		TimeoutSeconds:      int(snap.Config.Timeout / time.Second),
+		NotifyURL:           snap.Config.NotifyURL,
+		FailThreshold:       snap.Config.FailThreshold,
+		NotificationID:      snap.Config.NotificationID,
+		NotificationIDs:     snap.Config.NotificationIDs,
+		CertValidation:      string(snap.Config.CertValidation),
+		AcceptedStatusCodes: snap.Config.AcceptedStatusCodes,
 	}
 }
 
@@ -2406,19 +2412,20 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			configs := s.manager.GetAllConfigs()
 			for _, mc := range configs {
 				monitorData := database.MonitorData{
-					ID:             mc.ID,
-					Name:           mc.Name,
-					Type:           string(mc.Type),
-					Target:         mc.Target,
-					IntervalSec:    int(mc.Interval / time.Second),
-					TimeoutSec:     int(mc.Timeout / time.Second),
-					NotificationID: mc.NotificationID,
-					Enabled:        mc.Enabled,
-					GroupID:        mc.GroupID,
-					Order:          mc.Order,
-					ParentID:       mc.ParentID,
-					FailThreshold:  mc.FailThreshold,
-					CertValidation: string(mc.CertValidation),
+					ID:                  mc.ID,
+					Name:                mc.Name,
+					Type:                string(mc.Type),
+					Target:              mc.Target,
+					IntervalSec:         int(mc.Interval / time.Second),
+					TimeoutSec:          int(mc.Timeout / time.Second),
+					NotificationID:      mc.NotificationID,
+					Enabled:             mc.Enabled,
+					GroupID:             mc.GroupID,
+					Order:               mc.Order,
+					ParentID:            mc.ParentID,
+					FailThreshold:       mc.FailThreshold,
+					CertValidation:      string(mc.CertValidation),
+					AcceptedStatusCodes: mc.AcceptedStatusCodes,
 				}
 				if err := s.configDB.SaveMonitor(monitorData); err != nil {
 					s.logger.Printf("Warning: Failed to save monitor %s to database: %v", mc.Name, err)
@@ -2563,19 +2570,20 @@ func (s *Server) saveConfig() error {
 		configs := s.manager.GetAllConfigs()
 		for _, mc := range configs {
 			monitorData := database.MonitorData{
-				ID:             mc.ID,
-				Name:           mc.Name,
-				Type:           string(mc.Type),
-				Target:         mc.Target,
-				IntervalSec:    int(mc.Interval / time.Second),
-				TimeoutSec:     int(mc.Timeout / time.Second),
-				NotificationID: mc.NotificationID,
-				Enabled:        mc.Enabled,
-				GroupID:        mc.GroupID,
-				Order:          mc.Order,
-				ParentID:       mc.ParentID,
-				FailThreshold:  mc.FailThreshold,
-				CertValidation: string(mc.CertValidation),
+				ID:                  mc.ID,
+				Name:                mc.Name,
+				Type:                string(mc.Type),
+				Target:              mc.Target,
+				IntervalSec:         int(mc.Interval / time.Second),
+				TimeoutSec:          int(mc.Timeout / time.Second),
+				NotificationID:      mc.NotificationID,
+				Enabled:             mc.Enabled,
+				GroupID:             mc.GroupID,
+				Order:               mc.Order,
+				ParentID:            mc.ParentID,
+				FailThreshold:       mc.FailThreshold,
+				CertValidation:      string(mc.CertValidation),
+				AcceptedStatusCodes: mc.AcceptedStatusCodes,
 			}
 			if err := s.configDB.SaveMonitor(monitorData); err != nil {
 				s.logger.Printf("Warning: Failed to save monitor %s to database: %v", mc.Name, err)

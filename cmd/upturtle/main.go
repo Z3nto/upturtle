@@ -130,19 +130,20 @@ func main() {
 					persisted.Monitors = make([]config.PersistedMonitorConfig, len(dbMonitors))
 					for i, dbMonitor := range dbMonitors {
 						persisted.Monitors[i] = config.PersistedMonitorConfig{
-							ID:             dbMonitor.ID,
-							Name:           dbMonitor.Name,
-							Type:           monitor.Type(dbMonitor.Type),
-							Target:         dbMonitor.Target,
-							IntervalSec:    dbMonitor.IntervalSec,
-							TimeoutSec:     dbMonitor.TimeoutSec,
-							NotificationID: dbMonitor.NotificationID,
-							Enabled:        dbMonitor.Enabled,
-							GroupID:        dbMonitor.GroupID,
-							Order:          dbMonitor.Order,
-							ParentID:       dbMonitor.ParentID,
-							FailThreshold:  dbMonitor.FailThreshold,
-							CertValidation: monitor.CertValidationMode(dbMonitor.CertValidation),
+							ID:                  dbMonitor.ID,
+							Name:                dbMonitor.Name,
+							Type:                monitor.Type(dbMonitor.Type),
+							Target:              dbMonitor.Target,
+							IntervalSec:         dbMonitor.IntervalSec,
+							TimeoutSec:          dbMonitor.TimeoutSec,
+							NotificationID:      dbMonitor.NotificationID,
+							Enabled:             dbMonitor.Enabled,
+							GroupID:             dbMonitor.GroupID,
+							Order:               dbMonitor.Order,
+							ParentID:            dbMonitor.ParentID,
+							FailThreshold:       dbMonitor.FailThreshold,
+							CertValidation:      monitor.CertValidationMode(dbMonitor.CertValidation),
+							AcceptedStatusCodes: dbMonitor.AcceptedStatusCodes,
 						}
 					}
 					log.Printf("Loaded %d monitors from database", len(dbMonitors))

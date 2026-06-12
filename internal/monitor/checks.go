@@ -14,6 +14,26 @@ import (
 	"regexp"
 )
 
+func statusCodeAccepted(statusCode int, acceptedStatusCodes string) bool {
+	code := fmt.Sprintf("%03d", statusCode)
+	for _, token := range strings.Split(normalizeAcceptedStatusCodes(acceptedStatusCodes), ",") {
+		if len(token) != 3 {
+			continue
+		}
+		matches := true
+		for i := 0; i < 3; i++ {
+			if token[i] != 'x' && token[i] != code[i] {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return true
+		}
+	}
+	return false
+}
+
 func checkHTTP(cfg MonitorConfig) CheckResult {
 	result := CheckResult{Timestamp: time.Now()}
 
@@ -94,7 +114,7 @@ func checkHTTP(cfg MonitorConfig) CheckResult {
 	}
 	// Note: For CertValidationIgnore, no certificate checks are performed at all
 
-	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+	if statusCodeAccepted(resp.StatusCode, cfg.AcceptedStatusCodes) {
 		result.Success = true
 		if result.Message == "" {
 			result.Message = resp.Status

@@ -79,20 +79,21 @@ type NotificationConfig struct {
 
 // PersistedMonitorConfig mirrors monitor.MonitorConfig but uses seconds for durations.
 type PersistedMonitorConfig struct {
-	ID              string                     `json:"id"`
-	Name            string                     `json:"name"`
-	Type            monitor.Type               `json:"type"`
-	Target          string                     `json:"target"`
-	IntervalSec     int                        `json:"interval_seconds"`
-	TimeoutSec      int                        `json:"timeout_seconds"`
-	NotificationID  int                        `json:"notification_id,omitempty"`
-	NotificationIDs []int                      `json:"notification_ids,omitempty"`
-	Enabled         bool                       `json:"enabled"`
-	GroupID         int                        `json:"group_id,omitempty"`
-	Order           int                        `json:"order,omitempty"`
-	ParentID        string                     `json:"parent_id,omitempty"`
-	FailThreshold   int                        `json:"fail_threshold"`
-	CertValidation  monitor.CertValidationMode `json:"cert_validation,omitempty"`
+	ID                  string                     `json:"id"`
+	Name                string                     `json:"name"`
+	Type                monitor.Type               `json:"type"`
+	Target              string                     `json:"target"`
+	IntervalSec         int                        `json:"interval_seconds"`
+	TimeoutSec          int                        `json:"timeout_seconds"`
+	NotificationID      int                        `json:"notification_id,omitempty"`
+	NotificationIDs     []int                      `json:"notification_ids,omitempty"`
+	Enabled             bool                       `json:"enabled"`
+	GroupID             int                        `json:"group_id,omitempty"`
+	Order               int                        `json:"order,omitempty"`
+	ParentID            string                     `json:"parent_id,omitempty"`
+	FailThreshold       int                        `json:"fail_threshold"`
+	CertValidation      monitor.CertValidationMode `json:"cert_validation,omitempty"`
+	AcceptedStatusCodes string                     `json:"accepted_status_codes,omitempty"`
 }
 
 func FromMonitorConfig(m monitor.MonitorConfig) PersistedMonitorConfig {
@@ -102,20 +103,21 @@ func FromMonitorConfig(m monitor.MonitorConfig) PersistedMonitorConfig {
 		nids = []int{m.NotificationID}
 	}
 	return PersistedMonitorConfig{
-		ID:              m.ID,
-		Name:            m.Name,
-		Type:            m.Type,
-		Target:          m.Target,
-		IntervalSec:     int(m.Interval / time.Second),
-		TimeoutSec:      int(m.Timeout / time.Second),
-		NotificationID:  m.NotificationID,
-		NotificationIDs: nids,
-		Enabled:         m.Enabled,
-		GroupID:         m.GroupID,
-		Order:           m.Order,
-		ParentID:        m.ParentID,
-		FailThreshold:   m.FailThreshold,
-		CertValidation:  m.CertValidation,
+		ID:                  m.ID,
+		Name:                m.Name,
+		Type:                m.Type,
+		Target:              m.Target,
+		IntervalSec:         int(m.Interval / time.Second),
+		TimeoutSec:          int(m.Timeout / time.Second),
+		NotificationID:      m.NotificationID,
+		NotificationIDs:     nids,
+		Enabled:             m.Enabled,
+		GroupID:             m.GroupID,
+		Order:               m.Order,
+		ParentID:            m.ParentID,
+		FailThreshold:       m.FailThreshold,
+		CertValidation:      m.CertValidation,
+		AcceptedStatusCodes: m.AcceptedStatusCodes,
 	}
 }
 
@@ -137,20 +139,21 @@ func (p PersistedMonitorConfig) ToMonitorConfig() monitor.MonitorConfig {
 		nids = []int{p.NotificationID}
 	}
 	return monitor.MonitorConfig{
-		ID:              p.ID,
-		Name:            p.Name,
-		Type:            p.Type,
-		Target:          p.Target,
-		Interval:        interval,
-		Timeout:         timeout,
-		NotificationID:  p.NotificationID,
-		NotificationIDs: nids,
-		Enabled:         p.Enabled,
-		GroupID:         p.GroupID,
-		Order:           p.Order,
-		ParentID:        p.ParentID,
-		FailThreshold:   p.FailThreshold,
-		CertValidation:  p.CertValidation,
+		ID:                  p.ID,
+		Name:                p.Name,
+		Type:                p.Type,
+		Target:              p.Target,
+		Interval:            interval,
+		Timeout:             timeout,
+		NotificationID:      p.NotificationID,
+		NotificationIDs:     nids,
+		Enabled:             p.Enabled,
+		GroupID:             p.GroupID,
+		Order:               p.Order,
+		ParentID:            p.ParentID,
+		FailThreshold:       p.FailThreshold,
+		CertValidation:      p.CertValidation,
+		AcceptedStatusCodes: p.AcceptedStatusCodes,
 	}
 }
 
