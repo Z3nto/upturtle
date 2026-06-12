@@ -150,6 +150,14 @@ func (s *Server) routeMonitorsEndpoint(subPath, method string) (exists bool, han
 		} else {
 			return false, nil, true
 		}
+	} else if strings.HasSuffix(subPath, "/enabled") {
+		// /api/monitors/{id}/enabled
+		exists = true
+		if method == http.MethodPut {
+			handler = s.apiMonitorSetEnabled
+		} else {
+			return false, nil, true
+		}
 	} else {
 		// /api/monitors/{id} - item operations
 		exists = true
@@ -307,6 +315,42 @@ func (s *Server) apiMonitorUpdate(r *http.Request) (interface{}, int, error) {
 
 	if err := s.persistMonitors(); err != nil {
 		s.logger.Printf("persist monitors after api update: %v", err)
+	}
+
+	return monitorCfg, http.StatusOK, nil
+}
+
+// apiMonitorSetEnabled updates only the enabled state for a monitor.
+func (s *Server) apiMonitorSetEnabled(r *http.Request) (interface{}, int, error) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/monitors/")
+	id := strings.TrimSuffix(path, "/enabled")
+	id = strings.TrimSuffix(id, "/")
+	if id == "" {
+		return nil, http.StatusNotFound, http.ErrMissingFile
+	}
+
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+
+	snapshot, err := s.manager.GetSnapshot(id)
+	if err != nil {
+		return nil, http.StatusNotFound, err
+	}
+
+	cfg := snapshot.Config
+	cfg.Enabled = req.Enabled
+
+	monitorCfg, err := s.manager.UpdateMonitor(cfg)
+	if err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+
+	if err := s.persistMonitors(); err != nil {
+		s.logger.Printf("persist monitors after enabled update: %v", err)
 	}
 
 	return monitorCfg, http.StatusOK, nil
